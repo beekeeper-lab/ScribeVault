@@ -14,7 +14,7 @@ load_dotenv()
 @dataclass
 class TranscriptionSettings:
     """Transcription service configuration."""
-    service: str = "openai"  # "openai" or "local"
+    service: str = "local"  # "local" or "openai" - default to local for privacy and cost
     openai_model: str = "whisper-1"
     local_model: str = "base"  # tiny, base, small, medium, large
     device: str = "auto"  # auto, cpu, cuda
@@ -100,6 +100,67 @@ class SettingsManager:
         """Check if OpenAI API key is configured."""
         key = self.get_openai_api_key()
         return key is not None and key.strip() != "" and key != "your-openai-api-key-here"
+        
+    def save_openai_api_key(self, api_key: str):
+        """Save OpenAI API key to .env file.
+        
+        Args:
+            api_key: The OpenAI API key to save
+        """
+        env_file = Path(".env")
+        
+        # Read existing .env content
+        env_content = {}
+        if env_file.exists():
+            with open(env_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        env_content[key.strip()] = value.strip()
+        
+        # Update API key
+        if api_key.strip():
+            env_content['OPENAI_API_KEY'] = api_key.strip()
+        elif 'OPENAI_API_KEY' in env_content:
+            # Remove key if empty
+            del env_content['OPENAI_API_KEY']
+        
+        # Write back to .env file
+        try:
+            with open(env_file, 'w') as f:
+                for key, value in env_content.items():
+                    f.write(f"{key}={value}\n")
+            
+            # Reload environment variables
+            load_dotenv(override=True)
+            print(f"API key {'saved' if api_key.strip() else 'removed'} successfully")
+            
+        except Exception as e:
+            print(f"Error saving API key: {e}")
+            
+    def validate_openai_api_key(self, api_key: str) -> bool:
+        """Validate OpenAI API key format.
+        
+        Args:
+            api_key: The API key to validate
+            
+        Returns:
+            True if the key format is valid
+        """
+        if not api_key or not isinstance(api_key, str):
+            return False
+            
+        api_key = api_key.strip()
+        
+        # Basic format validation
+        if not api_key.startswith("sk-"):
+            return False
+            
+        if len(api_key) < 20:  # OpenAI keys are much longer
+            return False
+            
+        return True
 
 class CostEstimator:
     """Provides cost estimates for different transcription services."""
