@@ -13,6 +13,8 @@ from audio.recorder import AudioRecorder
 from transcription.whisper_service import WhisperService
 from ai.summarizer import SummarizerService
 from vault.manager import VaultManager
+from config.settings import SettingsManager
+from gui.settings_window import SettingsWindow
 
 # Load environment variables
 load_dotenv()
@@ -33,8 +35,9 @@ class ScribeVaultApp:
         self.root.minsize(800, 600)
         
         # Initialize services
+        self.settings_manager = SettingsManager()
         self.audio_recorder = AudioRecorder()
-        self.whisper_service = WhisperService()
+        self.whisper_service = WhisperService(self.settings_manager)
         self.summarizer_service = SummarizerService()
         self.vault_manager = VaultManager()
         
@@ -246,9 +249,24 @@ class ScribeVaultApp:
             summary_label.pack(anchor="w", padx=10, pady=2)
         
     def show_settings(self):
-        """Show the settings view."""
-        self.update_status("Opening settings...")
-        # TODO: Implement settings view
+        """Show the settings window."""
+        settings_window = SettingsWindow(
+            parent=self.root,
+            settings_manager=self.settings_manager,
+            on_settings_changed=self.on_settings_changed
+        )
+        
+    def on_settings_changed(self):
+        """Handle settings changes."""
+        # Reinitialize services with new settings
+        self.whisper_service = WhisperService(self.settings_manager)
+        
+        # Apply theme changes
+        settings = self.settings_manager.settings
+        if hasattr(settings.ui, 'theme'):
+            ctk.set_appearance_mode(settings.ui.theme)
+            
+        self.update_status("Settings updated successfully")
         
     def toggle_recording(self):
         """Toggle audio recording on/off."""
