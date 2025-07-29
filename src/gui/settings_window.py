@@ -607,10 +607,6 @@ class SettingsWindow:
             print("Info: Summarization disabled. Only transcripts will be saved.")
         else:
             print("Info: Summarization enabled. Transcripts will be automatically summarized.")
-        
-        # Auto-switch to local if API key is cleared and OpenAI is selected
-        if not api_key and self.service_var.get() == "openai":
-            self.service_var.set("local")
             
     def _toggle_api_key_visibility(self):
         """Toggle API key visibility between hidden and visible."""
