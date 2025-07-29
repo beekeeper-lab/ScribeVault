@@ -1,6 +1,6 @@
 {
   "transcription": {
-    "service": "openai",
+    "service": "local",
     "openai_model": "whisper-1",
     "local_model": "base",
     "device": "auto",

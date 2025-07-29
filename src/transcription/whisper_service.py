@@ -22,29 +22,58 @@ load_dotenv()
 class WhisperService:
     """Handles audio transcription using OpenAI Whisper (API or local)."""
     
-    def __init__(self, use_local: bool = False, local_model: str = "base", device: str = "auto"):
+    def __init__(self, settings_manager=None, use_local: bool = None, local_model: str = None, device: str = None):
         """Initialize the Whisper service.
         
         Args:
-            use_local: Whether to use local Whisper instead of API
-            local_model: Local model size (tiny, base, small, medium, large)
-            device: Device for local processing (auto, cpu, cuda)
+            settings_manager: Settings manager instance (preferred)
+            use_local: Whether to use local Whisper instead of API (fallback)
+            local_model: Local model size (fallback)
+            device: Device for local processing (fallback)
         """
-        self.use_local = use_local
-        self.local_model_name = local_model
-        self.device = device
+        if settings_manager:
+            # Use settings manager (preferred approach)
+            self.settings_manager = settings_manager
+            settings = settings_manager.settings.transcription
+            
+            # Auto-default to local if OpenAI API key is missing/invalid
+            if settings.service == "openai" and not settings_manager.has_openai_api_key():
+                print("⚠️ OpenAI API key not configured. Defaulting to local transcription.")
+                self.use_local = True
+            else:
+                self.use_local = settings.service == "local"
+                
+            self.local_model_name = settings.local_model
+            self.device = settings.device
+            self.language = settings.language
+        else:
+            # Fallback to direct parameters (backwards compatibility)
+            self.settings_manager = None
+            self.use_local = use_local if use_local is not None else False
+            self.local_model_name = local_model or "base"
+            self.device = device or "auto"
+            self.language = "auto"
+        
         self.local_model = None
         
-        if use_local:
+        if self.use_local:
             if not LOCAL_WHISPER_AVAILABLE:
                 raise ImportError(
                     "Local Whisper not available. Install with: pip install whisper"
                 )
             self._load_local_model()
         else:
-            self.client = openai.OpenAI(
-                api_key=os.getenv("OPENAI_API_KEY")
-            )
+            # Check API key before creating client
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key or api_key.strip() == "":
+                print("⚠️ No OpenAI API key found. Falling back to local transcription.")
+                self.use_local = True
+                if LOCAL_WHISPER_AVAILABLE:
+                    self._load_local_model()
+                else:
+                    raise ValueError("No transcription method available: missing API key and local Whisper not installed")
+            else:
+                self.client = openai.OpenAI(api_key=api_key)
             
     def _load_local_model(self):
         """Load the local Whisper model."""
@@ -69,6 +98,12 @@ class WhisperService:
         Returns:
             Transcribed text or None if transcription failed
         """
+        # Use provided language or fall back to settings
+        if language is None:
+            language = getattr(self, 'language', 'auto')
+            if language == 'auto':
+                language = None
+                
         if self.use_local:
             return self._transcribe_local(audio_path, language)
         else:

@@ -28,9 +28,8 @@ class SettingsWindow:
         self.window.geometry("800x700")
         self.window.resizable(True, True)
         
-        # Make window modal
+        # Make window modal (but don't grab focus yet)
         self.window.transient(parent)
-        self.window.grab_set()
         
         # Center window
         self.window.update_idletasks()
@@ -42,6 +41,9 @@ class SettingsWindow:
         
         # Handle window close
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Now grab focus after everything is set up
+        self.window.after(100, self._set_modal)
         
     def _center_window(self):
         """Center the window on the parent."""
@@ -57,6 +59,15 @@ class SettingsWindow:
         y = parent_y + (parent_height - window_height) // 2
         
         self.window.geometry(f"+{x}+{y}")
+        
+    def _set_modal(self):
+        """Set the window as modal after it's fully visible."""
+        try:
+            self.window.grab_set()
+            self.window.focus_set()
+        except Exception as e:
+            # If grab fails, continue without modal behavior
+            print(f"Warning: Could not set modal window: {e}")
         
     def setup_ui(self):
         """Create the settings UI."""
@@ -101,61 +112,136 @@ class SettingsWindow:
         )
         title_label.grid(row=0, column=0, columnspan=2, padx=20, pady=15)
         
-        # Service selection
-        service_label = ctk.CTkLabel(section_frame, text="Transcription Service:")
-        service_label.grid(row=1, column=0, padx=20, pady=5, sticky="w")
+        # Service selection with explanation
+        service_label = ctk.CTkLabel(
+            section_frame, 
+            text="Transcription Service:",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        service_label.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
         
-        self.service_var = ctk.StringVar(value="openai")
+        # Service explanation
+        explanation_text = (
+            "Choose your transcription method:\n"
+            "• Local Whisper: Free, private, runs on your computer (recommended)\n"
+            "• OpenAI API: Fast, cloud-based, requires API key and costs money"
+        )
+        explanation_label = ctk.CTkLabel(
+            section_frame,
+            text=explanation_text,
+            font=ctk.CTkFont(size=12),
+            justify="left"
+        )
+        explanation_label.grid(row=1, column=1, padx=20, pady=(10, 5), sticky="w")
+        
+        self.service_var = ctk.StringVar(value="local")  # Default to local
         self.service_dropdown = ctk.CTkOptionMenu(
             section_frame,
             variable=self.service_var,
-            values=["openai", "local"],
+            values=["local", "openai"],  # Put local first
             command=self._on_service_changed
         )
-        self.service_dropdown.grid(row=1, column=1, padx=20, pady=5, sticky="ew")
+        self.service_dropdown.grid(row=2, column=0, columnspan=2, padx=20, pady=5, sticky="ew")
         
         # OpenAI settings frame
         self.openai_frame = ctk.CTkFrame(section_frame)
-        self.openai_frame.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        self.openai_frame.grid(row=3, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
         self.openai_frame.grid_columnconfigure(1, weight=1)
         
         openai_title = ctk.CTkLabel(
             self.openai_frame,
-            text="OpenAI API Settings",
+            text="☁️ OpenAI API Settings (Cloud Transcription)",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         openai_title.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
         
+        # Benefits and costs explanation
+        openai_info = ctk.CTkLabel(
+            self.openai_frame,
+            text="Benefits: Very fast processing, excellent accuracy\nCosts: ~$0.006/minute ($0.36/hour) - requires API key",
+            font=ctk.CTkFont(size=11),
+            justify="left"
+        )
+        openai_info.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+        
         # API key status
         api_key_label = ctk.CTkLabel(self.openai_frame, text="API Key Status:")
-        api_key_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        
+        api_key_label.grid(row=2, column=0, padx=10, pady=5, sticky="w")
+
         api_key_status = "✅ Configured" if self.settings_manager.has_openai_api_key() else "❌ Not configured"
         self.api_key_status_label = ctk.CTkLabel(
             self.openai_frame, 
             text=api_key_status,
             text_color="green" if self.settings_manager.has_openai_api_key() else "red"
         )
-        self.api_key_status_label.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        self.api_key_status_label.grid(row=2, column=1, padx=10, pady=5, sticky="w")
+        
+        # API key input
+        api_key_input_label = ctk.CTkLabel(self.openai_frame, text="API Key:")
+        api_key_input_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        
+        # API key input frame (for entry + toggle button)
+        api_key_frame = ctk.CTkFrame(self.openai_frame)
+        api_key_frame.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+        api_key_frame.grid_columnconfigure(0, weight=1)
+        
+        self.api_key_var = ctk.StringVar(value=self.settings_manager.get_openai_api_key() or "")
+        self.api_key_entry = ctk.CTkEntry(
+            api_key_frame,
+            textvariable=self.api_key_var,
+            placeholder_text="Enter your OpenAI API key (sk-...)",
+            show="*",  # Start hidden for security
+            width=300
+        )
+        self.api_key_entry.grid(row=0, column=0, padx=(5, 2), pady=5, sticky="ew")
+        self.api_key_entry.bind("<KeyRelease>", self._on_api_key_changed)
+        
+        # Show/Hide toggle button
+        self.api_key_visible = False
+        self.toggle_button = ctk.CTkButton(
+            api_key_frame,
+            text="👁️",
+            width=30,
+            command=self._toggle_api_key_visibility
+        )
+        self.toggle_button.grid(row=0, column=1, padx=(2, 5), pady=5)
+        
+        # API key help
+        api_help_label = ctk.CTkLabel(
+            self.openai_frame,
+            text="Get your API key from: https://platform.openai.com/api-keys",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        api_help_label.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
         
         # Local Whisper settings frame
         self.local_frame = ctk.CTkFrame(section_frame)
-        self.local_frame.grid(row=3, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        self.local_frame.grid(row=4, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
         self.local_frame.grid_columnconfigure(1, weight=1)
         
         local_title = ctk.CTkLabel(
             self.local_frame,
-            text="Local Whisper Settings",
+            text="🖥️ Local Whisper Settings (Private & Free)",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         local_title.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        
+        # Benefits explanation
+        local_info = ctk.CTkLabel(
+            self.local_frame,
+            text="Benefits: Completely free, private (audio never leaves your computer), works offline\nSpeed: Slower than API but still quite fast on modern computers",
+            font=ctk.CTkFont(size=11),
+            justify="left"
+        )
+        local_info.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
         
         # Check local availability
         self.local_info = check_local_whisper_availability()
         
         # Local availability status
         availability_label = ctk.CTkLabel(self.local_frame, text="Availability:")
-        availability_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        availability_label.grid(row=2, column=0, padx=10, pady=5, sticky="w")
         
         availability_status = "✅ Available" if self.local_info["available"] else "❌ Not installed"
         availability_color = "green" if self.local_info["available"] else "red"
@@ -164,12 +250,12 @@ class SettingsWindow:
             text=availability_status,
             text_color=availability_color
         )
-        self.availability_status_label.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        self.availability_status_label.grid(row=2, column=1, padx=10, pady=5, sticky="w")
         
         if self.local_info["available"]:
             # Model selection
             model_label = ctk.CTkLabel(self.local_frame, text="Model Size:")
-            model_label.grid(row=2, column=0, padx=10, pady=5, sticky="w")
+            model_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
             
             self.local_model_var = ctk.StringVar(value="base")
             self.local_model_dropdown = ctk.CTkOptionMenu(
@@ -177,11 +263,11 @@ class SettingsWindow:
                 variable=self.local_model_var,
                 values=self.local_info["models"]
             )
-            self.local_model_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+            self.local_model_dropdown.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
             
             # Device selection
             device_label = ctk.CTkLabel(self.local_frame, text="Processing Device:")
-            device_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
+            device_label.grid(row=4, column=0, padx=10, pady=5, sticky="w")
             
             device_options = ["auto", "cpu"]
             if self.local_info["device_info"].get("cuda_available", False):
@@ -193,7 +279,7 @@ class SettingsWindow:
                 variable=self.device_var,
                 values=device_options
             )
-            self.device_dropdown.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+            self.device_dropdown.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
             
             # System info
             if "device_info" in self.local_info:
@@ -207,7 +293,7 @@ class SettingsWindow:
                     text=info_text,
                     font=ctk.CTkFont(size=12)
                 )
-                info_label.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
+                info_label.grid(row=5, column=0, columnspan=2, padx=10, pady=5)
         else:
             # Installation instructions
             install_label = ctk.CTkLabel(
@@ -216,11 +302,11 @@ class SettingsWindow:
                 font=ctk.CTkFont(size=12),
                 text_color="orange"
             )
-            install_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+            install_label.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
             
         # Language setting
         language_label = ctk.CTkLabel(section_frame, text="Default Language:")
-        language_label.grid(row=4, column=0, padx=20, pady=5, sticky="w")
+        language_label.grid(row=5, column=0, padx=20, pady=5, sticky="w")
         
         self.language_var = ctk.StringVar(value="auto")
         language_options = ["auto", "en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko"]
@@ -229,7 +315,7 @@ class SettingsWindow:
             variable=self.language_var,
             values=language_options
         )
-        self.language_dropdown.grid(row=4, column=1, padx=20, pady=5, sticky="ew")
+        self.language_dropdown.grid(row=5, column=1, padx=20, pady=5, sticky="ew")
         
     def _create_cost_comparison_section(self):
         """Create cost comparison section."""
@@ -408,15 +494,58 @@ class SettingsWindow:
         
     def _on_service_changed(self, value):
         """Handle transcription service change."""
-        # Could add validation or warnings here
-        pass
+        # Auto-switch to local if OpenAI is selected but no API key
+        if value == "openai" and not self.settings_manager.has_openai_api_key():
+            # Show warning and switch back to local
+            self.service_var.set("local")
+            print("Warning: No OpenAI API key configured. Defaulting to local transcription.")
+            
+    def _on_api_key_changed(self, event=None):
+        """Handle API key input changes."""
+        api_key = self.api_key_var.get().strip()
+        
+        # Update status label
+        if api_key and len(api_key) > 10 and api_key.startswith("sk-"):
+            status_text = "✅ API Key entered"
+            status_color = "green"
+        elif api_key:
+            status_text = "⚠️ Invalid format"
+            status_color = "orange"
+        else:
+            status_text = "❌ Not configured"
+            status_color = "red"
+            
+        self.api_key_status_label.configure(text=status_text, text_color=status_color)
+        
+        # Auto-switch to local if API key is cleared and OpenAI is selected
+        if not api_key and self.service_var.get() == "openai":
+            self.service_var.set("local")
+            
+    def _toggle_api_key_visibility(self):
+        """Toggle API key visibility between hidden and visible."""
+        self.api_key_visible = not self.api_key_visible
+        
+        if self.api_key_visible:
+            # Show the key
+            self.api_key_entry.configure(show="")
+            self.toggle_button.configure(text="🙈")  # Hide icon
+        else:
+            # Hide the key
+            self.api_key_entry.configure(show="*")
+            self.toggle_button.configure(text="👁️")  # Show icon
         
     def load_current_settings(self):
         """Load current settings into the UI."""
         settings = self.settings_manager.settings
         
+        # Auto-default to local if no API key is configured
+        service = settings.transcription.service
+        if service == "openai" and not self.settings_manager.has_openai_api_key():
+            service = "local"
+            print("No OpenAI API key found. Defaulting to local transcription.")
+        
         # Transcription settings
-        self.service_var.set(settings.transcription.service)
+        self.service_var.set(service)
         self.language_var.set(settings.transcription.language)
         
         if hasattr(self, 'local_model_var'):
@@ -427,6 +556,10 @@ class SettingsWindow:
         # UI settings
         self.theme_var.set(settings.ui.theme)
         self.auto_save_var.set(settings.ui.auto_save)
+        
+        # API key
+        if hasattr(self, 'api_key_var'):
+            self.api_key_var.set(self.settings_manager.get_openai_api_key() or "")
         
     def save_settings(self):
         """Save current settings."""
@@ -445,6 +578,11 @@ class SettingsWindow:
         settings.ui.theme = self.theme_var.get()
         settings.ui.auto_save = self.auto_save_var.get()
         
+        # Save API key to .env file
+        if hasattr(self, 'api_key_var'):
+            api_key = self.api_key_var.get().strip()
+            self.settings_manager.save_openai_api_key(api_key)
+        
         # Save to file
         self.settings_manager.save_settings()
         
@@ -458,7 +596,7 @@ class SettingsWindow:
     def reset_to_defaults(self):
         """Reset all settings to defaults."""
         # Reset variables to defaults
-        self.service_var.set("openai")
+        self.service_var.set("local")  # Default to local
         self.language_var.set("auto")
         self.theme_var.set("dark")
         self.auto_save_var.set(True)
@@ -467,6 +605,9 @@ class SettingsWindow:
             self.local_model_var.set("base")
         if hasattr(self, 'device_var'):
             self.device_var.set("auto")
+        if hasattr(self, 'api_key_var'):
+            self.api_key_var.set("")  # Clear API key
+            self._on_api_key_changed()  # Update status
             
     def on_close(self):
         """Handle window close."""
