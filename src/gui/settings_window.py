@@ -6,6 +6,7 @@ import customtkinter as ctk
 from typing import Callable, Optional
 from config.settings import SettingsManager, CostEstimator
 from transcription.whisper_service import check_local_whisper_availability
+from gui.assets import AssetManager
 
 class SettingsWindow:
     """Settings configuration window."""
@@ -21,6 +22,9 @@ class SettingsWindow:
         self.parent = parent
         self.settings_manager = settings_manager
         self.on_settings_changed = on_settings_changed
+        
+        # Initialize asset manager
+        self.asset_manager = AssetManager()
         
         # Create window
         self.window = ctk.CTkToplevel(parent)
@@ -81,16 +85,11 @@ class SettingsWindow:
         self.main_frame.grid_columnconfigure(0, weight=1)
         
         # Configure the main frame to expand properly
-        for i in range(10):  # Allow up to 10 rows to expand
+        for i in range(12):  # Allow up to 12 rows to expand (increased for header)
             self.main_frame.grid_rowconfigure(i, weight=0)
         
-        # Title
-        title_label = ctk.CTkLabel(
-            self.main_frame,
-            text="⚙️ ScribeVault Settings",
-            font=ctk.CTkFont(size=24, weight="bold")
-        )
-        title_label.grid(row=0, column=0, pady=(0, 20))
+        # Create header with logo
+        self._create_header()
         
         # Create sections
         self._create_audio_recording_section()
@@ -101,9 +100,36 @@ class SettingsWindow:
         # Action buttons
         self._create_action_buttons()
         
+    def _create_header(self):
+        """Create the header with logo in upper left."""
+        # Header frame
+        header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        header_frame.grid_columnconfigure(0, weight=1)  # Allow content to expand
+        
+        # Try to load logo image (smaller size for settings)
+        logo_image = self.asset_manager.get_logo(size=(80, 80))  # Smaller logo for settings
+        
+        if logo_image:
+            # Logo on the left
+            logo_label = ctk.CTkLabel(
+                header_frame,
+                image=logo_image,
+                text=""  # No text when image is used
+            )
+            logo_label.grid(row=0, column=0, padx=0, pady=5, sticky="w")
+        else:
+            # Fallback: just the app name if no logo image
+            fallback_label = ctk.CTkLabel(
+                header_frame,
+                text="ScribeVault",
+                font=ctk.CTkFont(size=18, weight="bold")
+            )
+            fallback_label.grid(row=0, column=0, sticky="w")
+        
     def _create_audio_recording_section(self):
         """Create audio recording settings section."""
-        row = 1
+        row = 2  # Updated row number after header
         
         # Section frame
         section_frame = ctk.CTkFrame(self.main_frame)
@@ -171,7 +197,7 @@ class SettingsWindow:
         
     def _create_transcription_section(self):
         """Create transcription settings section."""
-        row = 2
+        row = 3  # Updated row number after header
         
         # Section frame
         section_frame = ctk.CTkFrame(self.main_frame)
@@ -496,7 +522,7 @@ class SettingsWindow:
             
     def _create_ai_summary_section(self):
         """Create AI summary settings section."""
-        row = 3
+        row = 4  # Updated row number after header
         
         # Section frame
         section_frame = ctk.CTkFrame(self.main_frame)
@@ -590,7 +616,7 @@ class SettingsWindow:
             
     def _create_application_section(self):
         """Create application settings section."""
-        row = 4
+        row = 5  # Updated row number after header
         
         section_frame = ctk.CTkFrame(self.main_frame)
         section_frame.grid(row=row, column=0, sticky="ew", pady=10)
