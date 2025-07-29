@@ -25,7 +25,7 @@ class SettingsWindow:
         # Create window
         self.window = ctk.CTkToplevel(parent)
         self.window.title("ScribeVault Settings")
-        self.window.geometry("800x700")
+        self.window.geometry("900x800")  # Increased size
         self.window.resizable(True, True)
         
         # Make window modal (but don't grab focus yet)
@@ -80,6 +80,10 @@ class SettingsWindow:
         self.main_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
         
+        # Configure the main frame to expand properly
+        for i in range(10):  # Allow up to 10 rows to expand
+            self.main_frame.grid_rowconfigure(i, weight=0)
+        
         # Title
         title_label = ctk.CTkLabel(
             self.main_frame,
@@ -89,36 +93,109 @@ class SettingsWindow:
         title_label.grid(row=0, column=0, pady=(0, 20))
         
         # Create sections
+        self._create_audio_recording_section()
         self._create_transcription_section()
-        self._create_cost_comparison_section()
-        self._create_ui_section()
+        self._create_ai_summary_section()
+        self._create_application_section()
         
         # Action buttons
         self._create_action_buttons()
         
-    def _create_transcription_section(self):
-        """Create transcription settings section."""
+    def _create_audio_recording_section(self):
+        """Create audio recording settings section."""
         row = 1
         
-        # Section title
+        # Section frame
         section_frame = ctk.CTkFrame(self.main_frame)
         section_frame.grid(row=row, column=0, sticky="ew", pady=(10, 0))
         section_frame.grid_columnconfigure(1, weight=1)
         
+        # Title
         title_label = ctk.CTkLabel(
             section_frame,
-            text="🎤 Transcription Settings",
+            text="🎤 Audio Recording",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         title_label.grid(row=0, column=0, columnspan=2, padx=20, pady=15)
         
-        # Service selection with explanation
-        service_label = ctk.CTkLabel(
-            section_frame, 
-            text="Transcription Service:",
+        # Audio quality settings
+        quality_frame = ctk.CTkFrame(section_frame)
+        quality_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            quality_frame,
+            text="Audio Quality & Format",
             font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        # Format info
+        format_info = [
+            "• Format: WAV (uncompressed, high quality)",
+            "• Sample Rate: 44.1 kHz",
+            "• Bit Depth: 16-bit",
+            "• Channels: Mono (optimized for speech)"
+        ]
+        
+        for info in format_info:
+            ctk.CTkLabel(
+                quality_frame,
+                text=info,
+                font=ctk.CTkFont(size=12),
+                text_color="gray"
+            ).pack(padx=25, pady=1, anchor="w")
+        
+        # Storage location
+        storage_frame = ctk.CTkFrame(section_frame)
+        storage_frame.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            storage_frame,
+            text="📁 Storage Location",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        storage_info = [
+            "• Recordings: ./recordings/",
+            "• Transcripts & Summaries: ./vault/",
+            "• Automatic file organization by date",
+            "• Files remain accessible after processing"
+        ]
+        
+        for info in storage_info:
+            ctk.CTkLabel(
+                storage_frame,
+                text=info,
+                font=ctk.CTkFont(size=12),
+                text_color="gray"
+            ).pack(padx=25, pady=1, anchor="w")
+        
+    def _create_transcription_section(self):
+        """Create transcription settings section."""
+        row = 2
+        
+        # Section frame
+        section_frame = ctk.CTkFrame(self.main_frame)
+        section_frame.grid(row=row, column=0, sticky="ew", pady=10)
+        section_frame.grid_columnconfigure(1, weight=1)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            section_frame,
+            text="� Transcription",
+            font=ctk.CTkFont(size=18, weight="bold")
         )
-        service_label.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
+        title_label.grid(row=0, column=0, columnspan=2, padx=20, pady=15)
+        
+        # Service selection
+        service_frame = ctk.CTkFrame(section_frame)
+        service_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        service_frame.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(
+            service_frame,
+            text="Service Selection",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, padx=15, pady=(15, 5), sticky="w")
         
         # Service explanation
         explanation_text = (
@@ -127,25 +204,26 @@ class SettingsWindow:
             "• OpenAI API: Fast, cloud-based, requires API key and costs money"
         )
         explanation_label = ctk.CTkLabel(
-            section_frame,
+            service_frame,
             text=explanation_text,
             font=ctk.CTkFont(size=12),
-            justify="left"
+            justify="left",
+            text_color="gray"
         )
-        explanation_label.grid(row=1, column=1, padx=20, pady=(10, 5), sticky="w")
+        explanation_label.grid(row=1, column=0, padx=15, pady=(0, 10), sticky="w")
         
         self.service_var = ctk.StringVar(value="local")  # Default to local
         self.service_dropdown = ctk.CTkOptionMenu(
-            section_frame,
+            service_frame,
             variable=self.service_var,
             values=["local", "openai"],  # Put local first
             command=self._on_service_changed
         )
-        self.service_dropdown.grid(row=2, column=0, columnspan=2, padx=20, pady=5, sticky="ew")
+        self.service_dropdown.grid(row=2, column=0, padx=15, pady=(0, 15), sticky="ew")
         
         # OpenAI settings frame
         self.openai_frame = ctk.CTkFrame(section_frame)
-        self.openai_frame.grid(row=3, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        self.openai_frame.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
         self.openai_frame.grid_columnconfigure(1, weight=1)
         
         openai_title = ctk.CTkLabel(
@@ -217,7 +295,7 @@ class SettingsWindow:
         
         # Local Whisper settings frame
         self.local_frame = ctk.CTkFrame(section_frame)
-        self.local_frame.grid(row=4, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        self.local_frame.grid(row=3, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
         self.local_frame.grid_columnconfigure(1, weight=1)
         
         local_title = ctk.CTkLabel(
@@ -306,7 +384,7 @@ class SettingsWindow:
             
         # Language setting
         language_label = ctk.CTkLabel(section_frame, text="Default Language:")
-        language_label.grid(row=5, column=0, padx=20, pady=5, sticky="w")
+        language_label.grid(row=4, column=0, padx=20, pady=5, sticky="w")
         
         self.language_var = ctk.StringVar(value="auto")
         language_options = ["auto", "en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko"]
@@ -315,41 +393,35 @@ class SettingsWindow:
             variable=self.language_var,
             values=language_options
         )
-        self.language_dropdown.grid(row=5, column=1, padx=20, pady=5, sticky="ew")
+        self.language_dropdown.grid(row=4, column=1, padx=20, pady=5, sticky="ew")
         
-    def _create_cost_comparison_section(self):
-        """Create cost comparison section."""
-        row = 2
+        # Cost comparison within transcription section
+        comparison_frame = ctk.CTkFrame(section_frame)
+        comparison_frame.grid(row=5, column=0, columnspan=2, padx=20, pady=15, sticky="ew")
+        comparison_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        ctk.CTkLabel(
+            comparison_frame,
+            text="💰 Service Cost Comparison",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 10))
         
         # Get comparison data
         comparison = CostEstimator.get_service_comparison()
         
-        # Section frame
-        section_frame = ctk.CTkFrame(self.main_frame)
-        section_frame.grid(row=row, column=0, sticky="ew", pady=10)
-        section_frame.grid_columnconfigure((0, 1), weight=1)
-        
-        # Title
-        title_label = ctk.CTkLabel(
-            section_frame,
-            text="💰 Cost Comparison",
-            font=ctk.CTkFont(size=18, weight="bold")
-        )
-        title_label.grid(row=0, column=0, columnspan=2, padx=20, pady=15)
-        
         # OpenAI column
-        openai_frame = ctk.CTkFrame(section_frame)
-        openai_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        openai_comp_frame = ctk.CTkFrame(comparison_frame)
+        openai_comp_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         
         openai_data = comparison["openai"]
-        self._create_service_comparison_card(openai_frame, openai_data)
+        self._create_service_comparison_card(openai_comp_frame, openai_data)
         
         # Local column
-        local_frame = ctk.CTkFrame(section_frame)
-        local_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+        local_comp_frame = ctk.CTkFrame(comparison_frame)
+        local_comp_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
         
         local_data = comparison["local"]
-        self._create_service_comparison_card(local_frame, local_data)
+        self._create_service_comparison_card(local_comp_frame, local_data)
         
     def _create_service_comparison_card(self, parent, service_data):
         """Create a comparison card for a service."""
@@ -422,9 +494,103 @@ class SettingsWindow:
                 font=ctk.CTkFont(size=11)
             ).pack(anchor="w", padx=5, pady=1)
             
-    def _create_ui_section(self):
-        """Create UI settings section."""
+    def _create_ai_summary_section(self):
+        """Create AI summary settings section."""
         row = 3
+        
+        # Section frame
+        section_frame = ctk.CTkFrame(self.main_frame)
+        section_frame.grid(row=row, column=0, sticky="ew", pady=10)
+        section_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            section_frame,
+            text="🤖 AI Summary",
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=15)
+        
+        # Enable/Disable toggle
+        enable_frame = ctk.CTkFrame(section_frame)
+        enable_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            enable_frame,
+            text="Summary Generation",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        self.summarization_enabled_var = ctk.BooleanVar(value=True)
+        self.summarization_checkbox = ctk.CTkCheckBox(
+            enable_frame,
+            text="Enable automatic summarization after transcription",
+            variable=self.summarization_enabled_var,
+            command=self._on_summarization_setting_changed,
+            font=ctk.CTkFont(size=13)
+        )
+        self.summarization_checkbox.pack(padx=15, pady=(0, 15), anchor="w")
+        
+        # API Configuration
+        api_frame = ctk.CTkFrame(section_frame)
+        api_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            api_frame,
+            text="🔧 AI Configuration",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        api_info = [
+            "• Uses OpenAI GPT-3.5-turbo for intelligent summarization",
+            "• Requires same API key as OpenAI transcription service",
+            "• Automatically configured when transcription API key is set"
+        ]
+        
+        for info in api_info:
+            ctk.CTkLabel(
+                api_frame,
+                text=info,
+                font=ctk.CTkFont(size=12),
+                text_color="gray"
+            ).pack(padx=25, pady=1, anchor="w")
+        
+        # Cost Information
+        cost_frame = ctk.CTkFrame(section_frame)
+        cost_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            cost_frame,
+            text="💰 Cost Information",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        # Get sample cost estimates
+        sample_costs = CostEstimator.estimate_summary_cost(10.0)  # 10 minute sample
+        
+        cost_details = [
+            f"• Summary cost: ~${sample_costs['per_minute']:.4f} per minute",
+            f"• Example: 10 minutes = ${sample_costs['total']:.3f}",
+            f"• Example: 1 hour = ${sample_costs['per_hour']:.2f}",
+            "",
+            "💡 Summary costs are minimal compared to transcription",
+            "   Only ~4-5% of total OpenAI costs when both are used"
+        ]
+        
+        for detail in cost_details:
+            if detail == "":
+                continue
+            color = "gray" if detail.startswith("💡") or detail.startswith("   ") else None
+            ctk.CTkLabel(
+                cost_frame,
+                text=detail,
+                font=ctk.CTkFont(size=12),
+                text_color=color
+            ).pack(padx=25, pady=1, anchor="w")
+            
+    def _create_application_section(self):
+        """Create application settings section."""
+        row = 4
         
         section_frame = ctk.CTkFrame(self.main_frame)
         section_frame.grid(row=row, column=0, sticky="ew", pady=10)
@@ -433,31 +599,68 @@ class SettingsWindow:
         # Title
         title_label = ctk.CTkLabel(
             section_frame,
-            text="🎨 Interface Settings",
+            text="💾 Application",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         title_label.grid(row=0, column=0, columnspan=2, padx=20, pady=15)
         
+        # UI Settings subsection
+        ui_frame = ctk.CTkFrame(section_frame)
+        ui_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        ui_frame.grid_columnconfigure(1, weight=1)
+        
+        ctk.CTkLabel(
+            ui_frame,
+            text="🎨 User Interface",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 10))
+        
         # Theme selection
-        theme_label = ctk.CTkLabel(section_frame, text="Theme:")
-        theme_label.grid(row=1, column=0, padx=20, pady=5, sticky="w")
+        theme_label = ctk.CTkLabel(ui_frame, text="Theme:")
+        theme_label.grid(row=1, column=0, padx=15, pady=5, sticky="w")
         
         self.theme_var = ctk.StringVar(value="dark")
         self.theme_dropdown = ctk.CTkOptionMenu(
-            section_frame,
+            ui_frame,
             variable=self.theme_var,
             values=["dark", "light", "system"]
         )
-        self.theme_dropdown.grid(row=1, column=1, padx=20, pady=5, sticky="ew")
+        self.theme_dropdown.grid(row=1, column=1, padx=15, pady=5, sticky="ew")
+        
+        # Data Management subsection
+        data_frame = ctk.CTkFrame(section_frame)
+        data_frame.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            data_frame,
+            text="📊 Data Management",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 10), anchor="w")
         
         # Auto-save setting
         self.auto_save_var = ctk.BooleanVar(value=True)
         self.auto_save_checkbox = ctk.CTkCheckBox(
-            section_frame,
-            text="Auto-save recordings to vault",
-            variable=self.auto_save_var
+            data_frame,
+            text="Auto-save recordings to vault after processing",
+            variable=self.auto_save_var,
+            font=ctk.CTkFont(size=13)
         )
-        self.auto_save_checkbox.grid(row=2, column=0, columnspan=2, padx=20, pady=10, sticky="w")
+        self.auto_save_checkbox.pack(padx=15, pady=5, anchor="w")
+        
+        # Data info
+        data_info = [
+            "• Recordings stored in ./recordings/ directory",
+            "• Transcripts and summaries stored in ./vault/ database",
+            "• All data remains on your local machine"
+        ]
+        
+        for info in data_info:
+            ctk.CTkLabel(
+                data_frame,
+                text=info,
+                font=ctk.CTkFont(size=12),
+                text_color="gray"
+            ).pack(padx=25, pady=1, anchor="w")
         
     def _create_action_buttons(self):
         """Create action buttons."""
@@ -517,9 +720,14 @@ class SettingsWindow:
             
         self.api_key_status_label.configure(text=status_text, text_color=status_color)
         
-        # Auto-switch to local if API key is cleared and OpenAI is selected
-        if not api_key and self.service_var.get() == "openai":
-            self.service_var.set("local")
+    def _on_summarization_setting_changed(self):
+        """Handle summarization setting changes."""
+        # This callback could be expanded to show/hide cost details or provide warnings
+        enabled = self.summarization_enabled_var.get()
+        if not enabled:
+            print("Info: Summarization disabled. Only transcripts will be saved.")
+        else:
+            print("Info: Summarization enabled. Transcripts will be automatically summarized.")
             
     def _toggle_api_key_visibility(self):
         """Toggle API key visibility between hidden and visible."""
@@ -557,6 +765,10 @@ class SettingsWindow:
         self.theme_var.set(settings.ui.theme)
         self.auto_save_var.set(settings.ui.auto_save)
         
+        # Summarization settings
+        if hasattr(self, 'summarization_enabled_var'):
+            self.summarization_enabled_var.set(settings.summarization.enabled)
+        
         # API key
         if hasattr(self, 'api_key_var'):
             self.api_key_var.set(self.settings_manager.get_openai_api_key() or "")
@@ -577,6 +789,10 @@ class SettingsWindow:
         # Update UI settings
         settings.ui.theme = self.theme_var.get()
         settings.ui.auto_save = self.auto_save_var.get()
+        
+        # Update summarization settings
+        if hasattr(self, 'summarization_enabled_var'):
+            settings.summarization.enabled = self.summarization_enabled_var.get()
         
         # Save API key to .env file
         if hasattr(self, 'api_key_var'):

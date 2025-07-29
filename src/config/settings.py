@@ -23,6 +23,7 @@ class TranscriptionSettings:
 @dataclass
 class SummarizationSettings:
     """Summarization service configuration."""
+    enabled: bool = True  # Whether to generate summaries
     service: str = "openai"
     model: str = "gpt-3.5-turbo"
     style: str = "concise"  # concise, detailed, bullet_points
@@ -168,45 +169,113 @@ class CostEstimator:
     # OpenAI Whisper API pricing (per minute)
     OPENAI_WHISPER_COST_PER_MINUTE = 0.006
     
+    # OpenAI GPT-3.5-turbo pricing (per 1K tokens)
+    # Input: $0.0015/1K tokens, Output: $0.002/1K tokens
+    OPENAI_GPT_INPUT_COST_PER_1K_TOKENS = 0.0015
+    OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS = 0.002
+    
+    # Estimated tokens for typical transcripts and summaries
+    TOKENS_PER_MINUTE_TRANSCRIPT = 150  # ~150 tokens per minute of speech
+    TOKENS_PER_SUMMARY = 200  # Average summary output tokens
+    
     # Local processing costs (electricity, hardware wear)
-    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0001  # Negligible
+    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0  # Completely free
     
     @classmethod
-    def estimate_openai_cost(cls, minutes: float) -> Dict[str, float]:
+    def estimate_openai_cost(cls, minutes: float, include_summary: bool = True) -> Dict[str, float]:
         """Estimate OpenAI API costs.
         
         Args:
             minutes: Duration in minutes
+            include_summary: Whether to include summarization costs
             
         Returns:
             Cost breakdown dictionary
         """
         transcription_cost = minutes * cls.OPENAI_WHISPER_COST_PER_MINUTE
         
+        if include_summary:
+            # Estimate summary costs
+            input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
+            output_tokens = cls.TOKENS_PER_SUMMARY
+            
+            summary_cost = (
+                (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS +
+                (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
+            )
+        else:
+            summary_cost = 0.0
+        
+        total_cost = transcription_cost + summary_cost
+        
         return {
             "transcription": transcription_cost,
-            "total": transcription_cost,
-            "per_minute": cls.OPENAI_WHISPER_COST_PER_MINUTE,
-            "per_hour": cls.OPENAI_WHISPER_COST_PER_MINUTE * 60
+            "summary": summary_cost,
+            "total": total_cost,
+            "per_minute": total_cost / minutes if minutes > 0 else 0,
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
         }
         
     @classmethod
-    def estimate_local_cost(cls, minutes: float) -> Dict[str, float]:
+    def estimate_local_cost(cls, minutes: float, include_summary: bool = True) -> Dict[str, float]:
         """Estimate local processing costs.
         
         Args:
             minutes: Duration in minutes
+            include_summary: Whether to include summarization costs (still requires OpenAI for now)
             
         Returns:
             Cost breakdown dictionary
         """
         processing_cost = minutes * cls.LOCAL_PROCESSING_COST_PER_MINUTE
         
+        if include_summary:
+            # Summary still requires OpenAI API
+            input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
+            output_tokens = cls.TOKENS_PER_SUMMARY
+            
+            summary_cost = (
+                (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS +
+                (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
+            )
+        else:
+            summary_cost = 0.0
+        
+        total_cost = processing_cost + summary_cost
+        
         return {
             "transcription": processing_cost,
-            "total": processing_cost,
-            "per_minute": cls.LOCAL_PROCESSING_COST_PER_MINUTE,
-            "per_hour": cls.LOCAL_PROCESSING_COST_PER_MINUTE * 60
+            "summary": summary_cost,
+            "total": total_cost,
+            "per_minute": total_cost / minutes if minutes > 0 else 0,
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
+        }
+        
+    @classmethod
+    def estimate_summary_cost(cls, minutes: float) -> Dict[str, float]:
+        """Estimate just the summarization costs.
+        
+        Args:
+            minutes: Duration in minutes of audio/transcript
+            
+        Returns:
+            Summary cost breakdown dictionary
+        """
+        input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
+        output_tokens = cls.TOKENS_PER_SUMMARY
+        
+        input_cost = (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS
+        output_cost = (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
+        total_cost = input_cost + output_cost
+        
+        return {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "input_cost": input_cost,
+            "output_cost": output_cost,
+            "total": total_cost,
+            "per_minute": total_cost / minutes if minutes > 0 else 0,
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
         }
         
     @classmethod
@@ -259,5 +328,32 @@ class CostEstimator:
                 "setup_difficulty": "Medium",
                 "processing_speed": "Variable (depends on hardware)",
                 "accuracy": "Excellent (same models as API)"
+            }
+        }
+        
+    @classmethod
+    def get_cost_comparison(cls, minutes: float, include_summary: bool = True) -> Dict[str, Dict[str, float]]:
+        """Get dynamic cost comparison between OpenAI API and local processing.
+        
+        Args:
+            minutes: Duration in minutes
+            include_summary: Whether to include summarization costs
+            
+        Returns:
+            Dictionary with 'openai' and 'local' cost breakdowns
+        """
+        openai_costs = cls.estimate_openai_cost(minutes, include_summary)
+        local_costs = cls.estimate_local_cost(minutes, include_summary)
+        
+        # Calculate savings
+        total_savings = openai_costs["total"] - local_costs["total"]
+        percent_savings = (total_savings / openai_costs["total"] * 100) if openai_costs["total"] > 0 else 0
+        
+        return {
+            "openai": openai_costs,
+            "local": local_costs,
+            "savings": {
+                "amount": total_savings,
+                "percentage": percent_savings
             }
         }

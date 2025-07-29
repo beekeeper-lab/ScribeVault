@@ -67,7 +67,7 @@ class ScribeVaultApp:
         """Create the sidebar with navigation and controls."""
         self.sidebar_frame = ctk.CTkFrame(self.root, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(5, weight=1)
         
         # App title
         self.logo_label = ctk.CTkLabel(
@@ -87,6 +87,16 @@ class ScribeVaultApp:
         )
         self.record_button.grid(row=1, column=0, padx=20, pady=10)
         
+        # Summarization checkbox
+        self.summarize_var = ctk.BooleanVar(value=self.settings_manager.settings.summarization.enabled)
+        self.summarize_checkbox = ctk.CTkCheckBox(
+            self.sidebar_frame,
+            text="📝 Generate Summary",
+            variable=self.summarize_var,
+            font=ctk.CTkFont(size=14)
+        )
+        self.summarize_checkbox.grid(row=2, column=0, padx=20, pady=(0, 10))
+        
         # Navigation buttons
         self.vault_button = ctk.CTkButton(
             self.sidebar_frame,
@@ -94,7 +104,7 @@ class ScribeVaultApp:
             command=self.show_vault,
             height=35
         )
-        self.vault_button.grid(row=2, column=0, padx=20, pady=5)
+        self.vault_button.grid(row=3, column=0, padx=20, pady=5)
         
         self.settings_button = ctk.CTkButton(
             self.sidebar_frame,
@@ -102,7 +112,7 @@ class ScribeVaultApp:
             command=self.show_settings,
             height=35
         )
-        self.settings_button.grid(row=3, column=0, padx=20, pady=5)
+        self.settings_button.grid(row=4, column=0, padx=20, pady=5)
         
         # Recording indicator
         self.recording_indicator = ctk.CTkLabel(
@@ -110,7 +120,7 @@ class ScribeVaultApp:
             text="",
             font=ctk.CTkFont(size=12)
         )
-        self.recording_indicator.grid(row=5, column=0, padx=20, pady=10)
+        self.recording_indicator.grid(row=6, column=0, padx=20, pady=10)
         
     def create_main_content(self):
         """Create the main content area."""
@@ -330,10 +340,12 @@ class ScribeVaultApp:
             transcript = self.whisper_service.transcribe_audio(audio_path)
             
             if transcript:
-                self.root.after(0, lambda: self.update_status("Generating summary..."))
+                summary = None
                 
-                # Generate summary
-                summary = self.summarizer_service.summarize_text(transcript)
+                # Generate summary only if checkbox is checked
+                if self.summarize_var.get():
+                    self.root.after(0, lambda: self.update_status("Generating summary..."))
+                    summary = self.summarizer_service.summarize_text(transcript)
                 
                 # Save to vault
                 recording_id = self.vault_manager.add_recording(
@@ -344,7 +356,10 @@ class ScribeVaultApp:
                 )
                 
                 # Update status
-                self.root.after(0, lambda: self.update_status(f"Recording saved! (ID: {recording_id})"))
+                status_msg = f"Recording saved! (ID: {recording_id})"
+                if not self.summarize_var.get():
+                    status_msg += " - Summary skipped"
+                self.root.after(0, lambda: self.update_status(status_msg))
                 
                 # Show results in the main content area
                 self.root.after(0, lambda: self._show_recording_result(transcript, summary))
@@ -392,10 +407,12 @@ class ScribeVaultApp:
             summary_text.insert("1.0", summary)
             summary_text.configure(state="disabled")
         else:
+            # Check if summary was skipped or failed
+            summary_message = "Summary generation was skipped" if not self.summarize_var.get() else "Summary generation failed"
             summary_error = ctk.CTkLabel(
                 result_frame,
-                text="Summary generation failed",
-                text_color="red"
+                text=summary_message,
+                text_color="gray" if not self.summarize_var.get() else "red"
             )
             summary_error.pack(anchor="w", pady=(0, 20))
             
