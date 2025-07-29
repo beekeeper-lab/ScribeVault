@@ -91,6 +91,7 @@ class SettingsWindow:
         # Create sections
         self._create_transcription_section()
         self._create_cost_comparison_section()
+        self._create_summarization_section()
         self._create_ui_section()
         
         # Action buttons
@@ -422,9 +423,90 @@ class SettingsWindow:
                 font=ctk.CTkFont(size=11)
             ).pack(anchor="w", padx=5, pady=1)
             
+    def _create_summarization_section(self):
+        """Create summarization settings section."""
+        row = 3
+        
+        # Section frame
+        section_frame = ctk.CTkFrame(self.main_frame)
+        section_frame.grid(row=row, column=0, sticky="ew", pady=10)
+        section_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            section_frame,
+            text="📝 Summarization Settings",
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=15)
+        
+        # Summary enable/disable
+        enable_frame = ctk.CTkFrame(section_frame)
+        enable_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        
+        self.summarization_enabled_var = ctk.BooleanVar(value=True)
+        self.summarization_checkbox = ctk.CTkCheckBox(
+            enable_frame,
+            text="Enable automatic summarization",
+            variable=self.summarization_enabled_var,
+            command=self._on_summarization_setting_changed,
+            font=ctk.CTkFont(size=14)
+        )
+        self.summarization_checkbox.pack(padx=15, pady=15, anchor="w")
+        
+        # Cost information
+        cost_info_frame = ctk.CTkFrame(section_frame)
+        cost_info_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        
+        # Cost explanation
+        cost_title = ctk.CTkLabel(
+            cost_info_frame,
+            text="💰 Summary Cost Estimation",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        cost_title.pack(padx=15, pady=(15, 5), anchor="w")
+        
+        # Get sample cost estimates
+        sample_costs = CostEstimator.estimate_summary_cost(10.0)  # 10 minute sample
+        
+        cost_details = [
+            f"• Estimated cost: ~${sample_costs['per_minute']:.4f} per minute",
+            f"• For 10 minutes: ~${sample_costs['total']:.3f}",
+            f"• For 1 hour: ~${sample_costs['per_hour']:.2f}",
+            "",
+            "💡 Summary uses OpenAI GPT-3.5-turbo",
+            "   Input: $0.0015/1K tokens, Output: $0.002/1K tokens",
+            "   Estimated ~150 tokens/min input, ~200 tokens output"
+        ]
+        
+        for detail in cost_details:
+            ctk.CTkLabel(
+                cost_info_frame,
+                text=detail,
+                font=ctk.CTkFont(size=12),
+                text_color="gray" if detail.startswith("💡") or detail.startswith("   ") else None
+            ).pack(padx=25, pady=1, anchor="w")
+        
+        # Recommendation
+        recommendation_frame = ctk.CTkFrame(section_frame)
+        recommendation_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        
+        ctk.CTkLabel(
+            recommendation_frame,
+            text="💡 Recommendation",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(padx=15, pady=(15, 5), anchor="w")
+        
+        ctk.CTkLabel(
+            recommendation_frame,
+            text="Summarization adds valuable insights with minimal cost.\nDisable only if you prefer manual review of full transcripts.",
+            font=ctk.CTkFont(size=12),
+            text_color="gray"
+        ).pack(padx=25, pady=(0, 15), anchor="w")
+            
     def _create_ui_section(self):
         """Create UI settings section."""
-        row = 3
+        row = 4
         
         section_frame = ctk.CTkFrame(self.main_frame)
         section_frame.grid(row=row, column=0, sticky="ew", pady=10)
@@ -517,6 +599,15 @@ class SettingsWindow:
             
         self.api_key_status_label.configure(text=status_text, text_color=status_color)
         
+    def _on_summarization_setting_changed(self):
+        """Handle summarization setting changes."""
+        # This callback could be expanded to show/hide cost details or provide warnings
+        enabled = self.summarization_enabled_var.get()
+        if not enabled:
+            print("Info: Summarization disabled. Only transcripts will be saved.")
+        else:
+            print("Info: Summarization enabled. Transcripts will be automatically summarized.")
+        
         # Auto-switch to local if API key is cleared and OpenAI is selected
         if not api_key and self.service_var.get() == "openai":
             self.service_var.set("local")
@@ -557,6 +648,10 @@ class SettingsWindow:
         self.theme_var.set(settings.ui.theme)
         self.auto_save_var.set(settings.ui.auto_save)
         
+        # Summarization settings
+        if hasattr(self, 'summarization_enabled_var'):
+            self.summarization_enabled_var.set(settings.summarization.enabled)
+        
         # API key
         if hasattr(self, 'api_key_var'):
             self.api_key_var.set(self.settings_manager.get_openai_api_key() or "")
@@ -577,6 +672,10 @@ class SettingsWindow:
         # Update UI settings
         settings.ui.theme = self.theme_var.get()
         settings.ui.auto_save = self.auto_save_var.get()
+        
+        # Update summarization settings
+        if hasattr(self, 'summarization_enabled_var'):
+            settings.summarization.enabled = self.summarization_enabled_var.get()
         
         # Save API key to .env file
         if hasattr(self, 'api_key_var'):
