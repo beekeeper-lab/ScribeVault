@@ -15,6 +15,7 @@ from ai.summarizer import SummarizerService
 from vault.manager import VaultManager
 from config.settings import SettingsManager
 from gui.settings_window import SettingsWindow
+from gui.assets import AssetManager
 
 # Load environment variables
 load_dotenv()
@@ -36,6 +37,7 @@ class ScribeVaultApp:
         
         # Initialize services
         self.settings_manager = SettingsManager()
+        self.asset_manager = AssetManager()
         self.audio_recorder = AudioRecorder()
         self.whisper_service = WhisperService(self.settings_manager)
         self.summarizer_service = SummarizerService()
@@ -48,106 +50,210 @@ class ScribeVaultApp:
         # Setup UI
         self.setup_ui()
         
+        # Set window icon
+        self._set_window_icon()
+        
     def setup_ui(self):
         """Set up the user interface."""
         # Configure grid
-        self.root.grid_columnconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
         
-        # Create sidebar
-        self.create_sidebar()
-        
-        # Create main content area
+        # Create main content area (no sidebar)
         self.create_main_content()
         
         # Create status bar
         self.create_status_bar()
         
-    def create_sidebar(self):
-        """Create the sidebar with navigation and controls."""
-        self.sidebar_frame = ctk.CTkFrame(self.root, width=200, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(5, weight=1)
-        
-        # App title
-        self.logo_label = ctk.CTkLabel(
-            self.sidebar_frame, 
-            text="ScribeVault", 
-            font=ctk.CTkFont(size=20, weight="bold")
+    def _set_window_icon(self):
+        """Set the window icon."""
+        try:
+            icon_path = self.asset_manager.get_icon_path("app_icon.png")
+            if icon_path.exists():
+                # For PNG icons, we need to convert to PhotoImage
+                icon_image = self.asset_manager.get_app_icon(size=(32, 32))
+                if icon_image:
+                    # Note: CustomTkinter windows use iconphoto for PNG
+                    # self.root.iconphoto(True, icon_image._light_image)
+                    pass  # Commented out as it might not work with CTkImage directly
+            else:
+                print("Icon file not found, using default window icon")
+        except Exception as e:
+            print(f"Could not set window icon: {e}")
+            
+    def _create_branding_header(self):
+        """Create the branding header with full-width blue background and larger logo."""
+        # Header frame with full width and blue background matching logo
+        self.header_frame = ctk.CTkFrame(
+            self.main_frame,
+            fg_color="#2a2a2a",  # Neutral charcoal gray
+            corner_radius=0,  # Sharp corners for full-width effect
+            height=220  # Fixed height to accommodate larger logo
         )
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)  # Full width, no padding
+        self.header_frame.grid_columnconfigure(0, weight=0)  # Don't expand, keep left-aligned
+        self.header_frame.grid_columnconfigure(1, weight=1)  # Expand remaining space
+        self.header_frame.grid_propagate(False)  # Maintain fixed height
         
-        # Record button
+        # Try to load logo image at larger size for better text readability
+        logo_image = self.asset_manager.get_logo(size=(180, 180))  # Larger square logo
+        
+        if logo_image:
+            # Use logo image positioned at far left with no top padding
+            self.logo_display = ctk.CTkLabel(
+                self.header_frame,
+                image=logo_image,
+                text=""  # No text when image is used
+            )
+            self.logo_display.grid(row=0, column=0, padx=(20, 0), pady=(10, 10), sticky="w")  # Left-aligned, minimal top padding
+        else:
+            # Fallback: larger centered text if no logo image
+            self.logo_display = ctk.CTkLabel(
+                self.header_frame,
+                text="ScribeVault",
+                font=ctk.CTkFont(size=32, weight="bold"),
+                text_color="white"  # White text on blue background
+            )
+            self.logo_display.grid(row=0, column=0, pady=20)
+        
+    def _create_text_areas(self):
+        """Create the transcribed text and AI summary areas."""
+        # Transcribed Text section
+        self.transcript_label = ctk.CTkLabel(
+            self.main_frame,
+            text="Transcribed Text",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w"
+        )
+        self.transcript_label.grid(row=1, column=0, padx=20, pady=(15, 5), sticky="w")  # Small space after header
+        
+        self.transcript_text = ctk.CTkTextbox(
+            self.main_frame,
+            height=150,
+            corner_radius=8,
+            fg_color="#F5F5F5",  # Light gray background
+            text_color="#333333",  # Dark text for readability
+            font=ctk.CTkFont(size=13)
+        )
+        self.transcript_text.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        
+        # AI Summary section
+        self.summary_label = ctk.CTkLabel(
+            self.main_frame,
+            text="AI Summary",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w"
+        )
+        self.summary_label.grid(row=3, column=0, padx=20, pady=(0, 5), sticky="w")
+        
+        self.summary_text = ctk.CTkTextbox(
+            self.main_frame,
+            height=100,
+            corner_radius=8,
+            fg_color="#F5F5F5",  # Light gray background
+            text_color="#333333",  # Dark text for readability
+            font=ctk.CTkFont(size=13)
+        )
+        self.summary_text.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        
+        # Set initial placeholder text
+        self.transcript_text.insert("1.0", "Click 'Start Recording' to begin capturing audio...")
+        self.transcript_text.configure(state="disabled")
+        
+        self.summary_text.insert("1.0", "AI summary will appear here when enabled...")
+        self.summary_text.configure(state="disabled")
+        
+    def _create_bottom_controls(self):
+        """Create the bottom control panel with checkbox and buttons."""
+        # Controls frame
+        self.controls_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.controls_frame.grid(row=5, column=0, padx=20, pady=(10, 20), sticky="ew")
+        self.controls_frame.grid_columnconfigure(1, weight=1)  # Expand middle space
+        
+        # Generate Summary checkbox (left side)
+        self.summarize_var = ctk.BooleanVar(value=False)  # Unchecked by default
+        self.summarize_checkbox = ctk.CTkCheckBox(
+            self.controls_frame,
+            text="Generate Summary",
+            variable=self.summarize_var,
+            font=ctk.CTkFont(size=14),
+            command=self._on_summary_toggle
+        )
+        self.summarize_checkbox.grid(row=0, column=0, padx=(0, 20), pady=10, sticky="w")
+        
+        # Action buttons (right side)
+        self.buttons_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
+        self.buttons_frame.grid(row=0, column=2, pady=10, sticky="e")
+        
+        # Start Recording button (highlighted in blue)
         self.record_button = ctk.CTkButton(
-            self.sidebar_frame,
+            self.buttons_frame,
             text="🎙️ Start Recording",
             command=self.toggle_recording,
             height=40,
-            font=ctk.CTkFont(size=16)
+            width=140,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#1f538d",  # Blue highlight
+            hover_color="#164a7b"
         )
-        self.record_button.grid(row=1, column=0, padx=20, pady=10)
+        self.record_button.grid(row=0, column=0, padx=(0, 10))
         
-        # Summarization checkbox
-        self.summarize_var = ctk.BooleanVar(value=self.settings_manager.settings.summarization.enabled)
-        self.summarize_checkbox = ctk.CTkCheckBox(
-            self.sidebar_frame,
-            text="📝 Generate Summary",
-            variable=self.summarize_var,
-            font=ctk.CTkFont(size=14)
-        )
-        self.summarize_checkbox.grid(row=2, column=0, padx=20, pady=(0, 10))
-        
-        # Navigation buttons
+        # Vault button
         self.vault_button = ctk.CTkButton(
-            self.sidebar_frame,
+            self.buttons_frame,
             text="📚 Vault",
             command=self.show_vault,
-            height=35
+            height=40,
+            width=100,
+            font=ctk.CTkFont(size=14),
+            fg_color="#666666",  # Soft gray
+            hover_color="#555555"
         )
-        self.vault_button.grid(row=3, column=0, padx=20, pady=5)
+        self.vault_button.grid(row=0, column=1, padx=(0, 10))
         
+        # Settings button
         self.settings_button = ctk.CTkButton(
-            self.sidebar_frame,
+            self.buttons_frame,
             text="⚙️ Settings",
             command=self.show_settings,
-            height=35
+            height=40,
+            width=100,
+            font=ctk.CTkFont(size=14),
+            fg_color="#666666",  # Soft gray
+            hover_color="#555555"
         )
-        self.settings_button.grid(row=4, column=0, padx=20, pady=5)
+        self.settings_button.grid(row=0, column=2)
         
-        # Recording indicator
-        self.recording_indicator = ctk.CTkLabel(
-            self.sidebar_frame,
-            text="",
-            font=ctk.CTkFont(size=12)
-        )
-        self.recording_indicator.grid(row=6, column=0, padx=20, pady=10)
+    def _on_summary_toggle(self):
+        """Handle summary checkbox toggle."""
+        if self.summarize_var.get():
+            self.summary_text.configure(fg_color="#F5F5F5")  # Normal color
+            self.summary_label.configure(text_color=("gray10", "gray90"))  # Normal color
+        else:
+            self.summary_text.configure(fg_color="#E8E8E8")  # Dimmed color
+            self.summary_label.configure(text_color="gray60")  # Dimmed color
         
     def create_main_content(self):
-        """Create the main content area."""
+        """Create the main content area with new layout."""
         self.main_frame = ctk.CTkFrame(self.root)
-        self.main_frame.grid(row=0, column=1, columnspan=2, padx=20, pady=20, sticky="nsew")
+        self.main_frame.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # No padding for full width
         self.main_frame.grid_columnconfigure(0, weight=1)
-        self.main_frame.grid_rowconfigure(1, weight=1)
+        self.main_frame.grid_rowconfigure(2, weight=1)  # Text areas row
+        self.main_frame.grid_rowconfigure(3, weight=1)  # Summary area row
         
-        # Welcome message
-        self.welcome_label = ctk.CTkLabel(
-            self.main_frame,
-            text="Welcome to ScribeVault",
-            font=ctk.CTkFont(size=24, weight="bold")
-        )
-        self.welcome_label.grid(row=0, column=0, padx=20, pady=20)
+        # Branding header (full-width)
+        self._create_branding_header()
         
-        # Content area (will be replaced with different views)
-        self.content_frame = ctk.CTkFrame(self.main_frame)
-        self.content_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        # Text areas (with padding restored for content)
+        self._create_text_areas()
         
-        # Initial content
-        self.show_welcome()
+        # Bottom controls
+        self._create_bottom_controls()
         
     def create_status_bar(self):
         """Create the status bar."""
         self.status_frame = ctk.CTkFrame(self.root, height=30)
-        self.status_frame.grid(row=1, column=1, columnspan=2, padx=20, pady=(0, 20), sticky="ew")
+        self.status_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="ew")  # Restore padding for status bar
         
         self.status_label = ctk.CTkLabel(
             self.status_frame,
@@ -156,39 +262,36 @@ class ScribeVaultApp:
         )
         self.status_label.pack(side="left", padx=10, pady=5)
         
-    def show_welcome(self):
-        """Show the welcome screen."""
-        # Clear content frame
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
-            
-        welcome_text = ctk.CTkLabel(
-            self.content_frame,
-            text="Click 'Start Recording' to begin capturing audio.\nYour recordings will be automatically transcribed and summarized.",
-            font=ctk.CTkFont(size=16),
-            justify="center"
+        # Recording indicator in status bar
+        self.recording_indicator = ctk.CTkLabel(
+            self.status_frame,
+            text="",
+            font=ctk.CTkFont(size=12)
         )
-        welcome_text.pack(expand=True, pady=50)
+        self.recording_indicator.pack(side="right", padx=10, pady=5)
         
     def show_vault(self):
-        """Show the vault/library view."""
-        self.update_status("Loading vault...")
+        """Show the vault/library view in a new window."""
+        self.update_status("Opening vault...")
         
-        # Clear content frame
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
-            
-        # Create vault interface
-        vault_frame = ctk.CTkFrame(self.content_frame)
-        vault_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Create vault window
+        vault_window = ctk.CTkToplevel(self.root)
+        vault_window.title("ScribeVault - Recording Vault")
+        vault_window.geometry("800x600")
+        vault_window.transient(self.root)
+        vault_window.grab_set()
+        
+        # Configure grid
+        vault_window.grid_columnconfigure(0, weight=1)
+        vault_window.grid_rowconfigure(1, weight=1)
         
         # Title
         title_label = ctk.CTkLabel(
-            vault_frame,
+            vault_window,
             text="📚 Recording Vault",
             font=ctk.CTkFont(size=20, weight="bold")
         )
-        title_label.pack(pady=10)
+        title_label.grid(row=0, column=0, pady=20)
         
         # Get recordings from database
         recordings = self.vault_manager.get_recordings(limit=50)
@@ -196,21 +299,21 @@ class ScribeVaultApp:
         if not recordings:
             # No recordings message
             no_recordings_label = ctk.CTkLabel(
-                vault_frame,
+                vault_window,
                 text="No recordings found. Start recording to build your vault!",
                 font=ctk.CTkFont(size=14)
             )
-            no_recordings_label.pack(pady=20)
+            no_recordings_label.grid(row=1, column=0, pady=20)
         else:
             # Create scrollable frame for recordings
-            scrollable_frame = ctk.CTkScrollableFrame(vault_frame)
-            scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            scrollable_frame = ctk.CTkScrollableFrame(vault_window)
+            scrollable_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
             
             # Display each recording
             for recording in recordings:
                 self._create_recording_card(scrollable_frame, recording)
                 
-        self.update_status(f"Loaded {len(recordings)} recordings")
+        self.update_status(f"Vault opened - {len(recordings)} recordings")
         
     def _create_recording_card(self, parent, recording):
         """Create a card widget for displaying a recording."""
@@ -289,7 +392,7 @@ class ScribeVaultApp:
         """Start audio recording."""
         try:
             self.is_recording = True
-            self.record_button.configure(text="⏹️ Stop Recording", fg_color="red")
+            self.record_button.configure(text="⏹️ Stop Recording", fg_color="red", hover_color="#cc0000")
             self.recording_indicator.configure(text="🔴 Recording...")
             self.update_status("Recording audio...")
             
@@ -299,14 +402,14 @@ class ScribeVaultApp:
         except Exception as e:
             self.update_status(f"Error starting recording: {e}")
             self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording")
+            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
             self.recording_indicator.configure(text="")
             
     def stop_recording(self):
         """Stop audio recording."""
         try:
             self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording")
+            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
             self.recording_indicator.configure(text="")
             self.update_status("Processing recording...")
             
@@ -327,7 +430,7 @@ class ScribeVaultApp:
         except Exception as e:
             self.update_status(f"Error stopping recording: {e}")
             self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording")
+            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
             self.recording_indicator.configure(text="")
         
     def _process_recording(self, audio_path):
@@ -371,59 +474,34 @@ class ScribeVaultApp:
             self.root.after(0, lambda: self.update_status(f"Processing error: {e}"))
             
     def _show_recording_result(self, transcript, summary):
-        """Show the recording result in the main content area."""
-        # Clear content frame
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
+        """Show the recording result in the text areas."""
+        # Ensure text areas exist
+        if not hasattr(self, 'transcript_text') or self.transcript_text is None:
+            print("Error: Transcript text area not initialized")
+            return
             
-        # Create scrollable frame
-        result_frame = ctk.CTkScrollableFrame(self.content_frame)
-        result_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        if not hasattr(self, 'summary_text') or self.summary_text is None:
+            print("Error: Summary text area not initialized") 
+            return
         
-        # Transcript section
-        transcript_label = ctk.CTkLabel(
-            result_frame,
-            text="Transcription:",
-            font=ctk.CTkFont(size=16, weight="bold")
-        )
-        transcript_label.pack(anchor="w", pady=(0, 5))
+        # Update transcript area
+        self.transcript_text.configure(state="normal")
+        self.transcript_text.delete("1.0", "end")
+        self.transcript_text.insert("1.0", transcript)
+        self.transcript_text.configure(state="disabled")
         
-        transcript_text = ctk.CTkTextbox(result_frame, height=150)
-        transcript_text.pack(fill="x", pady=(0, 20))
-        transcript_text.insert("1.0", transcript)
-        transcript_text.configure(state="disabled")
-        
-        # Summary section
-        summary_label = ctk.CTkLabel(
-            result_frame,
-            text="Summary:",
-            font=ctk.CTkFont(size=16, weight="bold")
-        )
-        summary_label.pack(anchor="w", pady=(0, 5))
+        # Update summary area
+        self.summary_text.configure(state="normal")
+        self.summary_text.delete("1.0", "end")
         
         if summary:
-            summary_text = ctk.CTkTextbox(result_frame, height=100)
-            summary_text.pack(fill="x", pady=(0, 20))
-            summary_text.insert("1.0", summary)
-            summary_text.configure(state="disabled")
+            self.summary_text.insert("1.0", summary)
         else:
             # Check if summary was skipped or failed
             summary_message = "Summary generation was skipped" if not self.summarize_var.get() else "Summary generation failed"
-            summary_error = ctk.CTkLabel(
-                result_frame,
-                text=summary_message,
-                text_color="gray" if not self.summarize_var.get() else "red"
-            )
-            summary_error.pack(anchor="w", pady=(0, 20))
+            self.summary_text.insert("1.0", summary_message)
             
-        # Back button
-        back_button = ctk.CTkButton(
-            result_frame,
-            text="Back to Home",
-            command=self.show_welcome,
-            height=35
-        )
-        back_button.pack(pady=10)
+        self.summary_text.configure(state="disabled")
             
     def update_status(self, message: str):
         """Update the status bar message."""
