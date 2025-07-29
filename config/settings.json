@@ -1,0 +1,23 @@
+{
+  "transcription": {
+    "service": "openai",
+    "openai_model": "whisper-1",
+    "local_model": "base",
+    "device": "auto",
+    "language": "auto"
+  },
+  "summarization": {
+    "service": "openai",
+    "model": "gpt-3.5-turbo",
+    "style": "concise",
+    "max_tokens": 500
+  },
+  "ui": {
+    "theme": "dark",
+    "window_width": 1200,
+    "window_height": 800,
+    "auto_save": true
+  },
+  "recordings_dir": "recordings",
+  "vault_dir": "vault"
+}
