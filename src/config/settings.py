@@ -179,7 +179,7 @@ class CostEstimator:
     TOKENS_PER_SUMMARY = 200  # Average summary output tokens
     
     # Local processing costs (electricity, hardware wear)
-    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0001  # Negligible
+    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0  # Completely free
     
     @classmethod
     def estimate_openai_cost(cls, minutes: float, include_summary: bool = True) -> Dict[str, float]:
