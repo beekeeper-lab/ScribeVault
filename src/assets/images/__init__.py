@@ -1,0 +1,3 @@
+"""
+Images package for ScribeVault.
+"""
