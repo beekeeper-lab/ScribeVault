@@ -10,6 +10,7 @@ import threading
 from typing import Optional
 import logging
 import traceback
+from datetime import datetime
 
 from audio.recorder import AudioRecorder, AudioException
 from transcription.whisper_service import WhisperService, TranscriptionException
@@ -328,6 +329,20 @@ class ScribeVaultApp:
             hover_color="#555555"
         )
         self.settings_button.grid(row=0, column=2)
+        
+        # Markdown button (hidden by default, appears when markdown is available)
+        self.markdown_button = ctk.CTkButton(
+            self.buttons_frame,
+            text="📄 Markdown",
+            command=self._open_current_markdown,
+            height=40,
+            width=100,
+            font=ctk.CTkFont(size=14),
+            fg_color="#6b46c1",  # Purple
+            hover_color="#553c9a"
+        )
+        # Initially hidden - will be shown when markdown is available
+        self._current_markdown_path = None
         
     def _on_summary_toggle(self):
         """Handle summary checkbox toggle."""
@@ -735,7 +750,19 @@ class ScribeVaultApp:
         # Action buttons at bottom
         button_frame = ctk.CTkFrame(details_window)
         button_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="ew")
-        button_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Determine number of buttons to adjust grid
+        button_count = 2  # Edit and Close are always present
+        if Path("recordings") / recording['filename'] and (Path("recordings") / recording['filename']).exists():
+            button_count += 1  # Play button
+        if recording.get('markdown_path') and Path(recording['markdown_path']).exists():
+            button_count += 1  # Markdown button
+            
+        # Configure grid columns
+        for i in range(button_count):
+            button_frame.grid_columnconfigure(i, weight=1)
+        
+        current_column = 0
         
         # Edit button
         edit_button = ctk.CTkButton(
@@ -744,7 +771,8 @@ class ScribeVaultApp:
             command=lambda: self._edit_recording(recording, details_window),
             width=100
         )
-        edit_button.grid(row=0, column=0, padx=5, pady=10)
+        edit_button.grid(row=0, column=current_column, padx=5, pady=10)
+        current_column += 1
         
         # Play audio button (if file exists)
         audio_file = Path("recordings") / recording['filename']
@@ -757,7 +785,23 @@ class ScribeVaultApp:
                 fg_color="#4a7c7e",
                 hover_color="#3a6466"
             )
-            play_button.grid(row=0, column=1, padx=5, pady=10)
+            play_button.grid(row=0, column=current_column, padx=5, pady=10)
+            current_column += 1
+        
+        # Open markdown button (if markdown file exists)
+        if recording.get('markdown_path') and Path(recording['markdown_path']).exists():
+            markdown_button = ctk.CTkButton(
+                button_frame,
+                text="📄 View Summary",
+                command=lambda: self._view_markdown_summary(recording['markdown_path'], recording.get('title', recording['filename'])),
+                width=120,  # Made slightly wider
+                height=35,  # Made slightly taller
+                fg_color="#8b5cf6",  # Brighter purple
+                hover_color="#7c3aed",
+                font=ctk.CTkFont(size=13, weight="bold")  # Bold font
+            )
+            markdown_button.grid(row=0, column=current_column, padx=8, pady=10)  # More padding
+            current_column += 1
         
         # Close button
         close_button = ctk.CTkButton(
@@ -766,7 +810,237 @@ class ScribeVaultApp:
             command=details_window.destroy,
             width=100
         )
-        close_button.grid(row=0, column=2, padx=5, pady=10)
+        close_button.grid(row=0, column=current_column, padx=5, pady=10)
+    
+    def _open_markdown_file(self, markdown_path: str):
+        """Open the markdown summary file in the default application.
+        
+        Args:
+            markdown_path: Path to the markdown file
+        """
+        try:
+            import platform
+            import subprocess
+            
+            markdown_file = Path(markdown_path)
+            
+            if not markdown_file.exists():
+                self._safe_status_update(f"Markdown file not found: {markdown_path}")
+                return
+            
+            # Open file with system default application
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(str(markdown_file))
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", str(markdown_file)])
+            else:  # Linux and other Unix-like systems
+                subprocess.run(["xdg-open", str(markdown_file)])
+            
+            self._safe_status_update(f"Opened markdown file: {markdown_file.name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to open markdown file: {e}")
+            self._safe_status_update(f"Failed to open markdown file: {e}")
+    
+    def _open_current_markdown(self):
+        """Open the current recording's markdown file in the internal viewer."""
+        if self._current_markdown_path:
+            # Get title from current recording if available
+            current_title = "Summary"
+            if hasattr(self, '_current_recording_data') and self._current_recording_data:
+                current_title = self._current_recording_data.get('title') or self._current_recording_data.get('filename', 'Summary')
+            
+            self._view_markdown_summary(self._current_markdown_path, current_title)
+        else:
+            self._safe_status_update("No markdown file available")
+    
+    def _view_markdown_summary(self, markdown_path: str, title: str = "Summary"):
+        """View markdown summary in an internal viewer window.
+        
+        Args:
+            markdown_path: Path to the markdown file
+            title: Title for the viewer window
+        """
+        try:
+            markdown_file = Path(markdown_path)
+            
+            if not markdown_file.exists():
+                self._safe_status_update(f"Markdown file not found: {markdown_path}")
+                return
+            
+            # Read markdown content
+            with open(markdown_file, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+            
+            # Create markdown viewer window
+            viewer_window = ctk.CTkToplevel(self.root)
+            viewer_window.title(f"Summary - {title}")
+            viewer_window.geometry("900x700")
+            viewer_window.transient(self.root)
+            
+            # Center the viewer window
+            viewer_window.update_idletasks()
+            main_x = self.root.winfo_x()
+            main_y = self.root.winfo_y()
+            main_width = self.root.winfo_width()
+            main_height = self.root.winfo_height()
+            
+            viewer_width = 900
+            viewer_height = 700
+            x = main_x + (main_width - viewer_width) // 2
+            y = main_y + (main_height - viewer_height) // 2
+            viewer_window.geometry(f"+{x}+{y}")
+            
+            # Force window to front
+            viewer_window.lift()
+            viewer_window.focus_force()
+            
+            # Configure grid properly for the viewer window
+            viewer_window.grid_columnconfigure(0, weight=1)
+            viewer_window.grid_rowconfigure(0, weight=1)  # Make content row expandable
+            
+            # Create content area with proper scrolling (no header frame)
+            content_frame = ctk.CTkFrame(viewer_window)
+            content_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+            content_frame.grid_columnconfigure(0, weight=1)
+            content_frame.grid_rowconfigure(0, weight=1)
+            
+            # Create scrollable textbox for markdown content
+            content_text = ctk.CTkTextbox(
+                content_frame,
+                font=ctk.CTkFont(family="Segoe UI", size=14),
+                wrap="word"
+            )
+            content_text.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
+            
+            # Insert the formatted markdown content
+            self._format_markdown_content(content_text, markdown_content)
+            content_text.configure(state="disabled")  # Make it read-only
+            
+            # Button frame
+            button_frame = ctk.CTkFrame(viewer_window)
+            button_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="ew")
+            
+            # Buttons
+            open_external_button = ctk.CTkButton(
+                button_frame,
+                text="🔗 Open External",
+                command=lambda: self._open_markdown_file(markdown_path),
+                width=120,
+                fg_color="#4a7c7e",
+                hover_color="#3a6466"
+            )
+            open_external_button.pack(side="left", padx=(15, 5), pady=10)
+            
+            copy_button = ctk.CTkButton(
+                button_frame,
+                text="📋 Copy Text",
+                command=lambda: self._copy_to_clipboard(markdown_content),
+                width=120,
+                fg_color="#6b7280",
+                hover_color="#5b6572"
+            )
+            copy_button.pack(side="left", padx=5, pady=10)
+            
+            close_button = ctk.CTkButton(
+                button_frame,
+                text="Close",
+                command=viewer_window.destroy,
+                width=80
+            )
+            close_button.pack(side="right", padx=(5, 15), pady=10)
+            
+            self._safe_status_update(f"Opened summary viewer: {markdown_file.name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to view markdown summary: {e}")
+            self._safe_status_update(f"Failed to view summary: {e}")
+    
+    def _format_markdown_content(self, text_widget, markdown_content: str):
+        """Format markdown content with proper styling in a text widget.
+        
+        Args:
+            text_widget: The CTkTextbox to insert formatted content into
+            markdown_content: The raw markdown content to format
+        """
+        try:
+            # Clear the widget first
+            text_widget.delete("1.0", "end")
+            
+            # Simple markdown processing - convert to readable format
+            lines = markdown_content.split('\n')
+            formatted_lines = []
+            
+            for line in lines:
+                # Process different markdown elements
+                if line.startswith('# '):
+                    # H1 heading - make it prominent
+                    formatted_lines.append(f"\n{'=' * 60}")
+                    formatted_lines.append(f"  {line[2:].upper()}")
+                    formatted_lines.append(f"{'=' * 60}\n")
+                    
+                elif line.startswith('## '):
+                    # H2 heading
+                    formatted_lines.append(f"\n{'-' * 50}")
+                    formatted_lines.append(f"  {line[3:]}")
+                    formatted_lines.append(f"{'-' * 50}\n")
+                    
+                elif line.startswith('### '):
+                    # H3 heading  
+                    formatted_lines.append(f"\n▶ {line[4:]}")
+                    formatted_lines.append("")
+                    
+                elif line.startswith('**') and line.endswith('**:'):
+                    # Bold labels (like "Date:", "Category:", etc.)
+                    formatted_lines.append(f"📋 {line[2:-3]}: ")
+                    
+                elif line.startswith('- '):
+                    # Bullet points
+                    formatted_lines.append(f"   • {line[2:]}")
+                    
+                elif line.startswith('```'):
+                    # Code blocks - just remove the backticks
+                    if line == '```':
+                        formatted_lines.append("")
+                    else:
+                        formatted_lines.append(line[3:])
+                    
+                elif line.strip() == '---':
+                    # Horizontal rule
+                    formatted_lines.append(f"\n{'─' * 60}\n")
+                    
+                elif '**' in line:
+                    # Handle inline bold text - remove asterisks
+                    clean_line = line.replace('**', '')
+                    formatted_lines.append(clean_line)
+                    
+                else:
+                    # Regular text
+                    formatted_lines.append(line)
+            
+            # Join all lines and insert into text widget
+            formatted_text = '\n'.join(formatted_lines)
+            text_widget.insert("1.0", formatted_text)
+            
+        except Exception as e:
+            logger.error(f"Error formatting markdown: {e}")
+            # Fallback to plain text
+            text_widget.insert("1.0", markdown_content)
+    
+    def _copy_to_clipboard(self, text: str):
+        """Copy text content to clipboard.
+        
+        Args:
+            text: Text to copy to clipboard
+        """
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            self._safe_status_update("Summary copied to clipboard")
+        except Exception as e:
+            logger.error(f"Failed to copy to clipboard: {e}")
+            self._safe_status_update("Failed to copy to clipboard")
     
     def _display_recording_details(self, parent, recording):
         """Display detailed recording information.
@@ -1205,17 +1479,41 @@ class ScribeVaultApp:
             logger.info("Transcription completed successfully")
             
             summary = None
+            markdown_path = None
             
             # Generate summary only if checkbox is checked
             if self.summarize_var.get():
                 self._safe_status_update("Generating summary...")
                 try:
-                    summary = self.summarizer_service.summarize_text(transcript)
-                    logger.info("Summary generated successfully")
+                    # Prepare recording data for markdown generation
+                    recording_data = {
+                        'filename': audio_path.name,
+                        'transcription': transcript,
+                        'file_size': audio_path.stat().st_size,
+                        'duration': self._get_audio_duration(audio_path),
+                        'created_at': datetime.now().isoformat(),
+                        'category': 'other'  # Default category, can be changed later
+                    }
+                    
+                    # Use the new summarize_with_markdown method
+                    summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
+                    
+                    summary = summary_result.get('summary')
+                    markdown_path = summary_result.get('markdown_path')
+                    
+                    if summary:
+                        logger.info("Summary generated successfully")
+                        if markdown_path:
+                            logger.info(f"Markdown file generated: {markdown_path}")
+                    
+                    if summary_result.get('error'):
+                        logger.warning(f"Summary generation warning: {summary_result['error']}")
+                        
                 except Exception as e:
                     logger.error(f"Summary generation failed: {e}")
                     # Continue without summary rather than failing completely
                     summary = None
+                    markdown_path = None
             
             # Save to vault with validation
             try:
@@ -1224,7 +1522,8 @@ class ScribeVaultApp:
                     transcription=transcript,
                     summary=summary,
                     file_size=audio_path.stat().st_size,
-                    duration=self._get_audio_duration(audio_path)
+                    duration=self._get_audio_duration(audio_path),
+                    markdown_path=markdown_path
                 )
                 
                 logger.info(f"Recording saved to vault with ID: {recording_id}")
@@ -1235,17 +1534,21 @@ class ScribeVaultApp:
                     status_msg += " - Summary skipped"
                 elif not summary:
                     status_msg += " - Summary failed"
+                elif markdown_path:
+                    status_msg += f" - Summary & markdown generated"
+                else:
+                    status_msg += " - Summary generated (markdown failed)"
                 
                 self._safe_status_update(status_msg)
                 
                 # Show results in the main content area
-                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary))
+                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary, markdown_path))
                 
             except VaultException as e:
                 logger.error(f"Failed to save recording to vault: {e}")
                 self._safe_status_update(f"Save failed: {e}")
                 # Still show the results even if saving failed
-                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary))
+                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary, markdown_path))
                 
         except TranscriptionException as e:
             logger.error(f"Transcription failed: {e}")
@@ -1265,7 +1568,7 @@ class ScribeVaultApp:
             logger.error(f"Error getting audio duration: {e}")
             return 0.0
             
-    def _show_recording_result(self, transcript, summary):
+    def _show_recording_result(self, transcript, summary, markdown_path=None):
         """Show the recording result in the text areas with validation."""
         try:
             # Validate text areas exist
@@ -1291,7 +1594,11 @@ class ScribeVaultApp:
             self.summary_text.delete("1.0", "end")
             
             if summary:
-                self.summary_text.insert("1.0", summary)
+                summary_display = summary
+                # Add markdown file notice if available
+                if markdown_path and Path(markdown_path).exists():
+                    summary_display += f"\n\n📄 Markdown summary saved: {Path(markdown_path).name}"
+                self.summary_text.insert("1.0", summary_display)
             else:
                 # Check if summary was skipped or failed
                 summary_message = ("Summary generation was skipped" 
@@ -1300,6 +1607,15 @@ class ScribeVaultApp:
                 self.summary_text.insert("1.0", summary_message)
                 
             self.summary_text.configure(state="disabled")
+            
+            # Store markdown path for potential access
+            self._current_markdown_path = markdown_path
+            
+            # Show/hide markdown button based on availability
+            if markdown_path and Path(markdown_path).exists():
+                self.markdown_button.grid(row=0, column=3, padx=(0, 10))
+            else:
+                self.markdown_button.grid_forget()
             
             logger.info("Recording results displayed successfully")
             

@@ -1,0 +1,3 @@
+"""
+Icons package for ScribeVault.
+"""
