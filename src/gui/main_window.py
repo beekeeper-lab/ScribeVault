@@ -8,11 +8,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 import threading
 from typing import Optional
+import logging
+import traceback
 
-from audio.recorder import AudioRecorder
-from transcription.whisper_service import WhisperService
+from audio.recorder import AudioRecorder, AudioException
+from transcription.whisper_service import WhisperService, TranscriptionException
 from ai.summarizer import SummarizerService
-from vault.manager import VaultManager
+from vault.manager import VaultManager, VaultException
 from config.settings import SettingsManager
 from gui.settings_window import SettingsWindow
 from gui.assets import AssetManager
@@ -20,38 +22,139 @@ from gui.assets import AssetManager
 # Load environment variables
 load_dotenv()
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class GUIException(Exception):
+    """Custom exception for GUI-related errors."""
+    pass
+
 class ScribeVaultApp:
     """Main application class for ScribeVault."""
     
     def __init__(self):
-        """Initialize the ScribeVault application."""
-        # Set appearance mode and theme
-        ctk.set_appearance_mode("dark")  # "system", "dark", "light"
-        ctk.set_default_color_theme("blue")  # "blue", "green", "dark-blue"
+        """Initialize the ScribeVault application with proper error handling."""
+        try:
+            # Set appearance mode and theme
+            ctk.set_appearance_mode("dark")  # "system", "dark", "light"
+            ctk.set_default_color_theme("blue")  # "blue", "green", "dark-blue"
+            
+            # Create main window
+            self.root = ctk.CTk()
+            self.root.title("ScribeVault")
+            self.root.geometry("1200x800")
+            self.root.minsize(800, 600)
+            
+            # Initialize services with error handling
+            self._initialize_services()
+            
+            # Initialize state
+            self.is_recording = False
+            self.current_recording_path: Optional[Path] = None
+            self._processing_thread: Optional[threading.Thread] = None
+            
+            # Setup UI
+            self.setup_ui()
+            
+            # Set window icon
+            self._set_window_icon()
+            
+            # Setup cleanup on window close
+            self.root.protocol("WM_DELETE_WINDOW", self._on_window_closing)
+            
+            logger.info("ScribeVault application initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize ScribeVault application: {e}")
+            logger.error(traceback.format_exc())
+            raise GUIException(f"Application initialization failed: {e}")
+    
+    def _initialize_services(self):
+        """Initialize all services with proper error handling."""
+        try:
+            self.settings_manager = SettingsManager()
+            logger.info("Settings manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize settings manager: {e}")
+            raise GUIException(f"Settings initialization failed: {e}")
         
-        # Create main window
-        self.root = ctk.CTk()
-        self.root.title("ScribeVault")
-        self.root.geometry("1200x800")
-        self.root.minsize(800, 600)
+        try:
+            self.asset_manager = AssetManager()
+            logger.info("Asset manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize asset manager: {e}")
+            raise GUIException(f"Asset manager initialization failed: {e}")
         
-        # Initialize services
-        self.settings_manager = SettingsManager()
-        self.asset_manager = AssetManager()
-        self.audio_recorder = AudioRecorder()
-        self.whisper_service = WhisperService(self.settings_manager)
-        self.summarizer_service = SummarizerService()
-        self.vault_manager = VaultManager()
+        try:
+            self.audio_recorder = AudioRecorder()
+            logger.info("Audio recorder initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize audio recorder: {e}")
+            raise GUIException(f"Audio recorder initialization failed: {e}")
         
-        # Initialize state
-        self.is_recording = False
-        self.current_recording_path: Optional[Path] = None
+        try:
+            self.whisper_service = WhisperService(self.settings_manager)
+            logger.info("Whisper service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize whisper service: {e}")
+            raise GUIException(f"Whisper service initialization failed: {e}")
         
-        # Setup UI
-        self.setup_ui()
+        try:
+            self.summarizer_service = SummarizerService()
+            logger.info("Summarizer service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize summarizer service: {e}")
+            raise GUIException(f"Summarizer service initialization failed: {e}")
         
-        # Set window icon
-        self._set_window_icon()
+        try:
+            self.vault_manager = VaultManager()
+            logger.info("Vault manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize vault manager: {e}")
+            raise GUIException(f"Vault manager initialization failed: {e}")
+    
+    def _on_window_closing(self):
+        """Handle window closing with proper cleanup."""
+        try:
+            logger.info("Application closing - performing cleanup")
+            
+            # Stop any ongoing recording
+            if self.is_recording:
+                logger.info("Stopping recording before shutdown")
+                self._emergency_stop_recording()
+            
+            # Wait for processing thread to complete
+            if self._processing_thread and self._processing_thread.is_alive():
+                logger.info("Waiting for processing thread to complete")
+                self._processing_thread.join(timeout=5.0)  # Wait max 5 seconds
+            
+            # Cleanup services
+            self._cleanup_services()
+            
+            logger.info("Cleanup completed, destroying window")
+            self.root.destroy()
+            
+        except Exception as e:
+            logger.error(f"Error during application shutdown: {e}")
+            self.root.destroy()  # Force close even if cleanup fails
+    
+    def _cleanup_services(self):
+        """Cleanup all services properly."""
+        try:
+            if hasattr(self, 'audio_recorder') and self.audio_recorder:
+                self.audio_recorder.cleanup()
+        except Exception as e:
+            logger.error(f"Error cleaning up audio recorder: {e}")
+    
+    def _emergency_stop_recording(self):
+        """Emergency stop recording without error propagation."""
+        try:
+            self.audio_recorder.stop_recording()
+            self.is_recording = False
+        except Exception as e:
+            logger.error(f"Error in emergency stop recording: {e}")
+            # Don't propagate errors during emergency shutdown
         
     def setup_ui(self):
         """Set up the user interface."""
@@ -66,7 +169,7 @@ class ScribeVaultApp:
         self.create_status_bar()
         
     def _set_window_icon(self):
-        """Set the window icon."""
+        """Set the window icon with proper error handling."""
         try:
             icon_path = self.asset_manager.get_icon_path("app_icon.png")
             if icon_path.exists():
@@ -76,10 +179,12 @@ class ScribeVaultApp:
                     # Note: CustomTkinter windows use iconphoto for PNG
                     # self.root.iconphoto(True, icon_image._light_image)
                     pass  # Commented out as it might not work with CTkImage directly
+                    logger.info("Window icon loaded successfully")
             else:
-                print("Icon file not found, using default window icon")
+                logger.warning("Icon file not found, using default window icon")
         except Exception as e:
-            print(f"Could not set window icon: {e}")
+            logger.error(f"Could not set window icon: {e}")
+            # Don't raise - this is not critical for application functionality
             
     def _create_branding_header(self):
         """Create the branding header with full-width blue background and larger logo."""
@@ -958,124 +1063,267 @@ class ScribeVaultApp:
             self.stop_recording()
             
     def start_recording(self):
-        """Start audio recording."""
+        """Start audio recording with comprehensive error handling."""
         try:
-            self.is_recording = True
-            self.record_button.configure(text="⏹️ Stop Recording", fg_color="red", hover_color="#cc0000")
-            self.recording_indicator.configure(text="🔴 Recording...")
-            self.update_status("Recording audio...")
+            if self.is_recording:
+                logger.warning("Recording already in progress")
+                return
             
-            # Start recording in a separate thread
+            # Validate audio recorder state
+            if not hasattr(self, 'audio_recorder') or not self.audio_recorder:
+                raise GUIException("Audio recorder not initialized")
+            
+            logger.info("Starting audio recording")
+            
+            # Update UI state first
+            self.is_recording = True
+            self._safe_ui_update(lambda: self._update_recording_ui(True))
+            self._safe_status_update("Starting recording...")
+            
+            # Start recording
             self.current_recording_path = self.audio_recorder.start_recording()
             
-        except Exception as e:
-            self.update_status(f"Error starting recording: {e}")
-            self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
-            self.recording_indicator.configure(text="")
+            self._safe_status_update("Recording audio...")
+            logger.info(f"Recording started: {self.current_recording_path}")
             
+        except AudioException as e:
+            logger.error(f"Audio recording error: {e}")
+            self._handle_recording_error(f"Audio system error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error starting recording: {e}")
+            logger.error(traceback.format_exc())
+            self._handle_recording_error(f"Failed to start recording: {e}")
+    
     def stop_recording(self):
-        """Stop audio recording."""
+        """Stop audio recording with comprehensive error handling."""
         try:
+            if not self.is_recording:
+                logger.warning("No recording in progress")
+                return
+            
+            logger.info("Stopping audio recording")
+            
+            # Update UI state first
             self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
-            self.recording_indicator.configure(text="")
-            self.update_status("Processing recording...")
+            self._safe_ui_update(lambda: self._update_recording_ui(False))
+            self._safe_status_update("Stopping recording...")
             
             # Stop recording and get the file path
             recorded_file = self.audio_recorder.stop_recording()
             
-            if recorded_file:
-                # Start transcription and summarization in a separate thread
-                processing_thread = threading.Thread(
-                    target=self._process_recording, 
-                    args=(recorded_file,)
-                )
-                processing_thread.daemon = True
-                processing_thread.start()
-            else:
-                self.update_status("No recording to process")
+            if recorded_file and recorded_file.exists():
+                logger.info(f"Recording stopped: {recorded_file}")
+                self._safe_status_update("Processing recording...")
                 
+                # Start processing in a separate thread
+                self._processing_thread = threading.Thread(
+                    target=self._process_recording_safe, 
+                    args=(recorded_file,),
+                    daemon=True
+                )
+                self._processing_thread.start()
+            else:
+                logger.warning("No valid recording file produced")
+                self._safe_status_update("No recording to process")
+                
+        except AudioException as e:
+            logger.error(f"Audio recording error: {e}")
+            self._handle_recording_error(f"Audio system error: {e}")
         except Exception as e:
-            self.update_status(f"Error stopping recording: {e}")
-            self.is_recording = False
-            self.record_button.configure(text="🎙️ Start Recording", fg_color="#1f538d", hover_color="#164a7b")
-            self.recording_indicator.configure(text="")
+            logger.error(f"Unexpected error stopping recording: {e}")
+            logger.error(traceback.format_exc())
+            self._handle_recording_error(f"Failed to stop recording: {e}")
+    
+    def _handle_recording_error(self, error_message: str):
+        """Handle recording errors with proper UI state reset."""
+        self.is_recording = False
+        self._safe_ui_update(lambda: self._update_recording_ui(False))
+        self._safe_status_update(error_message)
+    
+    def _update_recording_ui(self, is_recording: bool):
+        """Update recording UI elements safely."""
+        try:
+            if is_recording:
+                self.record_button.configure(
+                    text="⏹️ Stop Recording", 
+                    fg_color="red", 
+                    hover_color="#cc0000"
+                )
+                self.recording_indicator.configure(text="🔴 Recording...")
+            else:
+                self.record_button.configure(
+                    text="🎙️ Start Recording", 
+                    fg_color="#1f538d", 
+                    hover_color="#164a7b"
+                )
+                self.recording_indicator.configure(text="")
+        except Exception as e:
+            logger.error(f"Error updating recording UI: {e}")
+    
+    def _safe_ui_update(self, update_func):
+        """Safely update UI from any thread."""
+        try:
+            if self.root and self.root.winfo_exists():
+                self.root.after(0, update_func)
+        except Exception as e:
+            logger.error(f"Error in safe UI update: {e}")
+    
+    def _safe_status_update(self, message: str):
+        """Safely update status from any thread."""
+        try:
+            if self.root and self.root.winfo_exists():
+                self.root.after(0, lambda: self.update_status(message))
+        except Exception as e:
+            logger.error(f"Error in safe status update: {e}")
+        
+    def _process_recording_safe(self, audio_path):
+        """Thread-safe wrapper for recording processing."""
+        try:
+            self._process_recording(audio_path)
+        except Exception as e:
+            logger.error(f"Critical error in recording processing: {e}")
+            logger.error(traceback.format_exc())
+            self._safe_status_update(f"Processing failed: {e}")
         
     def _process_recording(self, audio_path):
         """Process the recorded audio file with transcription and summarization."""
         try:
+            if not audio_path or not audio_path.exists():
+                raise GUIException(f"Invalid audio file: {audio_path}")
+            
+            logger.info(f"Processing recording: {audio_path}")
+            
             # Update status on main thread
-            self.root.after(0, lambda: self.update_status("Transcribing audio..."))
+            self._safe_status_update("Transcribing audio...")
             
             # Transcribe the audio
             transcript = self.whisper_service.transcribe_audio(audio_path)
             
-            if transcript:
-                summary = None
-                
-                # Generate summary only if checkbox is checked
-                if self.summarize_var.get():
-                    self.root.after(0, lambda: self.update_status("Generating summary..."))
+            if not transcript or not transcript.strip():
+                raise TranscriptionException("No transcript generated")
+            
+            logger.info("Transcription completed successfully")
+            
+            summary = None
+            
+            # Generate summary only if checkbox is checked
+            if self.summarize_var.get():
+                self._safe_status_update("Generating summary...")
+                try:
                     summary = self.summarizer_service.summarize_text(transcript)
-                
-                # Save to vault
+                    logger.info("Summary generated successfully")
+                except Exception as e:
+                    logger.error(f"Summary generation failed: {e}")
+                    # Continue without summary rather than failing completely
+                    summary = None
+            
+            # Save to vault with validation
+            try:
                 recording_id = self.vault_manager.add_recording(
                     filename=audio_path.name,
                     transcription=transcript,
                     summary=summary,
-                    file_size=audio_path.stat().st_size if audio_path.exists() else 0
+                    file_size=audio_path.stat().st_size,
+                    duration=self._get_audio_duration(audio_path)
                 )
+                
+                logger.info(f"Recording saved to vault with ID: {recording_id}")
                 
                 # Update status
                 status_msg = f"Recording saved! (ID: {recording_id})"
                 if not self.summarize_var.get():
                     status_msg += " - Summary skipped"
-                self.root.after(0, lambda: self.update_status(status_msg))
+                elif not summary:
+                    status_msg += " - Summary failed"
+                
+                self._safe_status_update(status_msg)
                 
                 # Show results in the main content area
-                self.root.after(0, lambda: self._show_recording_result(transcript, summary))
+                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary))
                 
-            else:
-                self.root.after(0, lambda: self.update_status("Transcription failed"))
+            except VaultException as e:
+                logger.error(f"Failed to save recording to vault: {e}")
+                self._safe_status_update(f"Save failed: {e}")
+                # Still show the results even if saving failed
+                self._safe_ui_update(lambda: self._show_recording_result(transcript, summary))
                 
+        except TranscriptionException as e:
+            logger.error(f"Transcription failed: {e}")
+            self._safe_status_update(f"Transcription failed: {e}")
         except Exception as e:
-            self.root.after(0, lambda: self.update_status(f"Processing error: {e}"))
+            logger.error(f"Unexpected error processing recording: {e}")
+            logger.error(traceback.format_exc())
+            self._safe_status_update(f"Processing error: {e}")
+    
+    def _get_audio_duration(self, audio_path):
+        """Get audio duration safely."""
+        try:
+            # This would need actual audio duration calculation
+            # For now, return 0 as placeholder
+            return 0.0
+        except Exception as e:
+            logger.error(f"Error getting audio duration: {e}")
+            return 0.0
             
     def _show_recording_result(self, transcript, summary):
-        """Show the recording result in the text areas."""
-        # Ensure text areas exist
-        if not hasattr(self, 'transcript_text') or self.transcript_text is None:
-            print("Error: Transcript text area not initialized")
-            return
+        """Show the recording result in the text areas with validation."""
+        try:
+            # Validate text areas exist
+            if not hasattr(self, 'transcript_text') or self.transcript_text is None:
+                logger.error("Transcript text area not initialized")
+                return
+                
+            if not hasattr(self, 'summary_text') or self.summary_text is None:
+                logger.error("Summary text area not initialized") 
+                return
             
-        if not hasattr(self, 'summary_text') or self.summary_text is None:
-            print("Error: Summary text area not initialized") 
-            return
-        
-        # Update transcript area
-        self.transcript_text.configure(state="normal")
-        self.transcript_text.delete("1.0", "end")
-        self.transcript_text.insert("1.0", transcript)
-        self.transcript_text.configure(state="disabled")
-        
-        # Update summary area
-        self.summary_text.configure(state="normal")
-        self.summary_text.delete("1.0", "end")
-        
-        if summary:
-            self.summary_text.insert("1.0", summary)
-        else:
-            # Check if summary was skipped or failed
-            summary_message = "Summary generation was skipped" if not self.summarize_var.get() else "Summary generation failed"
-            self.summary_text.insert("1.0", summary_message)
+            # Update transcript area
+            self.transcript_text.configure(state="normal")
+            self.transcript_text.delete("1.0", "end")
+            if transcript:
+                self.transcript_text.insert("1.0", transcript)
+            else:
+                self.transcript_text.insert("1.0", "No transcript available")
+            self.transcript_text.configure(state="disabled")
             
-        self.summary_text.configure(state="disabled")
+            # Update summary area
+            self.summary_text.configure(state="normal")
+            self.summary_text.delete("1.0", "end")
+            
+            if summary:
+                self.summary_text.insert("1.0", summary)
+            else:
+                # Check if summary was skipped or failed
+                summary_message = ("Summary generation was skipped" 
+                                 if not self.summarize_var.get() 
+                                 else "Summary generation failed")
+                self.summary_text.insert("1.0", summary_message)
+                
+            self.summary_text.configure(state="disabled")
+            
+            logger.info("Recording results displayed successfully")
+            
+        except Exception as e:
+            logger.error(f"Error displaying recording results: {e}")
+            logger.error(traceback.format_exc())
             
     def update_status(self, message: str):
-        """Update the status bar message."""
-        self.status_label.configure(text=message)
+        """Update the status bar message with validation."""
+        try:
+            if hasattr(self, 'status_label') and self.status_label:
+                self.status_label.configure(text=message)
+                logger.debug(f"Status updated: {message}")
+            else:
+                logger.warning(f"Status label not available, message: {message}")
+        except Exception as e:
+            logger.error(f"Error updating status: {e}")
         
     def run(self):
-        """Start the application main loop."""
-        self.root.mainloop()
+        """Start the application main loop with error handling."""
+        try:
+            logger.info("Starting ScribeVault application")
+            self.root.mainloop()
+        except Exception as e:
+            logger.error(f"Application crashed: {e}")
+            logger.error(traceback.format_exc())
+            raise

@@ -8,6 +8,15 @@ from pathlib import Path
 from typing import Optional
 import os
 from dotenv import load_dotenv
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class TranscriptionException(Exception):
+    """Custom exception for transcription-related errors."""
+    pass
 
 # Try to import local whisper
 try:
@@ -112,6 +121,8 @@ class WhisperService:
     def _transcribe_api(self, audio_path: Path, language: str = None) -> Optional[str]:
         """Transcribe using OpenAI API."""
         try:
+            logger.info(f"Starting API transcription for: {audio_path.name}")
+            
             with open(audio_path, "rb") as audio_file:
                 params = {
                     "model": "whisper-1",
@@ -123,19 +134,27 @@ class WhisperService:
                     params["language"] = language
                 
                 transcript = self.client.audio.transcriptions.create(**params)
+                
+            logger.info("API transcription completed successfully")
             return transcript
             
+        except openai.APIError as e:
+            logger.error(f"OpenAI API error: {e}", exc_info=True)
+            raise TranscriptionException(f"API transcription failed: {e}")
+        except FileNotFoundError:
+            logger.error(f"Audio file not found: {audio_path}")
+            raise TranscriptionException(f"Audio file not found: {audio_path}")
         except Exception as e:
-            print(f"API transcription error: {e}")
-            return None
+            logger.exception("Unexpected error in API transcription")
+            raise TranscriptionException(f"Unexpected transcription error: {e}")
             
     def _transcribe_local(self, audio_path: Path, language: str = None) -> Optional[str]:
         """Transcribe using local Whisper model."""
         try:
             if not self.local_model:
-                raise RuntimeError("Local model not loaded")
+                raise TranscriptionException("Local model not loaded")
                 
-            print(f"Transcribing with local Whisper: {audio_path}")
+            logger.info(f"Starting local transcription for: {audio_path.name}")
             
             options = {}
             if language and language != "auto":
@@ -143,11 +162,12 @@ class WhisperService:
                 
             result = self.local_model.transcribe(str(audio_path), **options)
             
+            logger.info("Local transcription completed successfully")
             return result["text"].strip()
             
         except Exception as e:
-            print(f"Local transcription error: {e}")
-            return None
+            logger.exception(f"Local transcription error for {audio_path}")
+            raise TranscriptionException(f"Local transcription failed: {e}")
             
     def transcribe_with_timestamps(self, audio_path: Path, language: str = None) -> Optional[dict]:
         """Transcribe audio with timestamp information.

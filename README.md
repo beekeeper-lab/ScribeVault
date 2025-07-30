@@ -181,6 +181,9 @@ See [Configuration Guide](docs/CONFIGURATION.md) for detailed setup instructions
 
 ## 🧪 Testing
 
+ScribeVault includes a comprehensive testing framework to ensure reliability and quality.
+
+### Quick Test
 Test your configuration:
 ```bash
 python test_config.py
@@ -191,6 +194,68 @@ This validates:
 - Cost calculations
 - Service availability
 - Hardware detection
+
+### Full Test Suite
+
+**Run All Tests:**
+```bash
+# Using the test runner
+python tests/run_tests.py
+
+# Or using pytest (if installed)
+pytest tests/
+```
+
+**Run Specific Test Categories:**
+```bash
+# Unit tests only
+python tests/run_tests.py test_audio_recorder
+
+# Integration tests
+python tests/run_tests.py test_integration
+
+# Vault functionality
+python tests/run_tests.py test_vault_manager
+```
+
+**Install Test Dependencies:**
+```bash
+pip install -r requirements-test.txt
+```
+
+### Test Categories
+
+- **Unit Tests** - Individual component testing
+  - `test_audio_recorder.py` - Audio recording functionality
+  - `test_vault_manager.py` - Database operations
+  - `test_whisper_service.py` - Transcription services
+  
+- **Integration Tests** - End-to-end workflow testing
+  - `test_integration.py` - Complete application workflows
+  
+- **Coverage Reports** - Generate with pytest:
+  ```bash
+  pytest --cov=src --cov-report=html
+  # Open htmlcov/index.html for detailed coverage
+  ```
+
+### Code Quality
+
+**Type Checking:**
+```bash
+mypy src/
+```
+
+**Code Formatting:**
+```bash
+black src/ tests/
+isort src/ tests/
+```
+
+**Linting:**
+```bash
+flake8 src/ tests/
+```
 
 ## 🔧 Troubleshooting
 
