@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QTextEdit, QCheckBox, QFrame, QStatusBar,
     QScrollArea, QProgressBar, QSplitter, QTabWidget, QMenuBar,
-    QToolBar, QSystemTrayIcon, QApplication, QMessageBox
+    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog
 )
 from PySide6.QtCore import (
     Qt, QTimer, QThread, Signal, QSettings, QSize, QRect,
@@ -31,6 +31,9 @@ from ai.summarizer import SummarizerService
 from vault.manager import VaultManager, VaultException
 from config.settings import SettingsManager
 from gui.qt_app import ScribeVaultWorker
+from gui.qt_settings_dialog import SettingsDialog
+from gui.qt_vault_dialog import VaultDialog
+from gui.qt_summary_viewer import SummaryViewerDialog
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -57,22 +60,27 @@ class RecordingWorker(ScribeVaultWorker):
             if self.is_cancelled():
                 return
                 
-            # Transcribe audio
-            self.emit_status("Transcribing audio...")
-            self.emit_progress(30)
-            
-            transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
-            
+            # Transcribe audio if service is available
+            transcript = None
+            if self.whisper_service:
+                self.emit_status("Transcribing audio...")
+                self.emit_progress(30)
+                
+                transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
+            else:
+                self.emit_status("Transcription service not available - skipping...")
+                logger.warning("Whisper service not available - recording saved without transcription")
+                
             if self.is_cancelled():
                 return
                 
             self.emit_progress(60)
             
-            # Generate summary if requested
+            # Generate summary if requested and services are available
             summary = None
             markdown_path = None
             
-            if self.generate_summary and transcript:
+            if self.generate_summary and transcript and self.summarizer_service:
                 self.emit_status("Generating AI summary...")
                 self.emit_progress(80)
                 
@@ -89,22 +97,30 @@ class RecordingWorker(ScribeVaultWorker):
                 summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
                 summary = summary_result.get('summary')
                 markdown_path = summary_result.get('markdown_path')
+            elif self.generate_summary and not self.summarizer_service:
+                self.emit_status("AI summarization service not available - skipping...")
+                logger.warning("Summarizer service not available - recording saved without summary")
                 
             if self.is_cancelled():
                 return
                 
-            # Save to vault
-            self.emit_status("Saving to vault...")
-            self.emit_progress(90)
-            
-            recording_id = self.vault_manager.save_recording(
-                filename=self.audio_path.name,
-                transcription=transcript,
-                summary=summary,
-                file_size=self.audio_path.stat().st_size,
-                duration=self._get_audio_duration(),
-                markdown_path=markdown_path
-            )
+            # Save to vault if vault manager is available
+            recording_id = None
+            if self.vault_manager:
+                self.emit_status("Saving to vault...")
+                self.emit_progress(90)
+                
+                recording_id = self.vault_manager.add_recording(
+                    filename=self.audio_path.name,
+                    transcription=transcript,
+                    summary=summary,
+                    file_size=self.audio_path.stat().st_size,
+                    duration=self._get_audio_duration(),
+                    markdown_path=markdown_path
+                )
+            else:
+                self.emit_status("Vault service not available - recording saved locally only")
+                logger.warning("Vault manager not available - recording not saved to database")
             
             self.emit_progress(100)
             self.emit_status("Processing complete!")
@@ -205,6 +221,8 @@ class ScribeVaultMainWindow(QMainWindow):
         self.is_recording = False
         self.current_recording_path: Optional[Path] = None
         self.current_worker: Optional[RecordingWorker] = None
+        self.current_recording_data: Optional[dict] = None
+        self.current_markdown_path: Optional[str] = None
         
         # Setup UI
         self.setup_window()
@@ -219,26 +237,69 @@ class ScribeVaultMainWindow(QMainWindow):
         
     def initialize_services(self):
         """Initialize all application services."""
+        # Initialize settings manager first
         try:
             self.settings_manager = SettingsManager()
-            self.audio_recorder = AudioRecorder()
-            self.whisper_service = WhisperService(self.settings_manager)
-            self.summarizer_service = SummarizerService()
-            self.vault_manager = VaultManager()
-            
-            logger.info("All services initialized successfully")
-            
+            logger.info("Settings manager initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize services: {e}")
+            logger.error(f"Failed to initialize settings manager: {e}")
             QMessageBox.critical(
                 self, 
                 "Initialization Error",
-                f"Failed to initialize application services:\n{e}"
+                f"Failed to initialize settings manager:\n{e}"
             )
+            self.settings_manager = None
+        
+        # Initialize audio recorder
+        try:
+            self.audio_recorder = AudioRecorder()
+            logger.info("Audio recorder initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize audio recorder: {e}")
+            QMessageBox.critical(
+                self, 
+                "Initialization Error",
+                f"Failed to initialize audio recorder:\n{e}"
+            )
+            self.audio_recorder = None
+        
+        # Initialize whisper service
+        try:
+            self.whisper_service = WhisperService(self.settings_manager)
+            logger.info("Whisper service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize whisper service: {e}")
+            # Don't show critical error for whisper - just warn user
+            logger.warning("Transcription service not available - recordings will be saved without transcription")
+            self.whisper_service = None
+        
+        # Initialize summarizer service
+        try:
+            self.summarizer_service = SummarizerService()
+            logger.info("Summarizer service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize summarizer service: {e}")
+            logger.warning("AI summarization service not available - recordings will be saved without summaries")
+            self.summarizer_service = None
+        
+        # Initialize vault manager
+        try:
+            self.vault_manager = VaultManager()
+            logger.info("Vault manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize vault manager: {e}")
+            QMessageBox.critical(
+                self, 
+                "Initialization Error",
+                f"Failed to initialize vault manager:\n{e}"
+            )
+            self.vault_manager = None
+            
+        logger.info("Service initialization completed")
             
     def setup_window(self):
         """Setup main window properties."""
-        self.setWindowTitle("ScribeVault - Audio Transcription & AI Summary")
+        self.setWindowTitle("ScribeVault")
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
         
@@ -532,6 +593,15 @@ class ScribeVaultMainWindow(QMainWindow):
         try:
             self.update_status("Starting recording...")
             
+            # Clear previous transcription and summary
+            self.transcript_text.clear()
+            self.summary_text.clear()
+            self.markdown_button.setVisible(False)
+            
+            # Clear current recording data
+            self.current_recording_data = None
+            self.current_markdown_path = None
+            
             # Start recording
             self.current_recording_path = self.audio_recorder.start_recording()
             self.is_recording = True
@@ -623,6 +693,18 @@ class ScribeVaultMainWindow(QMainWindow):
             # Hide progress
             self.progress_bar.setVisible(False)
             
+            # Store current recording data
+            self.current_recording_data = {
+                'filename': self.current_recording_path.name if self.current_recording_path else 'Unknown',
+                'transcription': result.get('transcript'),
+                'summary': result.get('summary'),
+                'created_at': datetime.now().isoformat(),
+                'duration': 0,  # Will be calculated if needed
+                'file_size': self.current_recording_path.stat().st_size if self.current_recording_path else 0,
+                'category': 'other'
+            }
+            self.current_markdown_path = result.get('markdown_path')
+            
             # Update text areas
             if result.get('transcript'):
                 self.transcript_text.setPlainText(result['transcript'])
@@ -635,9 +717,6 @@ class ScribeVaultMainWindow(QMainWindow):
                 self.summary_text.setPlainText(summary_text)
                 
             self.update_status("✅ Recording processed successfully!")
-            
-            # Store current markdown path
-            self.current_markdown_path = result.get('markdown_path')
             
         except Exception as e:
             logger.error(f"Error handling processing results: {e}")
@@ -681,6 +760,11 @@ class ScribeVaultMainWindow(QMainWindow):
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
+            
+            # Clear current recording data
+            self.current_recording_data = None
+            self.current_markdown_path = None
+            
             self.start_recording()
             
     def copy_transcript(self):
@@ -699,18 +783,70 @@ class ScribeVaultMainWindow(QMainWindow):
             
     def show_vault(self):
         """Show vault window."""
-        # TODO: Implement vault window
-        self.update_status("Vault window - Coming soon!")
+        try:
+            if not self.vault_manager:
+                QMessageBox.warning(
+                    self,
+                    "Vault Unavailable",
+                    "Vault manager is not available. Please restart the application."
+                )
+                return
+                
+            vault_dialog = VaultDialog(self.vault_manager, self)
+            vault_dialog.exec()
+            
+        except Exception as e:
+            logger.error(f"Error showing vault: {e}")
+            QMessageBox.critical(self, "Vault Error", f"Failed to open vault: {e}")
         
     def show_settings(self):
-        """Show settings window."""
-        # TODO: Implement settings window
-        self.update_status("Settings window - Coming soon!")
+        """Show settings dialog."""
+        try:
+            if not self.settings_manager:
+                QMessageBox.warning(
+                    self,
+                    "Settings Unavailable",
+                    "Settings manager is not available. Please restart the application."
+                )
+                return
+                
+            settings_dialog = SettingsDialog(self.settings_manager, self)
+            if settings_dialog.exec() == QDialog.Accepted:
+                # Settings were saved, you might want to reload services here
+                self.update_status("Settings updated - restart recommended for all changes to take effect")
+                
+        except Exception as e:
+            logger.error(f"Error showing settings: {e}")
+            QMessageBox.critical(self, "Settings Error", f"Failed to open settings: {e}")
         
     def show_markdown_summary(self):
-        """Show markdown summary viewer."""
-        # TODO: Implement markdown viewer
-        self.update_status("Markdown viewer - Coming soon!")
+        """Show AI summary viewer window."""
+        try:
+            if not self.current_recording_data:
+                QMessageBox.information(
+                    self,
+                    "No Summary Available",
+                    "No recording data available. Please record and process audio first."
+                )
+                return
+                
+            # Check if there's actually a summary to show
+            if not self.current_recording_data.get('summary') and not self.current_markdown_path:
+                QMessageBox.information(
+                    self,
+                    "No Summary Available",
+                    "No AI summary or markdown file available for the current recording."
+                )
+                return
+                
+            # Create and show summary viewer
+            summary_viewer = SummaryViewerDialog(self)
+            summary_viewer.load_recording_data(self.current_recording_data, self.current_markdown_path)
+            summary_viewer.exec()
+            
+        except Exception as e:
+            logger.error(f"Error showing summary viewer: {e}")
+            QMessageBox.critical(self, "Summary Viewer Error", f"Failed to open summary viewer: {e}")
         
     def show_about(self):
         """Show about dialog."""
