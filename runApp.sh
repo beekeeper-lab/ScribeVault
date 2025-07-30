@@ -11,7 +11,7 @@ echo ""
 
 # Function to check if ScribeVault is running
 check_running() {
-    if pgrep -f "python.*main.py" > /dev/null; then
+    if pgrep -f "python.*main_qt.py" > /dev/null; then
         return 0  # Running
     else
         return 1  # Not running
@@ -22,7 +22,7 @@ check_running() {
 echo "🔍 Checking for running ScribeVault instances..."
 if check_running; then
     echo "⏹️  Stopping existing ScribeVault processes..."
-    pkill -f "python.*main.py" || true
+    pkill -f "python.*main_qt.py" || true
     
     # Wait a moment for processes to stop
     sleep 2
@@ -30,7 +30,7 @@ if check_running; then
     # Check if still running and force kill if necessary
     if check_running; then
         echo "🔨 Force stopping stubborn processes..."
-        pkill -9 -f "python.*main.py" || true
+        pkill -9 -f "python.*main_qt.py" || true
         sleep 1
     fi
     
@@ -41,8 +41,8 @@ fi
 echo ""
 
 # Check if we're in the right directory
-if [[ ! -f "main.py" ]]; then
-    echo "❌ Error: main.py not found. Please run this script from the ScribeVault directory."
+if [[ ! -f "main_qt.py" ]]; then
+    echo "❌ Error: main_qt.py not found. Please run this script from the ScribeVault directory."
     exit 1
 fi
 
@@ -70,10 +70,10 @@ echo "✅ Using Python $PYTHON_VERSION"
 
 # Check if main dependencies are available
 echo "📦 Checking key dependencies..."
-if python -c "import customtkinter; print('✅ CustomTkinter available')" 2>/dev/null; then
+if python -c "import PySide6; print('✅ PySide6 available')" 2>/dev/null; then
     true
 else
-    echo "❌ CustomTkinter not found. Please run setup.sh to install dependencies."
+    echo "❌ PySide6 not found. Please run setup.sh to install dependencies."
     exit 1
 fi
 
@@ -85,13 +85,13 @@ fi
 echo ""
 
 # Start the application
-echo "🚀 Starting ScribeVault..."
+echo "🚀 Starting ScribeVault (PySide6 Version)..."
 echo "Press Ctrl+C to stop the application"
 echo "===================="
 echo ""
 
-# Run the application and capture exit code
-python main.py
+# Run the PySide6 application and capture exit code
+python main_qt.py
 EXIT_CODE=$?
 
 echo ""
