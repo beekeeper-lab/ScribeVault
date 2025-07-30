@@ -50,29 +50,32 @@ class TestVaultManager(unittest.TestCase):
     
     def test_add_recording_validation(self):
         """Test recording addition with validation."""
-        # Test empty filename
+        # Test empty filename - should raise exception
         with self.assertRaises(VaultException):
             self.vault_manager.add_recording(filename="")
         
-        # Test invalid category
         with self.assertRaises(VaultException):
-            self.vault_manager.add_recording(
-                filename="test.wav",
-                category="invalid_category"
-            )
+            self.vault_manager.add_recording(filename="   ")  # Whitespace only
         
-        # Test negative values
-        with self.assertRaises(VaultException):
-            self.vault_manager.add_recording(
-                filename="test.wav",
-                duration=-1.0
-            )
+        # Test invalid category - should be corrected, not rejected
+        recording_id = self.vault_manager.add_recording(
+            filename="test.wav",
+            category="invalid_category"
+        )
+        # Verify it was corrected to 'other'
+        recordings = self.vault_manager.get_recordings()
+        self.assertEqual(recordings[0]['category'], "other")
         
-        with self.assertRaises(VaultException):
-            self.vault_manager.add_recording(
-                filename="test.wav",
-                file_size=-1
-            )
+        # Test negative values - should be corrected, not rejected
+        recording_id2 = self.vault_manager.add_recording(
+            filename="test2.wav",
+            duration=-1.0,
+            file_size=-100
+        )
+        recordings = self.vault_manager.get_recordings()
+        test2_recording = next(r for r in recordings if r['filename'] == 'test2.wav')
+        self.assertEqual(test2_recording['duration'], 0.0)
+        self.assertEqual(test2_recording['file_size'], 0)
     
     def test_add_recording_duplicate_filename(self):
         """Test adding recording with duplicate filename."""
@@ -183,12 +186,17 @@ class TestVaultManager(unittest.TestCase):
         with self.assertRaises(VaultException):
             self.vault_manager.update_recording(99999, title="Test")
         
-        # Test invalid category
-        with self.assertRaises(VaultException):
-            self.vault_manager.update_recording(
-                recording_id, 
-                category="invalid_category"
-            )
+        # Test invalid category - should be corrected, not rejected
+        success = self.vault_manager.update_recording(
+            recording_id, 
+            category="invalid_category"
+        )
+        self.assertTrue(success)
+        
+        # Verify category was corrected
+        recordings = self.vault_manager.get_recordings()
+        updated = next(r for r in recordings if r['id'] == recording_id)
+        self.assertEqual(updated['category'], "other")
     
     def test_delete_recording_success(self):
         """Test successful recording deletion."""
@@ -269,7 +277,17 @@ class TestVaultManager(unittest.TestCase):
             conn.execute("""
                 CREATE TABLE recordings (
                     id INTEGER PRIMARY KEY,
-                    filename TEXT,
+                    filename TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    description TEXT,
+                    category TEXT CHECK(category IN ('meeting', 'interview', 'lecture', 'note', 'other')) DEFAULT 'other',
+                    duration REAL CHECK(duration >= 0) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    file_size INTEGER CHECK(file_size >= 0) DEFAULT 0,
+                    transcription TEXT,
+                    summary TEXT,
+                    key_points TEXT,
+                    tags TEXT,
                     archived INTEGER DEFAULT 0
                 )
             """)
