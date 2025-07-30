@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
 from PySide6.QtCore import QSettings, QTimer, Signal, QThread
 from PySide6.QtGui import QIcon, QFont, QPalette, QAction
-import qdarktheme
+import qdarkstyle
 
 from config.settings import SettingsManager
 from audio.recorder import AudioRecorder
@@ -29,7 +29,7 @@ class ScribeVaultQtApp(QApplication):
         # Application metadata
         self.setApplicationName("ScribeVault")
         self.setApplicationVersion("2.0.0")
-        self.setApplicationDisplayName("ScribeVault - Audio Transcription & AI Summary")
+        self.setApplicationDisplayName("ScribeVault")
         self.setOrganizationName("Beekeeper Lab")
         self.setOrganizationDomain("beekeeper-lab.com")
         
@@ -50,12 +50,13 @@ class ScribeVaultQtApp(QApplication):
         theme = self.settings.value("ui/theme", "dark")
         
         if theme == "dark":
-            self.setStyleSheet(qdarktheme.load_stylesheet("dark"))
+            self.setStyleSheet(qdarkstyle.load_stylesheet_pyside6())
         elif theme == "light":
-            self.setStyleSheet(qdarktheme.load_stylesheet("light"))
+            # qdarkstyle doesn't have light theme, use default
+            self.setStyleSheet("")
         else:
-            # Auto theme based on system
-            self.setStyleSheet(qdarktheme.load_stylesheet())
+            # Auto theme - default to dark
+            self.setStyleSheet(qdarkstyle.load_stylesheet_pyside6())
             
         # Custom ScribeVault styling
         custom_styles = """
@@ -308,11 +309,12 @@ class ScribeVaultQtApp(QApplication):
         
         # Apply new theme
         if theme == "dark":
-            self.setStyleSheet(qdarktheme.load_stylesheet("dark"))
+            self.setStyleSheet(qdarkstyle.load_stylesheet_pyside6())
         elif theme == "light":
-            self.setStyleSheet(qdarktheme.load_stylesheet("light"))
+            # qdarkstyle doesn't have light theme, use default
+            self.setStyleSheet("")
         else:
-            self.setStyleSheet(qdarktheme.load_stylesheet())
+            self.setStyleSheet(qdarkstyle.load_stylesheet_pyside6())
             
         # Reapply custom styles
         self.setup_theme()
@@ -362,9 +364,9 @@ class ScribeVaultWorker(QThread):
         raise NotImplementedError("Subclasses must implement run()")
 
 
-def create_qt_application(argv: list) -> ScribeVaultQtApp:
+def create_qt_application(argv: list):
     """
-    Create and configure the Qt application instance.
+    Create and configure the Qt application.
     
     Args:
         argv: Command line arguments
@@ -372,9 +374,7 @@ def create_qt_application(argv: list) -> ScribeVaultQtApp:
     Returns:
         Configured ScribeVaultQtApp instance
     """
-    # Enable high DPI support
-    QApplication.setAttribute(QApplication.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(QApplication.AA_UseHighDpiPixmaps, True)
+    # High DPI support is enabled by default in Qt 6
     
     # Create application
     app = ScribeVaultQtApp(argv)

@@ -5,7 +5,7 @@ Supports both OpenAI API and local Whisper models.
 
 import openai
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import os
 from dotenv import load_dotenv
 import logging
@@ -148,11 +148,15 @@ class WhisperService:
             logger.exception("Unexpected error in API transcription")
             raise TranscriptionException(f"Unexpected transcription error: {e}")
             
-    def _transcribe_local(self, audio_path: Path, language: str = None) -> Optional[str]:
+    def _transcribe_local(self, audio_path: Union[str, Path], language: str = None) -> Optional[str]:
         """Transcribe using local Whisper model."""
         try:
             if not self.local_model:
                 raise TranscriptionException("Local model not loaded")
+            
+            # Ensure audio_path is a Path object
+            if isinstance(audio_path, str):
+                audio_path = Path(audio_path)
                 
             logger.info(f"Starting local transcription for: {audio_path.name}")
             
