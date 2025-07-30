@@ -8,26 +8,62 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Try to import keyring for secure storage
+try:
+    import keyring
+    KEYRING_AVAILABLE = True
+except ImportError:
+    KEYRING_AVAILABLE = False
+    keyring = None
 
 load_dotenv()
 
 @dataclass
 class TranscriptionSettings:
     """Transcription service configuration."""
-    service: str = "local"  # "local" or "openai" - default to local for privacy and cost
+    service: str = "local"  # "local" or "openai"
     openai_model: str = "whisper-1"
     local_model: str = "base"  # tiny, base, small, medium, large
     device: str = "auto"  # auto, cpu, cuda
     language: str = "auto"  # auto, en, es, fr, etc.
+    
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        valid_services = ["local", "openai"]
+        if self.service not in valid_services:
+            raise ValueError(f"Invalid service: {self.service}. Must be one of {valid_services}")
+            
+        valid_models = ["tiny", "base", "small", "medium", "large"]
+        if self.local_model not in valid_models:
+            raise ValueError(f"Invalid local model: {self.local_model}. Must be one of {valid_models}")
+            
+        valid_devices = ["auto", "cpu", "cuda"]
+        if self.device not in valid_devices:
+            raise ValueError(f"Invalid device: {self.device}. Must be one of {valid_devices}")
 
 @dataclass
 class SummarizationSettings:
     """Summarization service configuration."""
-    enabled: bool = True  # Whether to generate summaries
+    enabled: bool = True
     service: str = "openai"
     model: str = "gpt-3.5-turbo"
     style: str = "concise"  # concise, detailed, bullet_points
     max_tokens: int = 500
+    
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        valid_styles = ["concise", "detailed", "bullet_points"]
+        if self.style not in valid_styles:
+            raise ValueError(f"Invalid style: {self.style}. Must be one of {valid_styles}")
+            
+        if self.max_tokens < 1 or self.max_tokens > 4000:
+            raise ValueError(f"Invalid max_tokens: {self.max_tokens}. Must be between 1 and 4000")
 
 @dataclass
 class UISettings:
@@ -36,6 +72,18 @@ class UISettings:
     window_width: int = 1200
     window_height: int = 800
     auto_save: bool = True
+    
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        valid_themes = ["dark", "light", "system"]
+        if self.theme not in valid_themes:
+            raise ValueError(f"Invalid theme: {self.theme}. Must be one of {valid_themes}")
+            
+        if self.window_width < 800 or self.window_width > 3840:
+            raise ValueError(f"Invalid window_width: {self.window_width}. Must be between 800 and 3840")
+            
+        if self.window_height < 600 or self.window_height > 2160:
+            raise ValueError(f"Invalid window_height: {self.window_height}. Must be between 600 and 2160")
 
 @dataclass
 class AppSettings:
@@ -94,7 +142,17 @@ class SettingsManager:
             print(f"Error saving settings: {e}")
             
     def get_openai_api_key(self) -> Optional[str]:
-        """Get OpenAI API key from environment."""
+        """Get OpenAI API key from secure storage or environment."""
+        # Try keyring first (secure)
+        if KEYRING_AVAILABLE:
+            try:
+                key = keyring.get_password("ScribeVault", "openai_api_key")
+                if key:
+                    return key
+            except Exception as e:
+                logger.warning(f"Could not access keyring: {e}")
+        
+        # Fallback to environment variable
         return os.getenv("OPENAI_API_KEY")
         
     def has_openai_api_key(self) -> bool:
@@ -103,10 +161,37 @@ class SettingsManager:
         return key is not None and key.strip() != "" and key != "your-openai-api-key-here"
         
     def save_openai_api_key(self, api_key: str):
-        """Save OpenAI API key to .env file.
+        """Save OpenAI API key securely.
         
         Args:
             api_key: The OpenAI API key to save
+        """
+        # Try to save to keyring first (secure)
+        if KEYRING_AVAILABLE:
+            try:
+                if api_key.strip():
+                    keyring.set_password("ScribeVault", "openai_api_key", api_key.strip())
+                    logger.info("API key saved securely to system keyring")
+                else:
+                    keyring.delete_password("ScribeVault", "openai_api_key")
+                    logger.info("API key removed from system keyring")
+                
+                # Also update .env for compatibility
+                self._update_env_file(api_key)
+                return
+                
+            except Exception as e:
+                logger.warning(f"Could not save to keyring: {e}, falling back to .env file")
+        
+        # Fallback to .env file with warning
+        logger.warning("Saving API key to .env file (less secure). Install 'keyring' package for secure storage.")
+        self._update_env_file(api_key)
+        
+    def _update_env_file(self, api_key: str):
+        """Update .env file with API key (fallback method).
+        
+        Args:
+            api_key: The API key to save
         """
         env_file = Path(".env")
         
@@ -127,18 +212,25 @@ class SettingsManager:
             # Remove key if empty
             del env_content['OPENAI_API_KEY']
         
-        # Write back to .env file
+        # Write back to .env file securely
         try:
+            # Create with restricted permissions
+            env_file.touch(mode=0o600, exist_ok=True)
+            
             with open(env_file, 'w') as f:
                 for key, value in env_content.items():
                     f.write(f"{key}={value}\n")
             
+            # Ensure file has restricted permissions
+            env_file.chmod(0o600)
+            
             # Reload environment variables
             load_dotenv(override=True)
-            print(f"API key {'saved' if api_key.strip() else 'removed'} successfully")
+            logger.info(f"API key {'saved' if api_key.strip() else 'removed'} in .env file")
             
         except Exception as e:
-            print(f"Error saving API key: {e}")
+            logger.error(f"Error saving API key to .env file: {e}")
+            raise
             
     def validate_openai_api_key(self, api_key: str) -> bool:
         """Validate OpenAI API key format.

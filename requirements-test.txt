@@ -1,0 +1,30 @@
+# Test requirements for ScribeVault
+# These are additional packages needed for testing beyond the main application requirements
+
+# Core testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.8.0
+pytest-asyncio>=0.21.0
+
+# Test fixtures and utilities
+factory-boy>=3.2.0
+freezegun>=1.2.0
+responses>=0.20.0
+
+# Code quality and linting for tests
+flake8>=5.0.0
+black>=22.0.0
+isort>=5.10.0
+
+# Type checking
+mypy>=1.0.0
+
+# Coverage reporting
+coverage>=6.0.0
+
+# Performance testing
+pytest-benchmark>=4.0.0
+
+# Mock external dependencies
+pytest-httpserver>=1.0.0
