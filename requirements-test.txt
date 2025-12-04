@@ -28,3 +28,4 @@ pytest-benchmark>=4.0.0
 
 # Mock external dependencies
 pytest-httpserver>=1.0.0
+werkzeug>=3.1.4 # not directly required, pinned by Snyk to avoid a vulnerability
