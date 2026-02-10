@@ -277,8 +277,11 @@ class ScribeVaultMainWindow(QMainWindow):
         
         # Initialize summarizer service
         try:
-            self.summarizer_service = SummarizerService()
+            self.summarizer_service = SummarizerService(settings_manager=self.settings_manager)
             logger.info("Summarizer service initialized")
+        except ValueError as e:
+            logger.warning(f"AI summarization not available: {e}")
+            self.summarizer_service = None
         except Exception as e:
             logger.error(f"Failed to initialize summarizer service: {e}")
             logger.warning("AI summarization service not available - recordings will be saved without summaries")

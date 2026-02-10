@@ -8,10 +8,11 @@
 | Title     | API Key Validation & Secure Storage |
 | Type      | bug-fix |
 | Priority  | P1 |
-| Status    | Approved   |
+| Status    | Done         |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-10 15:39 |
+| Completed | 2026-02-10   |
 | Duration  |              |
 
 ## Problem Statement
@@ -44,21 +45,23 @@ API keys are validated early, stored securely, and users get clear feedback abou
 
 ## Acceptance Criteria
 
-- [ ] API key is validated (format + live check) when saved in settings
-- [ ] Invalid key shows clear error message to user
-- [ ] Plaintext .env fallback removed; keys stored only via keyring or encrypted config
-- [ ] `.env` is listed in `.gitignore`
-- [ ] Settings dialog shows key status (valid/invalid/not configured)
-- [ ] App startup gracefully handles missing key with user-friendly message
-- [ ] Existing tests still pass; new tests cover validation logic
+- [x] API key is validated (format + live check) when saved in settings
+- [x] Invalid key shows clear error message to user
+- [x] Plaintext .env fallback removed; keys stored only via keyring or encrypted config
+- [x] `.env` is listed in `.gitignore`
+- [x] Settings dialog shows key status (valid/invalid/not configured)
+- [x] App startup gracefully handles missing key with user-friendly message
+- [x] Existing tests still pass; new tests cover validation logic
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Add live API key validation to SettingsManager | developer | — | Done |
+| 2 | Remove plaintext .env fallback for API key storage | developer | — | Done |
+| 3 | Update SummarizerService to use SettingsManager for API key | developer | T001 | Done |
+| 4 | Update settings dialog with API key status indicator | developer | T001 | Done |
+| 5 | Write tests for API key validation logic | tech-qa | T001,T002,T003 | Done |
 
 ## Telemetry
 

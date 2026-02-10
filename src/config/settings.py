@@ -2,11 +2,13 @@
 Configuration management for ScribeVault.
 """
 
+import base64
+import hashlib
 import json
 import os
 import threading
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
 import logging
@@ -172,8 +174,11 @@ class SettingsManager:
                 print(f"Error saving settings: {e}")
             
     def get_openai_api_key(self) -> Optional[str]:
-        """Get OpenAI API key from secure storage or environment."""
-        # Try keyring first (secure)
+        """Get OpenAI API key from secure storage or environment.
+
+        Priority: keyring -> encrypted config -> environment variable (read-only).
+        """
+        # Try keyring first (most secure)
         if KEYRING_AVAILABLE:
             try:
                 key = keyring.get_password("ScribeVault", "openai_api_key")
@@ -181,109 +186,250 @@ class SettingsManager:
                     return key
             except Exception as e:
                 logger.warning(f"Could not access keyring: {e}")
-        
-        # Fallback to environment variable
-        return os.getenv("OPENAI_API_KEY")
-        
+
+        # Try encrypted config file
+        encrypted_key = self._read_encrypted_key()
+        if encrypted_key:
+            return encrypted_key
+
+        # Read-only fallback to environment variable (for CI/dev use)
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key and env_key.strip() and env_key != "your-openai-api-key-here":
+            logger.info("Using API key from environment variable (read-only)")
+            return env_key
+
+        return None
+
     def has_openai_api_key(self) -> bool:
         """Check if OpenAI API key is configured."""
         key = self.get_openai_api_key()
         return key is not None and key.strip() != "" and key != "your-openai-api-key-here"
-        
+
+    def get_api_key_storage_method(self) -> str:
+        """Return the storage method currently holding the API key.
+
+        Returns:
+            One of: 'keyring', 'encrypted_config', 'environment', 'none'
+        """
+        if KEYRING_AVAILABLE:
+            try:
+                key = keyring.get_password("ScribeVault", "openai_api_key")
+                if key:
+                    return "keyring"
+            except Exception:
+                pass
+
+        if self._read_encrypted_key():
+            return "encrypted_config"
+
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key and env_key.strip() and env_key != "your-openai-api-key-here":
+            return "environment"
+
+        return "none"
+
     def save_openai_api_key(self, api_key: str):
         """Save OpenAI API key securely.
-        
+
+        Stores in keyring (preferred) or encrypted config file (fallback).
+        Never writes to plaintext .env files.
+
         Args:
             api_key: The OpenAI API key to save
         """
-        # Try to save to keyring first (secure)
+        api_key = api_key.strip() if api_key else ""
+
+        # Try keyring first (most secure)
         if KEYRING_AVAILABLE:
             try:
-                if api_key.strip():
-                    keyring.set_password("ScribeVault", "openai_api_key", api_key.strip())
+                if api_key:
+                    keyring.set_password("ScribeVault", "openai_api_key", api_key)
                     logger.info("API key saved securely to system keyring")
                 else:
-                    keyring.delete_password("ScribeVault", "openai_api_key")
+                    try:
+                        keyring.delete_password("ScribeVault", "openai_api_key")
+                    except keyring.errors.PasswordDeleteError:
+                        pass
                     logger.info("API key removed from system keyring")
-                
-                # Also update .env for compatibility
-                self._update_env_file(api_key)
                 return
-                
             except Exception as e:
-                logger.warning(f"Could not save to keyring: {e}, falling back to .env file")
-        
-        # Fallback to .env file with warning
-        logger.warning("Saving API key to .env file (less secure). Install 'keyring' package for secure storage.")
-        self._update_env_file(api_key)
-        
-    def _update_env_file(self, api_key: str):
-        """Update .env file with API key (fallback method).
-        
-        Args:
-            api_key: The API key to save
+                logger.warning(f"Could not save to keyring: {e}, using encrypted config")
+
+        # Fallback to encrypted config file
+        if api_key:
+            self._write_encrypted_key(api_key)
+            logger.warning(
+                "API key saved to encrypted config file. "
+                "Install 'keyring' package for more secure storage."
+            )
+        else:
+            self._delete_encrypted_key()
+            logger.info("API key removed from encrypted config")
+
+    def _get_encrypted_config_path(self) -> Path:
+        """Get the path to the encrypted API key config file."""
+        return self.config_file.parent / ".api_keys.enc"
+
+    def _get_encryption_key(self) -> bytes:
+        """Derive an encryption key from machine-specific data.
+
+        Uses a combination of username and machine identifier to create
+        a deterministic key that's tied to this machine/user.
         """
-        env_file = Path(".env")
-        
-        # Read existing .env content
-        env_content = {}
-        if env_file.exists():
-            with open(env_file, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
-                        env_content[key.strip()] = value.strip()
-        
-        # Update API key
-        if api_key.strip():
-            env_content['OPENAI_API_KEY'] = api_key.strip()
-        elif 'OPENAI_API_KEY' in env_content:
-            # Remove key if empty
-            del env_content['OPENAI_API_KEY']
-        
-        # Write back to .env file securely
+        import getpass
+        import platform
+        machine_id = f"ScribeVault-{getpass.getuser()}-{platform.node()}"
+        return hashlib.sha256(machine_id.encode()).digest()
+
+    def _write_encrypted_key(self, api_key: str):
+        """Write an API key to encrypted config file.
+
+        Uses Fernet symmetric encryption (AES-128-CBC) if cryptography
+        is available, otherwise uses base64 obfuscation with XOR.
+        """
+        enc_path = self._get_encrypted_config_path()
+        enc_path.parent.mkdir(exist_ok=True)
+
         try:
-            # Create with restricted permissions
-            env_file.touch(mode=0o600, exist_ok=True)
-            
-            with open(env_file, 'w') as f:
-                for key, value in env_content.items():
-                    f.write(f"{key}={value}\n")
-            
-            # Ensure file has restricted permissions
-            env_file.chmod(0o600)
-            
-            # Reload environment variables
-            load_dotenv(override=True)
-            logger.info(f"API key {'saved' if api_key.strip() else 'removed'} in .env file")
-            
+            from cryptography.fernet import Fernet
+            key = base64.urlsafe_b64encode(self._get_encryption_key())
+            fernet = Fernet(key)
+            encrypted = fernet.encrypt(api_key.encode())
+            data = {"version": 2, "data": encrypted.decode(), "method": "fernet"}
+        except ImportError:
+            # Fallback: XOR-based obfuscation (not as secure, but better than plaintext)
+            logger.warning(
+                "cryptography package not installed. Using basic obfuscation. "
+                "Install 'cryptography' for stronger encryption."
+            )
+            enc_key = self._get_encryption_key()
+            xor_bytes = bytes(
+                b ^ enc_key[i % len(enc_key)]
+                for i, b in enumerate(api_key.encode())
+            )
+            data = {
+                "version": 2,
+                "data": base64.urlsafe_b64encode(xor_bytes).decode(),
+                "method": "xor",
+            }
+
+        try:
+            enc_path.touch(mode=0o600, exist_ok=True)
+            with open(enc_path, "w") as f:
+                json.dump(data, f)
+            enc_path.chmod(0o600)
         except Exception as e:
-            logger.error(f"Error saving API key to .env file: {e}")
+            logger.error(f"Error writing encrypted config: {e}")
             raise
+
+    def _read_encrypted_key(self) -> Optional[str]:
+        """Read an API key from encrypted config file."""
+        enc_path = self._get_encrypted_config_path()
+        if not enc_path.exists():
+            return None
+
+        try:
+            with open(enc_path, "r") as f:
+                data = json.load(f)
+
+            if data.get("version") != 2:
+                logger.warning("Unsupported encrypted config version")
+                return None
+
+            method = data.get("method", "")
+            encrypted = data.get("data", "")
+
+            if method == "fernet":
+                from cryptography.fernet import Fernet
+                key = base64.urlsafe_b64encode(self._get_encryption_key())
+                fernet = Fernet(key)
+                return fernet.decrypt(encrypted.encode()).decode()
+            elif method == "xor":
+                enc_key = self._get_encryption_key()
+                xor_bytes = base64.urlsafe_b64decode(encrypted)
+                return bytes(
+                    b ^ enc_key[i % len(enc_key)]
+                    for i, b in enumerate(xor_bytes)
+                ).decode()
+            else:
+                logger.warning(f"Unknown encryption method: {method}")
+                return None
+
+        except ImportError:
+            logger.warning("cryptography package needed to decrypt API key stored with Fernet")
+            return None
+        except Exception as e:
+            logger.warning(f"Could not read encrypted config: {e}")
+            return None
+
+    def _delete_encrypted_key(self):
+        """Delete the encrypted API key config file."""
+        enc_path = self._get_encrypted_config_path()
+        if enc_path.exists():
+            try:
+                enc_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete encrypted config: {e}")
             
     def validate_openai_api_key(self, api_key: str) -> bool:
         """Validate OpenAI API key format.
-        
+
         Args:
             api_key: The API key to validate
-            
+
         Returns:
             True if the key format is valid
         """
         if not api_key or not isinstance(api_key, str):
             return False
-            
+
         api_key = api_key.strip()
-        
-        # Basic format validation
+
+        # OpenAI keys start with "sk-" and are at least 20 characters
         if not api_key.startswith("sk-"):
             return False
-            
-        if len(api_key) < 20:  # OpenAI keys are much longer
+
+        if len(api_key) < 20:
             return False
-            
+
+        # Check for placeholder values
+        if api_key in ("sk-your-api-key-here", "sk-test", "sk-xxx"):
+            return False
+
         return True
+
+    def validate_openai_api_key_live(self, api_key: str) -> Tuple[bool, str]:
+        """Validate OpenAI API key with a live API call.
+
+        Performs format validation first, then makes a lightweight
+        API call (list models) to verify the key is active.
+
+        Args:
+            api_key: The API key to validate
+
+        Returns:
+            Tuple of (is_valid: bool, message: str)
+        """
+        # Format check first
+        if not self.validate_openai_api_key(api_key):
+            return (False, "Invalid API key format. Key must start with 'sk-' and be at least 20 characters.")
+
+        try:
+            import openai
+            client = openai.OpenAI(api_key=api_key.strip())
+            # Lightweight call to verify the key works
+            client.models.list()
+            return (True, "API key is valid and active.")
+        except openai.AuthenticationError:
+            return (False, "API key is invalid or has been revoked.")
+        except openai.PermissionDeniedError:
+            return (False, "API key does not have sufficient permissions.")
+        except openai.RateLimitError:
+            return (False, "Rate limit exceeded. The key may be valid but has hit its usage limit.")
+        except openai.APIConnectionError:
+            return (False, "Could not connect to OpenAI API. Check your internet connection.")
+        except Exception as e:
+            return (False, f"Validation error: {str(e)}")
 
 class CostEstimator:
     """Provides cost estimates for different transcription services."""
