@@ -8,11 +8,12 @@
 | Title     | Thread Safety & Resource Cleanup |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | Approved   |
+| Status    | Done         |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:39 |
+| Completed | 2026-02-10 15:50 |
+| Duration  | ~11 min      |
 
 ## Problem Statement
 
@@ -42,26 +43,28 @@ All shared mutable state is properly synchronized with threading primitives, and
 
 ## Acceptance Criteria
 
-- [ ] Recording state changes are protected by a threading lock
-- [ ] Settings save/load is protected by a threading lock
-- [ ] `__del__` removed from recorder.py; replaced with context manager or explicit cleanup
-- [ ] PyAudio stream is closed in a `finally` block during recording
-- [ ] No deadlocks introduced (verified by running full test suite)
-- [ ] Existing tests still pass
+- [x] Recording state changes are protected by a threading lock
+- [x] Settings save/load is protected by a threading lock
+- [x] `__del__` removed from recorder.py; replaced with context manager or explicit cleanup
+- [x] PyAudio stream is closed in a `finally` block during recording
+- [x] No deadlocks introduced (verified by running full test suite)
+- [x] Existing tests still pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Add threading lock to AudioRecorder | developer | — | DONE |
+| 2 | Replace __del__ with context manager and cleanup() | developer | T001 | DONE |
+| 3 | Add threading lock to SettingsManager | developer | — | DONE |
+| 4 | Add threading lock to GUI recording state | developer | — | DONE |
+| 5 | Write tests for thread safety and resource cleanup | tech-qa | T001-T004 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 5     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
