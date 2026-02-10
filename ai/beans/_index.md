@@ -3,7 +3,7 @@
 | ID | Title | Priority | Status | Branch |
 |----|-------|----------|--------|--------|
 | BEAN-001 | Periodic Audio Checkpoint Saving | P0 | Approved | |
-| BEAN-002 | Thread Safety & Resource Cleanup | P0 | Approved | |
+| BEAN-002 | Thread Safety & Resource Cleanup | P0 | Done | bean/BEAN-002-thread-safety-and-resource-cleanup |
 | BEAN-003 | Vault Delete & Export Implementation | P1 | Approved | |
 | BEAN-004 | API Key Validation & Secure Storage | P1 | Approved | |
 | BEAN-005 | API Retry & Rate Limit Handling | P2 | Approved | |
