@@ -6,7 +6,7 @@ import pyaudio
 import wave
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 import threading
 import subprocess
 import logging
@@ -27,24 +27,33 @@ class RecordingException(AudioException):
 
 class AudioRecorder:
     """Handles audio recording functionality."""
-    
-    def __init__(self, sample_rate: int = 44100, chunk_size: int = 1024, channels: int = 1):
+
+    def __init__(self, sample_rate: int = 44100, chunk_size: int = 1024,
+                 channels: int = 1, checkpoint_interval: int = 30):
         """Initialize the audio recorder.
-        
+
         Args:
             sample_rate: Audio sample rate in Hz
             chunk_size: Number of frames per buffer
             channels: Number of audio channels (1 for mono, 2 for stereo)
+            checkpoint_interval: Seconds between checkpoint flushes (0 to disable)
         """
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
         self.channels = channels
         self.format = pyaudio.paInt16
-        
+        self.checkpoint_interval = checkpoint_interval
+
         self.audio = pyaudio.PyAudio()
         self.stream: Optional[pyaudio.Stream] = None
         self.frames = []
         self.is_recording = False
+
+        # Checkpoint state
+        self._checkpoint_path: Optional[Path] = None
+        self._checkpoint_lock = threading.Lock()
+        self._checkpoint_timer: Optional[threading.Timer] = None
+        self._last_flushed_count = 0
         
     def start_recording(self) -> Path:
         """Start recording audio with proper fallback chain.
@@ -115,6 +124,7 @@ class AudioRecorder:
             )
             
             self.stream.start_stream()
+            self._start_checkpointing()
             logger.info("PyAudio recording started successfully")
             return self.output_path
             
@@ -179,10 +189,22 @@ class AudioRecorder:
                 self.stream.stop_stream()
                 self.stream.close()
                 self.stream = None
-                
+
                 if self.frames:
+                    # Finalize via checkpoint if active, else save directly
+                    if self._checkpoint_path is not None:
+                        result = self._finalize_checkpoint()
+                        if result:
+                            logger.info(
+                                "PyAudio recording saved via checkpoint: %s",
+                                result
+                            )
+                            return result
+                    # Fallback: direct save (no checkpointing or finalize failed)
                     self._save_recording()
-                    logger.info(f"PyAudio recording saved: {self.output_path}")
+                    logger.info(
+                        "PyAudio recording saved: %s", self.output_path
+                    )
                     return self.output_path
                     
             # Handle FFmpeg process
@@ -251,6 +273,159 @@ class AudioRecorder:
             wf.setsampwidth(self.audio.get_sample_size(self.format))
             wf.setframerate(self.sample_rate)
             wf.writeframes(b''.join(self.frames))
+
+    # --- Checkpoint methods ---
+
+    def _start_checkpointing(self):
+        """Initialize checkpoint file and start the periodic flush timer."""
+        if self.checkpoint_interval <= 0:
+            return
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        recordings_dir = Path("recordings")
+        recordings_dir.mkdir(exist_ok=True)
+        self._checkpoint_path = (
+            recordings_dir / f"recording-{timestamp}.checkpoint.wav"
+        )
+        self._last_flushed_count = 0
+        self._schedule_checkpoint()
+
+    def _schedule_checkpoint(self):
+        """Schedule the next checkpoint flush."""
+        if not self.is_recording or self.checkpoint_interval <= 0:
+            return
+        self._checkpoint_timer = threading.Timer(
+            self.checkpoint_interval, self._flush_checkpoint
+        )
+        self._checkpoint_timer.daemon = True
+        self._checkpoint_timer.start()
+
+    def _flush_checkpoint(self):
+        """Write all accumulated frames to the checkpoint WAV file."""
+        with self._checkpoint_lock:
+            if not self.is_recording and not self.frames:
+                return
+            current_frames = list(self.frames)
+
+        if not current_frames:
+            if self.is_recording:
+                self._schedule_checkpoint()
+            return
+
+        try:
+            sample_width = self.audio.get_sample_size(self.format)
+            with wave.open(str(self._checkpoint_path), 'wb') as wf:
+                wf.setnchannels(self.channels)
+                wf.setsampwidth(sample_width)
+                wf.setframerate(self.sample_rate)
+                wf.writeframes(b''.join(current_frames))
+            self._last_flushed_count = len(current_frames)
+            logger.info(
+                "Checkpoint flushed: %d frames to %s",
+                self._last_flushed_count, self._checkpoint_path
+            )
+        except Exception as e:
+            logger.error("Checkpoint flush failed: %s", e)
+
+        if self.is_recording:
+            self._schedule_checkpoint()
+
+    def _finalize_checkpoint(self) -> Optional[Path]:
+        """Do a final flush and rename checkpoint to the output path.
+
+        Returns:
+            Path to the finalized recording, or None if no checkpoint exists.
+        """
+        # Cancel any pending timer
+        if self._checkpoint_timer is not None:
+            self._checkpoint_timer.cancel()
+            self._checkpoint_timer = None
+
+        if self._checkpoint_path is None:
+            return None
+
+        # Final flush with all remaining frames
+        with self._checkpoint_lock:
+            current_frames = list(self.frames)
+
+        if current_frames:
+            try:
+                sample_width = self.audio.get_sample_size(self.format)
+                with wave.open(str(self._checkpoint_path), 'wb') as wf:
+                    wf.setnchannels(self.channels)
+                    wf.setsampwidth(sample_width)
+                    wf.setframerate(self.sample_rate)
+                    wf.writeframes(b''.join(current_frames))
+            except Exception as e:
+                logger.error("Final checkpoint flush failed: %s", e)
+                return None
+
+        # Rename checkpoint to final output path
+        if self._checkpoint_path.exists():
+            try:
+                self._checkpoint_path.rename(self.output_path)
+                logger.info(
+                    "Checkpoint finalized: %s -> %s",
+                    self._checkpoint_path, self.output_path
+                )
+                self._checkpoint_path = None
+                return self.output_path
+            except OSError as e:
+                logger.error("Failed to rename checkpoint: %s", e)
+                return None
+
+        self._checkpoint_path = None
+        return None
+
+    @staticmethod
+    def recover_checkpoints(
+        recordings_dir: str = "recordings",
+    ) -> List[Path]:
+        """Scan for orphaned checkpoint files and recover them.
+
+        Args:
+            recordings_dir: Directory to scan for checkpoint files.
+
+        Returns:
+            List of paths to recovered recording files.
+        """
+        rdir = Path(recordings_dir)
+        if not rdir.exists():
+            return []
+
+        recovered: List[Path] = []
+        for cp in sorted(rdir.glob("*.checkpoint.wav")):
+            # Validate the WAV structure
+            try:
+                with wave.open(str(cp), 'rb') as wf:
+                    if wf.getnframes() == 0:
+                        logger.warning(
+                            "Skipping empty checkpoint: %s", cp
+                        )
+                        continue
+            except wave.Error as e:
+                logger.warning(
+                    "Skipping corrupt checkpoint %s: %s", cp, e
+                )
+                continue
+            except Exception as e:
+                logger.warning(
+                    "Skipping unreadable checkpoint %s: %s", cp, e
+                )
+                continue
+
+            # Rename: recording-TS.checkpoint.wav -> recording-TS-recovered.wav
+            new_name = cp.name.replace(".checkpoint.wav", "-recovered.wav")
+            new_path = cp.parent / new_name
+            try:
+                cp.rename(new_path)
+                recovered.append(new_path)
+                logger.info("Recovered checkpoint: %s -> %s", cp, new_path)
+            except OSError as e:
+                logger.error(
+                    "Failed to recover checkpoint %s: %s", cp, e
+                )
+
+        return recovered
             
     def _try_ffmpeg_recording(self) -> Path:
         """Try recording with FFmpeg as a fallback.
@@ -417,6 +592,10 @@ class AudioRecorder:
     def __del__(self):
         """Cleanup when the recorder is destroyed."""
         try:
+            # Cancel checkpoint timer
+            if hasattr(self, '_checkpoint_timer') and self._checkpoint_timer:
+                self._checkpoint_timer.cancel()
+
             # Stop recording if active
             if self.is_recording:
                 self.stop_recording()
