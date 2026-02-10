@@ -23,8 +23,6 @@ from gui.assets import AssetManager
 # Load environment variables
 load_dotenv()
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GUIException(Exception):
@@ -426,11 +424,10 @@ class ScribeVaultApp:
         # Get recordings from database
         recordings = self.vault_manager.get_recordings(limit=50)
         
-        # Debug: Print what we got
-        print(f"DEBUG: Found {len(recordings)} recordings in vault")
+        logger.debug("Found %d recordings in vault", len(recordings))
         if recordings:
-            for i, rec in enumerate(recordings[:3]):  # Show first 3
-                print(f"  {i+1}. {rec['filename']} - Title: {rec.get('title', 'None')}")
+            for i, rec in enumerate(recordings[:3]):
+                logger.debug("  %d. %s - Title: %s", i + 1, rec['filename'], rec.get('title', 'None'))
         
         if not recordings:
             # No recordings message
@@ -534,7 +531,7 @@ class ScribeVaultApp:
             recording: Recording data dictionary
             parent_widget: Parent widget to refresh
         """
-        print(f"DEBUG: Starting delete process for recording {recording['id']}")
+        logger.debug("Starting delete process for recording %s", recording['id'])
         
         # Create confirmation dialog
         confirm_window = ctk.CTkToplevel(self.root)
@@ -555,7 +552,7 @@ class ScribeVaultApp:
         confirm_window.attributes('-topmost', True)  # Force on top
         confirm_window.after(100, lambda: confirm_window.attributes('-topmost', False))  # Remove topmost after showing
         
-        print("DEBUG: Confirmation window created and positioned")
+        logger.debug("Confirmation window created and positioned")
         
         # Main content frame
         main_frame = ctk.CTkFrame(confirm_window)
@@ -563,17 +560,17 @@ class ScribeVaultApp:
         
         # Define the actions first
         def confirm_delete():
-            print("DEBUG: confirm_delete function called")
+            logger.debug("confirm_delete function called")
             try:
                 recording_id = recording['id']
-                print(f"DEBUG: Attempting to delete recording ID {recording_id}")
+                logger.debug("Attempting to delete recording ID %s", recording_id)
                 # Delete from database
                 if self.vault_manager.delete_recording(recording_id):
                     # Try to delete the audio file too
                     audio_file = Path("recordings") / recording['filename']
                     if audio_file.exists():
                         audio_file.unlink()
-                        print(f"DEBUG: Audio file {audio_file} deleted")
+                        logger.debug("Audio file %s deleted", audio_file)
                         
                     self.update_status(f"✅ Recording '{recording['filename']}' deleted successfully")
                     
@@ -587,30 +584,30 @@ class ScribeVaultApp:
                     self.show_vault()
                     
                 else:
-                    print("DEBUG: Database deletion failed")
+                    logger.error("Database deletion failed")
                     self.update_status("❌ Failed to delete recording")
                     confirm_window.destroy()
                     
             except Exception as e:
-                print(f"DEBUG: Exception in confirm_delete: {str(e)}")
+                logger.error("Exception in confirm_delete: %s", e)
                 self.update_status(f"❌ Error deleting recording: {str(e)}")
                 confirm_window.destroy()
         
         def cancel_action():
-            print("DEBUG: Cancel button clicked")
+            logger.debug("Cancel button clicked")
             confirm_window.destroy()
             
         def delete_action():
-            print("DEBUG: Delete button clicked")
+            logger.debug("Delete button clicked")
             confirm_delete()
 
         # Keyboard bindings for accessibility
         def on_escape(event):
-            print("DEBUG: Escape key pressed")
+            logger.debug("Escape key pressed")
             cancel_action()
             
         def on_enter(event):
-            print("DEBUG: Enter key pressed")
+            logger.debug("Enter key pressed")
             delete_action()
             
         # Bind keyboard events
@@ -680,8 +677,8 @@ class ScribeVaultApp:
         )
         delete_button.pack(side="right", padx=(5, 10), pady=5)
         
-        print("DEBUG: Tkinter buttons created and packed successfully")
-        print("DEBUG: You can also use Escape to cancel or Enter to delete")
+        logger.debug("Tkinter buttons created and packed successfully")
+        logger.debug("You can also use Escape to cancel or Enter to delete")
         
         # Ensure the window gets focus after creation
         confirm_window.after(200, lambda: confirm_window.focus_force())
@@ -691,9 +688,9 @@ class ScribeVaultApp:
             try:
                 if confirm_window.winfo_exists():
                     confirm_window.grab_set()
-                    print("DEBUG: Window grab set successfully")
+                    logger.debug("Window grab set successfully")
             except Exception as e:
-                print(f"DEBUG: Could not set grab: {e}")
+                logger.debug("Could not set grab: %s", e)
                 
         confirm_window.after(300, safe_grab)
     

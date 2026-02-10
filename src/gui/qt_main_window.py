@@ -36,8 +36,6 @@ from gui.qt_settings_dialog import SettingsDialog
 from gui.qt_vault_dialog import VaultDialog
 from gui.qt_summary_viewer import SummaryViewerDialog
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

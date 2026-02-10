@@ -2,11 +2,14 @@
 Settings window for ScribeVault configuration.
 """
 
+import logging
 import customtkinter as ctk
 from typing import Callable, Optional
 from config.settings import SettingsManager, CostEstimator
 from transcription.whisper_service import check_local_whisper_availability
 from gui.assets import AssetManager
+
+logger = logging.getLogger(__name__)
 
 class SettingsWindow:
     """Settings configuration window."""
@@ -71,7 +74,7 @@ class SettingsWindow:
             self.window.focus_set()
         except Exception as e:
             # If grab fails, continue without modal behavior
-            print(f"Warning: Could not set modal window: {e}")
+            logger.warning("Could not set modal window: %s", e)
         
     def setup_ui(self):
         """Create the settings UI."""
@@ -727,7 +730,7 @@ class SettingsWindow:
         if value == "openai" and not self.settings_manager.has_openai_api_key():
             # Show warning and switch back to local
             self.service_var.set("local")
-            print("Warning: No OpenAI API key configured. Defaulting to local transcription.")
+            logger.warning("No OpenAI API key configured. Defaulting to local transcription.")
             
     def _on_api_key_changed(self, event=None):
         """Handle API key input changes."""
@@ -751,9 +754,9 @@ class SettingsWindow:
         # This callback could be expanded to show/hide cost details or provide warnings
         enabled = self.summarization_enabled_var.get()
         if not enabled:
-            print("Info: Summarization disabled. Only transcripts will be saved.")
+            logger.info("Summarization disabled. Only transcripts will be saved.")
         else:
-            print("Info: Summarization enabled. Transcripts will be automatically summarized.")
+            logger.info("Summarization enabled. Transcripts will be automatically summarized.")
             
     def _toggle_api_key_visibility(self):
         """Toggle API key visibility between hidden and visible."""
@@ -776,7 +779,7 @@ class SettingsWindow:
         service = settings.transcription.service
         if service == "openai" and not self.settings_manager.has_openai_api_key():
             service = "local"
-            print("No OpenAI API key found. Defaulting to local transcription.")
+            logger.warning("No OpenAI API key found. Defaulting to local transcription.")
         
         # Transcription settings
         self.service_var.set(service)
