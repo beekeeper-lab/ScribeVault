@@ -101,6 +101,88 @@ class UISettings:
         if self.window_height < 600 or self.window_height > 2160:
             raise ValueError(f"Invalid window_height: {self.window_height}. Must be between 600 and 2160")
 
+
+AUDIO_PRESETS = {
+    "voice": {
+        "label": "Voice (16 kHz mono)",
+        "sample_rate": 16000,
+        "channels": 1,
+        "description": "Optimized for speech — smaller files",
+    },
+    "standard": {
+        "label": "Standard (44.1 kHz mono)",
+        "sample_rate": 44100,
+        "channels": 1,
+        "description": "CD-quality sample rate, mono — good default",
+    },
+    "high_quality": {
+        "label": "High Quality (44.1 kHz stereo)",
+        "sample_rate": 44100,
+        "channels": 2,
+        "description": "CD-quality stereo — best for music or multi-speaker",
+    },
+}
+
+
+@dataclass
+class AudioSettings:
+    """Audio recording quality configuration."""
+    preset: str = "standard"
+    sample_rate: int = 44100
+    channels: int = 1
+    chunk_size: int = 1024
+    input_device_index: Optional[int] = None
+    input_device_name: str = "System Default"
+
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        valid_presets = list(AUDIO_PRESETS.keys())
+        if self.preset not in valid_presets:
+            raise ValueError(
+                f"Invalid preset: {self.preset}. "
+                f"Must be one of {valid_presets}"
+            )
+
+        if self.sample_rate not in (8000, 16000, 22050, 44100, 48000):
+            raise ValueError(
+                f"Invalid sample_rate: {self.sample_rate}. "
+                "Must be one of 8000, 16000, 22050, 44100, 48000"
+            )
+
+        if self.channels not in (1, 2):
+            raise ValueError(
+                f"Invalid channels: {self.channels}. Must be 1 or 2"
+            )
+
+        if self.chunk_size < 256 or self.chunk_size > 8192:
+            raise ValueError(
+                f"Invalid chunk_size: {self.chunk_size}. "
+                "Must be between 256 and 8192"
+            )
+
+    def apply_preset(self):
+        """Apply the selected preset's parameters to this instance."""
+        if self.preset in AUDIO_PRESETS:
+            params = AUDIO_PRESETS[self.preset]
+            self.sample_rate = params["sample_rate"]
+            self.channels = params["channels"]
+
+    @staticmethod
+    def estimate_file_size_per_minute(sample_rate: int, channels: int,
+                                      bits_per_sample: int = 16) -> float:
+        """Return estimated WAV file size in MB per minute of recording."""
+        bytes_per_sample = bits_per_sample // 8
+        bytes_per_second = sample_rate * channels * bytes_per_sample
+        bytes_per_minute = bytes_per_second * 60
+        return bytes_per_minute / (1024 * 1024)
+
+    def get_file_size_per_minute(self) -> float:
+        """Return estimated WAV file size in MB/min for current settings."""
+        return self.estimate_file_size_per_minute(
+            self.sample_rate, self.channels
+        )
+
+
 @dataclass
 class RecordingSettings:
     """Recording configuration."""
@@ -122,6 +204,7 @@ class AppSettings:
     diarization: DiarizationSettings
     ui: UISettings
     recording: RecordingSettings = None
+    audio: AudioSettings = None  # type: ignore[assignment]
     recordings_dir: str = "recordings"
     vault_dir: str = "vault"
     log_level: str = "INFO"
@@ -129,6 +212,9 @@ class AppSettings:
     def __post_init__(self):
         if self.recording is None:
             self.recording = RecordingSettings()
+        if self.audio is None:
+            self.audio = AudioSettings()
+
 
 class SettingsManager:
     """Manages application settings and configuration."""
@@ -163,6 +249,7 @@ class SettingsManager:
                         diarization=DiarizationSettings(**data.get('diarization', {})),
                         ui=UISettings(**data.get('ui', {})),
                         recording=RecordingSettings(**data.get('recording', {})),
+                        audio=AudioSettings(**data.get('audio', {})),
                         recordings_dir=data.get('recordings_dir', 'recordings'),
                         vault_dir=data.get('vault_dir', 'vault'),
                         log_level=data.get('log_level', 'INFO')
@@ -170,13 +257,15 @@ class SettingsManager:
                 except Exception as e:
                     logger.error("Error loading settings: %s", e)
 
+
         # Return defaults if file doesn't exist or failed to load
         return AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
             diarization=DiarizationSettings(),
             ui=UISettings(),
-            recording=RecordingSettings()
+            recording=RecordingSettings(),
+            audio=AudioSettings()
         )
         
     def save_settings(self):
