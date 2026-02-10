@@ -64,6 +64,12 @@ class VaultManager:
                     conn.execute(
                         "ALTER TABLE recordings ADD COLUMN markdown_path TEXT"
                     )
+                # Check if original_transcription column exists, add if missing
+                if "original_transcription" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recordings "
+                        "ADD COLUMN original_transcription TEXT"
+                    )
             else:
                 self._create_table(conn)
 
@@ -82,6 +88,7 @@ class VaultManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 file_size INTEGER CHECK(file_size >= 0) DEFAULT 0,
                 transcription TEXT,
+                original_transcription TEXT,
                 summary TEXT,
                 key_points TEXT,
                 tags TEXT,
@@ -309,9 +316,11 @@ class VaultManager:
         description: Optional[str] = None,
         category: Optional[str] = None,
         transcription: Optional[str] = None,
+        original_transcription: Optional[str] = None,
         summary: Optional[str] = None,
         key_points: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
+        markdown_path: Optional[str] = None,
     ) -> bool:
         """Update a recording's metadata.
 
@@ -321,9 +330,11 @@ class VaultManager:
             description: New description (None to skip).
             category: New category (None to skip).
             transcription: New transcription (None to skip).
+            original_transcription: New original transcription (None to skip).
             summary: New summary (None to skip).
             key_points: New key points list (None to skip).
             tags: New tags list (None to skip).
+            markdown_path: New markdown path (None to skip).
 
         Returns:
             True if update was successful.
@@ -356,6 +367,9 @@ class VaultManager:
         if transcription is not None:
             updates.append("transcription = ?")
             params.append(self._sanitize_text(transcription))
+        if original_transcription is not None:
+            updates.append("original_transcription = ?")
+            params.append(self._sanitize_text(original_transcription))
         if summary is not None:
             updates.append("summary = ?")
             params.append(self._sanitize_text(summary))
@@ -365,6 +379,9 @@ class VaultManager:
         if tags is not None:
             updates.append("tags = ?")
             params.append(json.dumps(tags))
+        if markdown_path is not None:
+            updates.append("markdown_path = ?")
+            params.append(markdown_path)
 
         if not updates:
             return True  # Nothing to update
