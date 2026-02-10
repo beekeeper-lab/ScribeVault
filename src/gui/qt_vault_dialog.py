@@ -19,6 +19,7 @@ from PySide6.QtGui import QFont, QIcon, QPalette, QColor
 
 from vault.manager import VaultManager, VaultException
 from gui.qt_summary_viewer import SummaryViewerDialog
+from export.transcription_exporter import TranscriptionExporter
 import logging
 
 logger = logging.getLogger(__name__)
@@ -462,15 +463,91 @@ class VaultDialog(QDialog):
                 QMessageBox.warning(self, "Delete Error", f"Failed to delete recording: {e}")
                 
     def export_recording(self):
-        """Export the selected recording."""
+        """Export the selected recording's transcription."""
         current_row = self.recordings_table.currentRow()
         if current_row < 0:
-            QMessageBox.information(self, "No Selection", "Please select a recording to export.")
+            QMessageBox.information(
+                self, "No Selection",
+                "Please select a recording to export."
+            )
             return
-            
-        # TODO: Implement export functionality
-        QMessageBox.information(self, "Export", "Export functionality coming soon!")
-        self.update_status("Export functionality not yet implemented")
+
+        title_item = self.recordings_table.item(current_row, 0)
+        recording = title_item.data(Qt.UserRole)
+        if not recording:
+            QMessageBox.warning(
+                self, "Error",
+                "Could not retrieve recording data."
+            )
+            return
+
+        if not recording.get('transcription'):
+            QMessageBox.information(
+                self, "No Transcription",
+                "This recording has no transcription to export."
+            )
+            return
+
+        exporter = TranscriptionExporter(recording)
+
+        # Size warning
+        if exporter.needs_size_warning():
+            size_kb = exporter.get_transcription_size() / 1024
+            reply = QMessageBox.question(
+                self, "Large Transcription",
+                f"This transcription is {size_kb:.0f} KB. "
+                "Large files may be slow to open. Continue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.No:
+                return
+
+        # Build format filter
+        formats = "Text files (*.txt);;Markdown files (*.md)"
+        if exporter.has_timestamps():
+            formats += ";;SRT subtitle files (*.srt)"
+
+        safe_title = "".join(
+            c for c in exporter.title
+            if c.isalnum() or c in (' ', '-', '_')
+        ).strip().replace(' ', '_')[:50]
+
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self, "Export Transcription",
+            safe_title,
+            formats
+        )
+
+        if not file_path:
+            return
+
+        try:
+            path = Path(file_path)
+            if selected_filter.startswith("Text"):
+                if not path.suffix:
+                    path = path.with_suffix('.txt')
+                exporter.export_txt(path)
+            elif selected_filter.startswith("Markdown"):
+                if not path.suffix:
+                    path = path.with_suffix('.md')
+                exporter.export_markdown(path)
+            elif selected_filter.startswith("SRT"):
+                if not path.suffix:
+                    path = path.with_suffix('.srt')
+                exporter.export_srt(path)
+
+            self.update_status(f"Exported to {path.name}")
+            QMessageBox.information(
+                self, "Export Complete",
+                f"Transcription exported to:\n{path}"
+            )
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+            QMessageBox.warning(
+                self, "Export Error",
+                f"Failed to export transcription: {e}"
+            )
         
     def open_vault_folder(self):
         """Open the vault folder in file manager."""

@@ -14,5 +14,5 @@
 | BEAN-010 | PySide6 Feature Parity with CustomTkinter | P2 | Approved | |
 | BEAN-011 | Summary Re-generation with Prompt Templates | P2 | Approved | |
 | BEAN-012 | Remove CustomTkinter Implementation | P2 | Approved | |
-| BEAN-013 | Transcription Export | P2 | Approved | |
+| BEAN-013 | Transcription Export | P2 | Done | bean/BEAN-013-transcription-export |
 | BEAN-014 | Audio Recording Quality Settings | P3 | Approved | |

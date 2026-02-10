@@ -8,11 +8,12 @@
 | Title     | Transcription Export |
 | Type      | feature |
 | Priority  | P2 |
-| Status    | Approved   |
+| Status    | Done         |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 16:19 |
+| Completed | 2026-02-10 16:30 |
+| Duration  | ~11 min      |
 
 ## Problem Statement
 
@@ -46,27 +47,29 @@ Users can export transcriptions in multiple formats with sensible size handling 
 
 ## Acceptance Criteria
 
-- [ ] Export to plain text (.txt) with speaker labels preserved
-- [ ] Export to markdown (.md) with proper formatting and metadata header
-- [ ] Export to SRT (.srt) if timestamp data available
-- [ ] Size warning shown for transcriptions >50KB
-- [ ] Export accessible from vault UI
-- [ ] Metadata header includes: title, date, duration, speakers (if identified)
-- [ ] New tests cover export format generation
+- [x] Export to plain text (.txt) with speaker labels preserved
+- [x] Export to markdown (.md) with proper formatting and metadata header
+- [x] Export to SRT (.srt) if timestamp data available
+- [x] Size warning shown for transcriptions >50KB
+- [x] Export accessible from vault UI
+- [x] Metadata header includes: title, date, duration, speakers (if identified)
+- [x] New tests cover export format generation
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Design Transcription Exporter Module | architect | — | DONE |
+| 2 | Implement TranscriptionExporter | developer | 1 | DONE |
+| 3 | Wire Export to Vault UI | developer | 2 | DONE |
+| 4 | Write Tests for Export Formats | tech-qa | 2 | DONE |
+| 5 | Final Lint and Verification | tech-qa | 3, 4 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 5     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
