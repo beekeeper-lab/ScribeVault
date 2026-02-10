@@ -8,9 +8,9 @@
 | Title     | API Retry & Rate Limit Handling |
 | Type      | enhancement |
 | Priority  | P2 |
-| Status    | Approved   |
+| Status    | In Progress  |
 | Created   | 2026-02-10   |
-| Started   |              |
+| Started   | 2026-02-10 15:54 |
 | Completed |              |
 | Duration  |              |
 
@@ -52,15 +52,28 @@ API calls automatically retry with exponential backoff on transient failures, an
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create shared retry utility module | developer | — | TODO |
+| 2 | Integrate retry into summarizer | developer | TASK-001 | TODO |
+| 3 | Integrate retry into whisper service | developer | TASK-001 | TODO |
+| 4 | Write tests for retry utility | tech-qa | TASK-001 | TODO |
+| 5 | Write integration tests for retry in services | tech-qa | TASK-002, TASK-003 | TODO |
+
+## Dependency Graph
+
+```mermaid
+graph TD
+    T1[TASK-001: Retry Utility] --> T2[TASK-002: Summarizer Integration]
+    T1 --> T3[TASK-003: Whisper Integration]
+    T1 --> T4[TASK-004: Retry Unit Tests]
+    T2 --> T5[TASK-005: Integration Tests]
+    T3 --> T5
+```
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 5     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

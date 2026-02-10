@@ -10,6 +10,8 @@ import os
 from dotenv import load_dotenv
 import logging
 
+from utils.retry import retry_on_transient_error, APIRetryError
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,32 +120,47 @@ class WhisperService:
         else:
             return self._transcribe_api(audio_path, language)
             
+    @retry_on_transient_error()
+    def _call_transcription_api(self, audio_file, language: str = None,
+                                response_format: str = "text",
+                                timestamp_granularities=None):
+        """Make a transcription API call with retry on transient errors."""
+        params = {
+            "model": "whisper-1",
+            "file": audio_file,
+            "response_format": response_format,
+        }
+        if language:
+            params["language"] = language
+        if timestamp_granularities:
+            params["timestamp_granularities"] = timestamp_granularities
+        return self.client.audio.transcriptions.create(**params)
+
     def _transcribe_api(self, audio_path: Path, language: str = None) -> Optional[str]:
         """Transcribe using OpenAI API."""
         try:
             logger.info(f"Starting API transcription for: {audio_path.name}")
-            
+
             with open(audio_path, "rb") as audio_file:
-                params = {
-                    "model": "whisper-1",
-                    "file": audio_file,
-                    "response_format": "text"
-                }
-                
-                if language:
-                    params["language"] = language
-                
-                transcript = self.client.audio.transcriptions.create(**params)
-                
+                transcript = self._call_transcription_api(
+                    audio_file, language=language, response_format="text"
+                )
+
             logger.info("API transcription completed successfully")
             return transcript
-            
-        except openai.APIError as e:
-            logger.error(f"OpenAI API error: {e}", exc_info=True)
-            raise TranscriptionException(f"API transcription failed: {e}")
+
+        except APIRetryError as e:
+            logger.error("API transcription failed after retries: %s", e)
+            raise TranscriptionException(
+                "Transcription failed after multiple retries. "
+                "Please check your connection and try again."
+            )
         except FileNotFoundError:
             logger.error(f"Audio file not found: {audio_path}")
             raise TranscriptionException(f"Audio file not found: {audio_path}")
+        except openai.APIError as e:
+            logger.error(f"OpenAI API error: {e}", exc_info=True)
+            raise TranscriptionException(f"API transcription failed: {e}")
         except Exception as e:
             logger.exception("Unexpected error in API transcription")
             raise TranscriptionException(f"Unexpected transcription error: {e}")
@@ -192,21 +209,19 @@ class WhisperService:
         """Get timestamps using OpenAI API."""
         try:
             with open(audio_path, "rb") as audio_file:
-                params = {
-                    "model": "whisper-1",
-                    "file": audio_file,
-                    "response_format": "verbose_json",
-                    "timestamp_granularities": ["word"]
-                }
-                
-                if language:
-                    params["language"] = language
-                    
-                transcript = self.client.audio.transcriptions.create(**params)
+                transcript = self._call_transcription_api(
+                    audio_file,
+                    language=language,
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"],
+                )
             return transcript
-            
+
+        except APIRetryError as e:
+            logger.error("Timestamp transcription failed after retries: %s", e)
+            return None
         except Exception as e:
-            print(f"API timestamp transcription error: {e}")
+            logger.error("API timestamp transcription error: %s", e)
             return None
             
     def _transcribe_local_with_timestamps(self, audio_path: Path, language: str = None) -> Optional[dict]:
