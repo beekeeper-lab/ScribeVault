@@ -1,8 +1,8 @@
 """
-Vault manager for ScribeVault recordings storage.
+Vault manager for ScribeVault recording storage.
 
-Handles SQLite database operations for recording metadata,
-including CRUD operations with validation and sanitization.
+Manages a SQLite database of recordings with metadata, transcriptions,
+and AI summaries. Handles CRUD operations with validation and sanitization.
 """
 
 import json
@@ -25,6 +25,11 @@ class VaultManager:
     """Manages the recordings vault using SQLite storage."""
 
     def __init__(self, vault_dir: Optional[Path] = None):
+        """Initialize the vault manager.
+
+        Args:
+            vault_dir: Directory for the vault database. Defaults to 'vault/'.
+        """
         if vault_dir is None:
             vault_dir = Path("vault")
         self.vault_dir = Path(vault_dir)
@@ -35,6 +40,7 @@ class VaultManager:
     def _init_database(self):
         """Initialize or migrate the database schema."""
         with sqlite3.connect(str(self.db_path)) as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA foreign_keys = ON")
 
             # Check if table exists and needs migration
@@ -50,6 +56,14 @@ class VaultManager:
                 columns = {row[1] for row in cursor.fetchall()}
                 if "archived" in columns:
                     self._migrate_from_archived(conn)
+                    # Re-read columns after migration
+                    cursor = conn.execute("PRAGMA table_info(recordings)")
+                    columns = {row[1] for row in cursor.fetchall()}
+                # Check if markdown_path column exists, add if missing
+                if "markdown_path" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recordings ADD COLUMN markdown_path TEXT"
+                    )
             else:
                 self._create_table(conn)
 
@@ -57,7 +71,7 @@ class VaultManager:
         """Create the recordings table."""
         conn.execute("""
             CREATE TABLE recordings (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 filename TEXT UNIQUE NOT NULL,
                 title TEXT,
                 description TEXT,
@@ -70,7 +84,8 @@ class VaultManager:
                 transcription TEXT,
                 summary TEXT,
                 key_points TEXT,
-                tags TEXT
+                tags TEXT,
+                markdown_path TEXT
             )
         """)
 
@@ -121,7 +136,7 @@ class VaultManager:
         filename: str,
         title: Optional[str] = None,
         description: Optional[str] = None,
-        category: str = "other",
+        category: Optional[str] = None,
         duration: float = 0.0,
         file_size: int = 0,
         transcription: Optional[str] = None,
@@ -132,8 +147,24 @@ class VaultManager:
     ) -> int:
         """Add a recording to the vault.
 
-        Returns the recording ID.
-        Raises VaultException for validation errors.
+        Args:
+            filename: Audio filename (must be unique).
+            title: Recording title.
+            description: Recording description.
+            category: Category (meeting, interview, lecture, note, other).
+            duration: Duration in seconds.
+            file_size: File size in bytes.
+            transcription: Transcription text.
+            summary: AI summary text.
+            key_points: List of key points.
+            tags: List of tags.
+            markdown_path: Path to markdown summary file.
+
+        Returns:
+            The new recording's ID.
+
+        Raises:
+            VaultException: If filename is empty or duplicate.
         """
         # Validate filename
         if not filename or not filename.strip():
@@ -151,9 +182,9 @@ class VaultManager:
         category = self._normalize_category(category)
 
         # Clamp negative values
-        if duration < 0:
+        if duration is None or duration < 0:
             duration = 0.0
-        if file_size < 0:
+        if file_size is None or file_size < 0:
             file_size = 0
 
         # Serialize JSON fields
@@ -166,19 +197,22 @@ class VaultManager:
                 cursor = conn.execute(
                     "INSERT INTO recordings "
                     "(filename, title, description, category, duration, "
-                    "file_size, transcription, summary, key_points, tags) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "file_size, transcription, summary, key_points, tags, "
+                    "markdown_path) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         filename, title, description, category,
                         duration, file_size, transcription, summary,
-                        key_points_json, tags_json,
+                        key_points_json, tags_json, markdown_path,
                     ),
                 )
                 recording_id = cursor.lastrowid
                 logger.info(f"Added recording {recording_id}: {filename}")
                 return recording_id
         except sqlite3.IntegrityError as e:
-            raise VaultException(f"Recording already exists: {filename}") from e
+            raise VaultException(
+                f"Recording with filename '{filename}' already exists"
+            ) from e
 
     def get_recordings(
         self,
@@ -189,7 +223,17 @@ class VaultManager:
     ) -> List[Dict[str, Any]]:
         """Retrieve recordings with optional filtering and pagination.
 
-        Raises VaultException for invalid pagination parameters.
+        Args:
+            category: Filter by category.
+            search_query: Search in title, description, transcription, filename.
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            List of recording dictionaries.
+
+        Raises:
+            VaultException: If pagination parameters are invalid.
         """
         if limit is not None and limit < 0:
             raise VaultException("Limit cannot be negative")
@@ -231,7 +275,17 @@ class VaultManager:
         return [self._row_to_dict(row) for row in rows]
 
     def get_recording_by_id(self, recording_id: int) -> Optional[Dict[str, Any]]:
-        """Retrieve a single recording by ID."""
+        """Retrieve a single recording by ID.
+
+        Args:
+            recording_id: ID of the recording to retrieve.
+
+        Returns:
+            Recording dictionary, or None if not found.
+
+        Raises:
+            VaultException: If recording_id is invalid.
+        """
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
 
@@ -261,8 +315,21 @@ class VaultManager:
     ) -> bool:
         """Update a recording's metadata.
 
-        Returns True on success.
-        Raises VaultException for invalid IDs.
+        Args:
+            recording_id: ID of the recording to update.
+            title: New title (None to skip).
+            description: New description (None to skip).
+            category: New category (None to skip).
+            transcription: New transcription (None to skip).
+            summary: New summary (None to skip).
+            key_points: New key points list (None to skip).
+            tags: New tags list (None to skip).
+
+        Returns:
+            True if update was successful.
+
+        Raises:
+            VaultException: If recording_id is invalid or not found.
         """
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
@@ -274,7 +341,7 @@ class VaultManager:
                 f"Recording not found: {recording_id}"
             )
 
-        updates = []
+        updates: list = []
         params: list = []
 
         if title is not None:
@@ -300,7 +367,7 @@ class VaultManager:
             params.append(json.dumps(tags))
 
         if not updates:
-            return True
+            return True  # Nothing to update
 
         params.append(recording_id)
         query = f"UPDATE recordings SET {', '.join(updates)} WHERE id = ?"
@@ -315,8 +382,14 @@ class VaultManager:
     def delete_recording(self, recording_id: int) -> bool:
         """Delete a recording from the database.
 
-        Returns True on success.
-        Raises VaultException for invalid or non-existent IDs.
+        Args:
+            recording_id: ID of the recording to delete.
+
+        Returns:
+            True if deletion was successful.
+
+        Raises:
+            VaultException: If recording_id is invalid or not found.
         """
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
