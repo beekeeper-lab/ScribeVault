@@ -812,13 +812,33 @@ class ScribeVaultMainWindow(QMainWindow):
                 
             settings_dialog = SettingsDialog(self.settings_manager, self)
             if settings_dialog.exec() == QDialog.Accepted:
-                # Settings were saved, you might want to reload services here
-                self.update_status("Settings updated - restart recommended for all changes to take effect")
+                self._apply_settings()
+                self.update_status("Settings updated")
                 
         except Exception as e:
             logger.error(f"Error showing settings: {e}")
             QMessageBox.critical(self, "Settings Error", f"Failed to open settings: {e}")
         
+    def _apply_settings(self):
+        """Apply saved settings to the running application."""
+        try:
+            settings = self.settings_manager.settings
+
+            # Apply theme via the Qt application
+            app = QApplication.instance()
+            if app and hasattr(app, 'change_theme'):
+                app.change_theme(settings.ui.theme)
+
+            # Reinitialize whisper service with updated settings
+            try:
+                self.whisper_service = WhisperService(self.settings_manager)
+            except Exception as e:
+                logger.warning(f"Could not reinitialize whisper service: {e}")
+                self.whisper_service = None
+
+        except Exception as e:
+            logger.error(f"Error applying settings: {e}")
+
     def show_markdown_summary(self):
         """Show AI summary viewer window."""
         try:
