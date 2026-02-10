@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-ScribeVault - Audio Recording, Transcription, and AI Summarization Tool
-
-A modern GUI application for capturing, transcribing, and organizing audio content.
+Main entry point for ScribeVault PySide6 application.
 """
 
+import os
 import sys
 import logging
 from pathlib import Path
 
 # Add src directory to Python path
 src_path = Path(__file__).parent / "src"
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(src_path))
+
+# Set environment variables for better Qt experience
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
 
 # Configure logging before any other application imports
 from config.logging_config import setup_logging
@@ -23,20 +25,40 @@ setup_logging(level=getattr(_settings.settings, "log_level", "INFO"))
 
 logger = logging.getLogger(__name__)
 
-# Now import the main application
-from gui.main_window import ScribeVaultApp
-
 def main():
-    """Main entry point for ScribeVault application."""
+    """Main application entry point."""
     try:
-        app = ScribeVaultApp()
-        app.run()
-    except KeyboardInterrupt:
-        logger.info("ScribeVault terminated by user.")
-        sys.exit(0)
+        # Import PySide6 components
+        from gui.qt_app import create_qt_application
+        from gui.qt_main_window import ScribeVaultMainWindow
+
+        # Create Qt application
+        app = create_qt_application(sys.argv)
+
+        # Create main window
+        main_window = ScribeVaultMainWindow()
+        app.set_main_window(main_window)
+
+        # Show window
+        main_window.show()
+
+        # Run application
+        exit_code = app.exec()
+
+        return exit_code
+
+    except ImportError as e:
+        logger.critical("PySide6 is not installed: %s", e)
+        print("Error: PySide6 is not installed.")
+        print("Please install PySide6 dependencies:")
+        print("pip install -r requirements.txt")
+        return 1
+
     except Exception as e:
-        logger.critical("Error starting ScribeVault: %s", e, exc_info=True)
-        sys.exit(1)
+        logger.critical("Application error: %s", e, exc_info=True)
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)
