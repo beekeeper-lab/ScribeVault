@@ -8,11 +8,12 @@
 | Title     | PySide6 Feature Parity with CustomTkinter |
 | Type      | enhancement |
 | Priority  | P2 |
-| Status    | Approved   |
+| Status    | Done        |
+| Owner     | team-lead   |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:54 |
+| Completed | 2026-02-10 16:08 |
+| Duration  | ~14 min     |
 
 ## Problem Statement
 
@@ -44,26 +45,31 @@ PySide6 version has full feature parity with CustomTkinter version, making it sa
 
 ## Acceptance Criteria
 
-- [ ] Settings saved in PySide6 are read correctly on next launch
-- [ ] Settings match between PySide6 and CustomTkinter when using same config file
-- [ ] Audio playback works from vault (play button launches audio)
-- [ ] Recording details view shows full metadata (title, date, duration, file size, category)
-- [ ] Theme settings apply correctly in PySide6
-- [ ] All features in CustomTkinter main window have PySide6 equivalents
+- [x] Settings saved in PySide6 are read correctly on next launch
+- [x] Settings match between PySide6 and CustomTkinter when using same config file
+- [x] Audio playback works from vault (play button launches audio)
+- [x] Recording details view shows full metadata (title, date, duration, file size, category)
+- [x] Theme settings apply correctly in PySide6
+- [x] All features in CustomTkinter main window have PySide6 equivalents
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create Vault Manager Module | developer | — | Done |
+| 2 | Add Audio Playback to Vault Dialog | developer | T001 | Done |
+| 3 | Implement Delete Recording | developer | T001 | Done |
+| 4 | Complete Recording Details View | developer | T001 | Done |
+| 5 | Implement Edit Recording | developer | T001, T004 | Done |
+| 6 | Implement Export Recording | developer | T001 | Done |
+| 7 | Theme Settings Apply Correctly | developer | — | Done |
+| 8 | Tests Pass and Lint Clean | tech-qa | T001-T007 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 8     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

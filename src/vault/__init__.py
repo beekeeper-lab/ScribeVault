@@ -1,4 +1,4 @@
-"""Vault storage module for ScribeVault."""
+"""Vault package for ScribeVault recording storage."""
 
 from vault.manager import VaultManager, VaultException
 

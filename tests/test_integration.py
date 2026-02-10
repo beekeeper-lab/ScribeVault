@@ -133,6 +133,7 @@ class TestScribeVaultIntegration(unittest.TestCase):
                 filename="test.wav",
                 category="invalid_category"
             )
+            self.assertGreater(corrected_id, 0)
             corrected = vault.get_recordings()
             self.assertEqual(corrected[0]['category'], "other")
 
@@ -214,7 +215,7 @@ class TestScribeVaultIntegration(unittest.TestCase):
                 cursor = conn.execute("PRAGMA foreign_keys")
                 foreign_keys_enabled = cursor.fetchone()[0]
                 self.assertEqual(foreign_keys_enabled, 1)
-                
+
                 # Test unique constraint on filename
                 with self.assertRaises(sqlite3.IntegrityError):
                     conn.execute(
