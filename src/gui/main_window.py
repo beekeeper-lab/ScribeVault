@@ -51,6 +51,7 @@ class ScribeVaultApp:
             self._initialize_services()
             
             # Initialize state
+            self._recording_lock = threading.Lock()
             self.is_recording = False
             self.current_recording_path: Optional[Path] = None
             self._processing_thread: Optional[threading.Thread] = None
@@ -121,7 +122,9 @@ class ScribeVaultApp:
             logger.info("Application closing - performing cleanup")
             
             # Stop any ongoing recording
-            if self.is_recording:
+            with self._recording_lock:
+                was_recording = self.is_recording
+            if was_recording:
                 logger.info("Stopping recording before shutdown")
                 self._emergency_stop_recording()
             
@@ -152,7 +155,8 @@ class ScribeVaultApp:
         """Emergency stop recording without error propagation."""
         try:
             self.audio_recorder.stop_recording()
-            self.is_recording = False
+            with self._recording_lock:
+                self.is_recording = False
         except Exception as e:
             logger.error(f"Error in emergency stop recording: {e}")
             # Don't propagate errors during emergency shutdown
@@ -1331,7 +1335,9 @@ class ScribeVaultApp:
         
     def toggle_recording(self):
         """Toggle audio recording on/off."""
-        if not self.is_recording:
+        with self._recording_lock:
+            recording = self.is_recording
+        if not recording:
             self.start_recording()
         else:
             self.stop_recording()
@@ -1339,18 +1345,19 @@ class ScribeVaultApp:
     def start_recording(self):
         """Start audio recording with comprehensive error handling."""
         try:
-            if self.is_recording:
-                logger.warning("Recording already in progress")
-                return
-            
+            with self._recording_lock:
+                if self.is_recording:
+                    logger.warning("Recording already in progress")
+                    return
+                self.is_recording = True
+
             # Validate audio recorder state
             if not hasattr(self, 'audio_recorder') or not self.audio_recorder:
+                with self._recording_lock:
+                    self.is_recording = False
                 raise GUIException("Audio recorder not initialized")
-            
+
             logger.info("Starting audio recording")
-            
-            # Update UI state first
-            self.is_recording = True
             self._safe_ui_update(lambda: self._update_recording_ui(True))
             self._safe_status_update("Starting recording...")
             
@@ -1371,14 +1378,13 @@ class ScribeVaultApp:
     def stop_recording(self):
         """Stop audio recording with comprehensive error handling."""
         try:
-            if not self.is_recording:
-                logger.warning("No recording in progress")
-                return
-            
+            with self._recording_lock:
+                if not self.is_recording:
+                    logger.warning("No recording in progress")
+                    return
+                self.is_recording = False
+
             logger.info("Stopping audio recording")
-            
-            # Update UI state first
-            self.is_recording = False
             self._safe_ui_update(lambda: self._update_recording_ui(False))
             self._safe_status_update("Stopping recording...")
             
@@ -1410,7 +1416,8 @@ class ScribeVaultApp:
     
     def _handle_recording_error(self, error_message: str):
         """Handle recording errors with proper UI state reset."""
-        self.is_recording = False
+        with self._recording_lock:
+            self.is_recording = False
         self._safe_ui_update(lambda: self._update_recording_ui(False))
         self._safe_status_update(error_message)
     

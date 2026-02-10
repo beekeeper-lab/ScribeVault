@@ -4,6 +4,7 @@ Main application window for ScribeVault using PySide6.
 
 import sys
 import os
+import threading
 from pathlib import Path
 from typing import Optional
 import logging
@@ -218,6 +219,7 @@ class ScribeVaultMainWindow(QMainWindow):
         self.initialize_services()
         
         # Window state
+        self._recording_lock = threading.Lock()
         self.is_recording = False
         self.current_recording_path: Optional[Path] = None
         self.current_worker: Optional[RecordingWorker] = None
@@ -583,7 +585,9 @@ class ScribeVaultMainWindow(QMainWindow):
     
     def toggle_recording(self):
         """Toggle recording state."""
-        if not self.is_recording:
+        with self._recording_lock:
+            recording = self.is_recording
+        if not recording:
             self.start_recording()
         else:
             self.stop_recording()
@@ -592,19 +596,20 @@ class ScribeVaultMainWindow(QMainWindow):
         """Start audio recording."""
         try:
             self.update_status("Starting recording...")
-            
+
             # Clear previous transcription and summary
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
-            
+
             # Clear current recording data
             self.current_recording_data = None
             self.current_markdown_path = None
-            
+
             # Start recording
             self.current_recording_path = self.audio_recorder.start_recording()
-            self.is_recording = True
+            with self._recording_lock:
+                self.is_recording = True
             
             # Update UI
             self.record_button.set_recording_state(True)
@@ -627,14 +632,15 @@ class ScribeVaultMainWindow(QMainWindow):
     def stop_recording(self):
         """Stop audio recording and process."""
         try:
-            if not self.is_recording:
-                return
-                
+            with self._recording_lock:
+                if not self.is_recording:
+                    return
+                self.is_recording = False
+
             self.update_status("Stopping recording...")
-            
+
             # Stop recording
             recorded_file = self.audio_recorder.stop_recording()
-            self.is_recording = False
             
             # Update UI
             self.record_button.set_recording_state(False)
@@ -877,7 +883,9 @@ class ScribeVaultMainWindow(QMainWindow):
             self.save_settings()
             
             # Stop any ongoing recording
-            if self.is_recording:
+            with self._recording_lock:
+                was_recording = self.is_recording
+            if was_recording:
                 self.stop_recording()
                 
             # Cancel any running worker
