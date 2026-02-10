@@ -8,7 +8,7 @@
 | Title     | Vault Delete & Export Implementation |
 | Type      | bug-fix |
 | Priority  | P1 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |

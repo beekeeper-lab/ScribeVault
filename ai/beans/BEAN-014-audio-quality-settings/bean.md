@@ -8,7 +8,7 @@
 | Title     | Audio Recording Quality Settings |
 | Type      | enhancement |
 | Priority  | P3 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |

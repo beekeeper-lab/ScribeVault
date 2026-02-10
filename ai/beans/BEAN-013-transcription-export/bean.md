@@ -8,7 +8,7 @@
 | Title     | Transcription Export |
 | Type      | feature |
 | Priority  | P2 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
