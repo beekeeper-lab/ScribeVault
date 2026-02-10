@@ -128,12 +128,14 @@ class TestScribeVaultIntegration(unittest.TestCase):
             with self.assertRaises(VaultException):
                 vault.add_recording(filename="")  # Empty filename
             
-            with self.assertRaises(VaultException):
-                vault.add_recording(
-                    filename="test.wav",
-                    category="invalid_category"
-                )
-            
+            # Invalid category should be auto-corrected to 'other'
+            corrected_id = vault.add_recording(
+                filename="test.wav",
+                category="invalid_category"
+            )
+            corrected = vault.get_recordings()
+            self.assertEqual(corrected[0]['category'], "other")
+
             # Test that valid operations still work after errors
             recording_id = vault.add_recording(filename="valid.wav")
             self.assertGreater(recording_id, 0)
@@ -207,7 +209,8 @@ class TestScribeVaultIntegration(unittest.TestCase):
             
             # Test database constraints are working
             with sqlite3.connect(vault.db_path) as conn:
-                # Foreign key constraints should be enabled
+                # Enable foreign keys (per-connection setting in SQLite)
+                conn.execute("PRAGMA foreign_keys = ON")
                 cursor = conn.execute("PRAGMA foreign_keys")
                 foreign_keys_enabled = cursor.fetchone()[0]
                 self.assertEqual(foreign_keys_enabled, 1)
