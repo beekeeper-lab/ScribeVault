@@ -3,6 +3,7 @@ Vault dialog for ScribeVault PySide6 application.
 """
 
 import os
+import shutil
 from pathlib import Path
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -439,38 +440,152 @@ class VaultDialog(QDialog):
         if current_row < 0:
             QMessageBox.information(self, "No Selection", "Please select a recording to delete.")
             return
-            
+
         title_item = self.recordings_table.item(current_row, 0)
         recording = title_item.data(Qt.UserRole)
-        
+
+        if not recording:
+            QMessageBox.warning(self, "Error", "Could not retrieve recording data.")
+            return
+
         reply = QMessageBox.question(
             self,
             "Confirm Delete",
-            f"Are you sure you want to delete the recording '{recording.get('title', 'Untitled')}'?\n\n"
-            "This will remove it from the vault database but not delete the audio file.",
+            f"Are you sure you want to delete the recording "
+            f"'{recording.get('title', 'Untitled')}'?\n\n"
+            "This will permanently remove the recording, its audio file, "
+            "transcription, and summary.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
-        
+
         if reply == QMessageBox.Yes:
             try:
-                # TODO: Implement delete_recording method in VaultManager
-                QMessageBox.information(self, "Delete", "Delete functionality coming soon!")
-                self.update_status("Delete functionality not yet implemented")
+                # Delete associated files
+                self._delete_recording_files(recording)
+
+                # Delete database entry
+                recording_id = recording.get('id')
+                if recording_id:
+                    self.vault_manager.delete_recording(recording_id)
+
+                # Refresh the vault list
+                self.load_recordings()
+                self.show_empty_details()
+                self.update_status("Recording deleted successfully")
+
             except Exception as e:
                 logger.error(f"Error deleting recording: {e}")
-                QMessageBox.warning(self, "Delete Error", f"Failed to delete recording: {e}")
+                QMessageBox.critical(
+                    self, "Delete Error",
+                    f"Failed to delete recording: {e}"
+                )
+
+    def _delete_recording_files(self, recording: Dict):
+        """Delete files associated with a recording."""
+        vault_dir = self.vault_manager.vault_dir
+
+        # Delete audio file
+        filename = recording.get('filename')
+        if filename:
+            audio_path = vault_dir / filename
+            if audio_path.exists():
+                try:
+                    audio_path.unlink()
+                    logger.info(f"Deleted audio file: {audio_path}")
+                except OSError as e:
+                    logger.warning(f"Could not delete audio file {audio_path}: {e}")
+
+        # Delete markdown summary file
+        markdown_path = recording.get('markdown_path')
+        if markdown_path:
+            md_path = Path(markdown_path)
+            if md_path.exists():
+                try:
+                    md_path.unlink()
+                    logger.info(f"Deleted markdown file: {md_path}")
+                except OSError as e:
+                    logger.warning(f"Could not delete markdown file {md_path}: {e}")
                 
     def export_recording(self):
-        """Export the selected recording."""
+        """Export the selected recording to a user-chosen directory."""
         current_row = self.recordings_table.currentRow()
         if current_row < 0:
             QMessageBox.information(self, "No Selection", "Please select a recording to export.")
             return
-            
-        # TODO: Implement export functionality
-        QMessageBox.information(self, "Export", "Export functionality coming soon!")
-        self.update_status("Export functionality not yet implemented")
+
+        title_item = self.recordings_table.item(current_row, 0)
+        recording = title_item.data(Qt.UserRole)
+
+        if not recording:
+            QMessageBox.warning(self, "Error", "Could not retrieve recording data.")
+            return
+
+        # Open directory picker
+        export_dir = QFileDialog.getExistingDirectory(
+            self, "Select Export Directory",
+            str(Path.home()),
+        )
+
+        if not export_dir:
+            return  # User cancelled
+
+        export_path = Path(export_dir)
+        title = recording.get('title') or recording.get('filename', 'Untitled')
+        safe_title = "".join(
+            c for c in title if c.isalnum() or c in (' ', '-', '_')
+        ).strip().replace(' ', '_')[:50]
+
+        exported_files = []
+        try:
+            # Export audio file
+            filename = recording.get('filename')
+            if filename:
+                audio_src = self.vault_manager.vault_dir / filename
+                if audio_src.exists():
+                    audio_dst = export_path / filename
+                    shutil.copy2(str(audio_src), str(audio_dst))
+                    exported_files.append(filename)
+
+            # Export transcription as .txt
+            transcription = recording.get('transcription')
+            if transcription:
+                txt_name = f"{safe_title}_transcription.txt"
+                txt_path = export_path / txt_name
+                txt_path.write_text(transcription, encoding='utf-8')
+                exported_files.append(txt_name)
+
+            # Export summary as .md
+            summary = recording.get('summary')
+            if summary:
+                md_name = f"{safe_title}_summary.md"
+                md_path = export_path / md_name
+                md_content = f"# {title}\n\n## Summary\n\n{summary}\n"
+                md_path.write_text(md_content, encoding='utf-8')
+                exported_files.append(md_name)
+
+            if exported_files:
+                files_list = "\n".join(f"  - {f}" for f in exported_files)
+                QMessageBox.information(
+                    self, "Export Complete",
+                    f"Exported {len(exported_files)} file(s) to:\n"
+                    f"{export_dir}\n\n{files_list}"
+                )
+                self.update_status(
+                    f"Exported {len(exported_files)} files to {export_dir}"
+                )
+            else:
+                QMessageBox.information(
+                    self, "Export",
+                    "No files were available to export for this recording."
+                )
+
+        except Exception as e:
+            logger.error(f"Error exporting recording: {e}")
+            QMessageBox.critical(
+                self, "Export Error",
+                f"Failed to export recording: {e}"
+            )
         
     def open_vault_folder(self):
         """Open the vault folder in file manager."""
