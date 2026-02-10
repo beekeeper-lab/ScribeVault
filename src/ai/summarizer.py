@@ -22,6 +22,7 @@ try:
         MarkdownGenerator,
         MarkdownException,
     )
+
     MARKDOWN_AVAILABLE = True
 except ImportError:
     MARKDOWN_AVAILABLE = False
@@ -65,8 +66,7 @@ class SummarizerService:
                 self.markdown_generator = MarkdownGenerator()
             except Exception as e:
                 logger.warning(
-                    "Could not initialize markdown "
-                    "generator: %s", e
+                    "Could not initialize markdown " "generator: %s", e
                 )
                 self.markdown_generator = None
         else:
@@ -74,8 +74,11 @@ class SummarizerService:
 
     @retry_on_transient_error()
     def _call_chat_api(
-        self, system_prompt: str, user_content: str,
-        temperature: float = 0.5, max_tokens: int = 500
+        self,
+        system_prompt: str,
+        user_content: str,
+        temperature: float = 0.5,
+        max_tokens: int = 500,
     ):
         """Make a chat completion API call with retry."""
         return self.client.chat.completions.create(
@@ -121,15 +124,12 @@ class SummarizerService:
                 ),
             }
 
-            system_prompt = prompts.get(
-                style, prompts["concise"]
-            )
+            system_prompt = prompts.get(style, prompts["concise"])
 
             response = self._call_chat_api(
                 system_prompt=system_prompt,
                 user_content=(
-                    "Summarize the following "
-                    "transcript:\n\n" + text
+                    "Summarize the following " "transcript:\n\n" + text
                 ),
                 temperature=0.5,
                 max_tokens=500,
@@ -138,9 +138,7 @@ class SummarizerService:
             return response.choices[0].message.content.strip()
 
         except APIRetryError as e:
-            logger.error(
-                "Summarization failed after retries: %s", e
-            )
+            logger.error("Summarization failed after retries: %s", e)
             return None
         except Exception as e:
             logger.error("Summarization error: %s", e)
@@ -169,26 +167,18 @@ class SummarizerService:
 
             # Parse the JSON response
             import json
-            key_points = json.loads(
-                response.choices[0].message.content
-            )
+
+            key_points = json.loads(response.choices[0].message.content)
             return key_points
 
         except APIRetryError as e:
-            logger.error(
-                "Key point extraction failed after "
-                "retries: %s", e
-            )
+            logger.error("Key point extraction failed after " "retries: %s", e)
             return None
         except Exception as e:
-            logger.error(
-                "Key point extraction error: %s", e
-            )
+            logger.error("Key point extraction error: %s", e)
             return None
 
-    def categorize_content(
-        self, text: str
-    ) -> Optional[str]:
+    def categorize_content(self, text: str) -> Optional[str]:
         """Categorize the content type.
 
         Args:
@@ -215,10 +205,7 @@ class SummarizerService:
             return category.strip().lower()
 
         except APIRetryError as e:
-            logger.error(
-                "Categorization failed after retries: "
-                "%s", e
-            )
+            logger.error("Categorization failed after retries: " "%s", e)
             return "other"
         except Exception as e:
             logger.error("Categorization error: %s", e)
@@ -228,7 +215,7 @@ class SummarizerService:
         self,
         recording_data: Dict[str, Any],
         style: str = "concise",
-        template_prompt: Optional[str] = None
+        template_prompt: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate summary and markdown for a recording.
 
@@ -242,104 +229,67 @@ class SummarizerService:
             Dictionary with 'summary' text and
             'markdown_path' (if generated)
         """
-        result = {
-            'summary': None,
-            'markdown_path': None,
-            'error': None
-        }
+        result = {"summary": None, "markdown_path": None, "error": None}
 
         try:
             # Get transcription for summarization
-            transcription = recording_data.get(
-                'transcription', ''
-            )
+            transcription = recording_data.get("transcription", "")
 
             if not transcription or not transcription.strip():
-                result['error'] = (
-                    "No transcription available "
-                    "for summarization"
+                result["error"] = (
+                    "No transcription available " "for summarization"
                 )
                 return result
 
             # Generate summary based on provided parameters
-            category = recording_data.get(
-                'category', 'other'
-            )
+            category = recording_data.get("category", "other")
 
-            meeting_types = [
-                'meeting', 'call', 'interview'
-            ]
+            meeting_types = ["meeting", "call", "interview"]
             if template_prompt:
                 # Custom prompt overrides all other logic
                 summary = self.summarize_with_prompt(
                     transcription, template_prompt
                 )
-            elif (
-                style != "concise"
-                or category not in meeting_types
-            ):
+            elif style != "concise" or category not in meeting_types:
                 # User explicitly chose a style,
                 # or non-meeting category
-                summary = self.summarize_text(
-                    transcription, style
-                )
+                summary = self.summarize_text(transcription, style)
             else:
                 # Default: structured format for meetings
-                summary = (
-                    self.generate_structured_summary(
-                        transcription
-                    )
-                )
+                summary = self.generate_structured_summary(transcription)
             if summary:
-                result['summary'] = summary
+                result["summary"] = summary
 
                 # Update recording data with summary
                 rec_data = recording_data.copy()
-                rec_data['summary'] = summary
+                rec_data["summary"] = summary
 
                 # Generate markdown file if possible
                 if self.markdown_generator:
                     try:
-                        md_path = (
-                            self.markdown_generator
-                            .save_markdown_file(
-                                rec_data,
-                                template_prompt
-                            )
+                        md_path = self.markdown_generator.save_markdown_file(
+                            rec_data, template_prompt
                         )
-                        result['markdown_path'] = (
-                            str(md_path)
-                        )
+                        result["markdown_path"] = str(md_path)
                     except MarkdownException as e:
                         logger.warning(
-                            "Failed to generate "
-                            "markdown file: %s", e
+                            "Failed to generate " "markdown file: %s", e
                         )
-                        result['error'] = (
-                            "Markdown generation "
-                            "failed: {}".format(e)
+                        result["error"] = (
+                            "Markdown generation " "failed: {}".format(e)
                         )
                 else:
-                    result['error'] = (
-                        "Markdown generator not available"
-                    )
+                    result["error"] = "Markdown generator not available"
             else:
-                result['error'] = (
-                    "Failed to generate summary"
-                )
+                result["error"] = "Failed to generate summary"
 
         except Exception as e:
-            logger.error(
-                "Error in "
-                "generate_summary_with_markdown: %s", e
-            )
-            result['error'] = str(e)
+            logger.error("Error in " "generate_summary_with_markdown: %s", e)
+            result["error"] = str(e)
 
         return result
 
-    def summarize_with_prompt(
-        self, text: str, prompt: str
-    ) -> Optional[str]:
+    def summarize_with_prompt(self, text: str, prompt: str) -> Optional[str]:
         """Generate a summary using a custom prompt.
 
         Args:
@@ -360,30 +310,21 @@ class SummarizerService:
                     {
                         "role": "user",
                         "content": (
-                            "Analyze the following "
-                            "transcript:\n\n" + text
+                            "Analyze the following " "transcript:\n\n" + text
                         ),
                     },
                 ],
                 temperature=0.5,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
-            return (
-                response.choices[0].message.content
-                .strip()
-            )
+            return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(
-                "Custom prompt summarization "
-                "error: {}".format(e)
-            )
+            print("Custom prompt summarization " "error: {}".format(e))
             return None
 
-    def generate_structured_summary(
-        self, transcription: str
-    ) -> Optional[str]:
+    def generate_structured_summary(self, transcription: str) -> Optional[str]:
         """Generate a structured professional summary.
 
         Uses a custom template for meeting summaries.
@@ -434,7 +375,7 @@ class SummarizerService:
                 "professional tone\n"
                 "- If a section has no relevant "
                 "information from the transcript, mark "
-                "it as \"Not discussed\" or omit it\n"
+                'it as "Not discussed" or omit it\n'
                 "- Focus on extracting actual information "
                 "from the conversation, not making "
                 "assumptions\n\n"
@@ -444,28 +385,16 @@ class SummarizerService:
 
             response = self._call_chat_api(
                 system_prompt=structured_prompt,
-                user_content=(
-                    "Meeting Transcript:\n\n"
-                    + transcription
-                ),
+                user_content=("Meeting Transcript:\n\n" + transcription),
                 temperature=0.3,
                 max_tokens=1000,
             )
 
-            return (
-                response.choices[0].message.content
-                .strip()
-            )
+            return response.choices[0].message.content.strip()
 
         except APIRetryError as e:
-            logger.error(
-                "Structured summary failed after "
-                "retries: %s", e
-            )
+            logger.error("Structured summary failed after " "retries: %s", e)
             return None
         except Exception as e:
-            logger.error(
-                "Structured summary generation "
-                "error: %s", e
-            )
+            logger.error("Structured summary generation " "error: %s", e)
             return None

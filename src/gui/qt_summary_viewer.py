@@ -8,11 +8,25 @@ from typing import Optional, Dict
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QWidget,
-    QLabel, QPushButton, QTextEdit, QScrollArea,
-    QGroupBox, QMessageBox, QFileDialog, QTabWidget,
-    QFrame, QApplication, QTextBrowser,
-    QComboBox, QListWidget, QListWidgetItem, QInputDialog
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QScrollArea,
+    QGroupBox,
+    QMessageBox,
+    QFileDialog,
+    QTabWidget,
+    QFrame,
+    QApplication,
+    QTextBrowser,
+    QComboBox,
+    QListWidget,
+    QListWidgetItem,
+    QInputDialog,
 )
 from PySide6.QtCore import Qt, QSettings, Signal
 from PySide6.QtGui import QFont
@@ -31,8 +45,7 @@ class SummaryViewerDialog(QDialog):
     # Args: (prompt_text: str, template_name: str)
     regenerate_requested = Signal(str, str)
 
-    def __init__(self, parent=None, vault_manager=None,
-                 template_manager=None):
+    def __init__(self, parent=None, vault_manager=None, template_manager=None):
         super().__init__(parent)
         self.current_recording_data = None
         self.current_markdown_path = None
@@ -65,8 +78,7 @@ class SummaryViewerDialog(QDialog):
         """Create the header with title and controls."""
         header_frame = QFrame()
         header_frame.setStyleSheet(
-            "background-color: #2b2b2b;"
-            " border-bottom: 1px solid #555;"
+            "background-color: #2b2b2b;" " border-bottom: 1px solid #555;"
         )
         header_frame.setFixedHeight(60)
 
@@ -163,9 +175,7 @@ class SummaryViewerDialog(QDialog):
         # Template selection row
         template_row = QHBoxLayout()
         template_label = QLabel("Template:")
-        template_label.setStyleSheet(
-            "font-weight: bold; min-width: 70px;"
-        )
+        template_label.setStyleSheet("font-weight: bold; min-width: 70px;")
         template_row.addWidget(template_label)
 
         self.template_combo = QComboBox()
@@ -203,9 +213,7 @@ class SummaryViewerDialog(QDialog):
             " color: white; font-weight: bold;"
             " padding: 6px 16px; }"
         )
-        self.regenerate_button.clicked.connect(
-            self._on_regenerate_clicked
-        )
+        self.regenerate_button.clicked.connect(self._on_regenerate_clicked)
         action_row.addWidget(self.regenerate_button)
 
         self.save_template_button = QPushButton("Save as Template")
@@ -238,9 +246,7 @@ class SummaryViewerDialog(QDialog):
                 background-color: #0078d4;
             }
         """)
-        self.history_list.itemClicked.connect(
-            self._on_history_item_clicked
-        )
+        self.history_list.itemClicked.connect(self._on_history_item_clicked)
         history_layout.addWidget(self.history_list)
 
         layout.addWidget(history_group)
@@ -256,12 +262,8 @@ class SummaryViewerDialog(QDialog):
         # Display toolbar
         toolbar_layout = QHBoxLayout()
 
-        self.display_info_label = QLabel(
-            "No markdown content to display"
-        )
-        self.display_info_label.setStyleSheet(
-            "color: #888; font-size: 12px;"
-        )
+        self.display_info_label = QLabel("No markdown content to display")
+        self.display_info_label.setStyleSheet("color: #888; font-size: 12px;")
         toolbar_layout.addWidget(self.display_info_label)
 
         toolbar_layout.addStretch()
@@ -276,17 +278,13 @@ class SummaryViewerDialog(QDialog):
         self.decrease_font_button = QPushButton("A-")
         self.decrease_font_button.setMaximumWidth(30)
         self.decrease_font_button.setToolTip("Decrease font size")
-        self.decrease_font_button.clicked.connect(
-            self.decrease_display_font
-        )
+        self.decrease_font_button.clicked.connect(self.decrease_display_font)
         toolbar_layout.addWidget(self.decrease_font_button)
 
         self.increase_font_button = QPushButton("A+")
         self.increase_font_button.setMaximumWidth(30)
         self.increase_font_button.setToolTip("Increase font size")
-        self.increase_font_button.clicked.connect(
-            self.increase_display_font
-        )
+        self.increase_font_button.clicked.connect(self.increase_display_font)
         toolbar_layout.addWidget(self.increase_font_button)
 
         layout.addLayout(toolbar_layout)
@@ -305,8 +303,7 @@ class SummaryViewerDialog(QDialog):
             }
         """)
         self.markdown_browser.setPlaceholderText(
-            "Rendered markdown content will appear here"
-            " when available..."
+            "Rendered markdown content will appear here" " when available..."
         )
 
         # Set custom HTML styling for better markdown rendering
@@ -326,27 +323,19 @@ class SummaryViewerDialog(QDialog):
         toolbar_layout = QHBoxLayout()
 
         self.markdown_info_label = QLabel("No markdown file loaded")
-        self.markdown_info_label.setStyleSheet(
-            "color: #888; font-size: 12px;"
-        )
+        self.markdown_info_label.setStyleSheet("color: #888; font-size: 12px;")
         toolbar_layout.addWidget(self.markdown_info_label)
 
         toolbar_layout.addStretch()
 
-        self.export_markdown_button = QPushButton(
-            "💾 Export Markdown"
-        )
+        self.export_markdown_button = QPushButton("💾 Export Markdown")
         self.export_markdown_button.setEnabled(False)
-        self.export_markdown_button.clicked.connect(
-            self.export_markdown
-        )
+        self.export_markdown_button.clicked.connect(self.export_markdown)
         toolbar_layout.addWidget(self.export_markdown_button)
 
         self.open_markdown_button = QPushButton("📂 Open File")
         self.open_markdown_button.setEnabled(False)
-        self.open_markdown_button.clicked.connect(
-            self.open_markdown_file
-        )
+        self.open_markdown_button.clicked.connect(self.open_markdown_file)
         toolbar_layout.addWidget(self.open_markdown_button)
 
         layout.addLayout(toolbar_layout)
@@ -384,9 +373,7 @@ class SummaryViewerDialog(QDialog):
         scroll_area.setStyleSheet("QScrollArea { border: none; }")
 
         self.details_content_widget = QWidget()
-        self.details_content_layout = QVBoxLayout(
-            self.details_content_widget
-        )
+        self.details_content_layout = QVBoxLayout(self.details_content_widget)
 
         # Initially empty
         no_data_label = QLabel("Load a recording to view details")
@@ -405,12 +392,8 @@ class SummaryViewerDialog(QDialog):
         """Create the speaker management tab."""
         self.speaker_panel = SpeakerPanel()
         if self._vault_manager:
-            self.speaker_panel.set_vault_manager(
-                self._vault_manager
-            )
-        self.tab_widget.addTab(
-            self.speaker_panel, "Speaker Labels"
-        )
+            self.speaker_panel.set_vault_manager(self._vault_manager)
+        self.tab_widget.addTab(self.speaker_panel, "Speaker Labels")
 
     def setup_markdown_styling(self):
         """Setup custom CSS styling for markdown rendering."""
@@ -578,15 +561,13 @@ class SummaryViewerDialog(QDialog):
             # Try to use markdown library if available
             try:
                 import markdown
+
                 html_content = markdown.markdown(
-                    markdown_text,
-                    extensions=['extra', 'codehilite', 'toc']
+                    markdown_text, extensions=["extra", "codehilite", "toc"]
                 )
             except ImportError:
                 # Fallback: basic markdown-like formatting
-                html_content = self.basic_markdown_to_html(
-                    markdown_text
-                )
+                html_content = self.basic_markdown_to_html(markdown_text)
 
             # Wrap with our CSS styling
             full_html = f"""
@@ -604,9 +585,7 @@ class SummaryViewerDialog(QDialog):
             return full_html
 
         except Exception as e:
-            logger.error(
-                f"Error converting markdown to HTML: {e}"
-            )
+            logger.error(f"Error converting markdown to HTML: {e}")
             return (
                 "<html><body><p>"
                 f"Error rendering markdown: {e}"
@@ -618,72 +597,61 @@ class SummaryViewerDialog(QDialog):
         import re
 
         # Escape HTML characters first
-        text = text.replace(
-            '&', '&amp;'
-        ).replace('<', '&lt;').replace('>', '&gt;')
+        text = (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
 
         # Convert headers
+        text = re.sub(r"^# (.*?)$", r"<h1>\1</h1>", text, flags=re.MULTILINE)
+        text = re.sub(r"^## (.*?)$", r"<h2>\1</h2>", text, flags=re.MULTILINE)
+        text = re.sub(r"^### (.*?)$", r"<h3>\1</h3>", text, flags=re.MULTILINE)
         text = re.sub(
-            r'^# (.*?)$', r'<h1>\1</h1>',
-            text, flags=re.MULTILINE
-        )
-        text = re.sub(
-            r'^## (.*?)$', r'<h2>\1</h2>',
-            text, flags=re.MULTILINE
-        )
-        text = re.sub(
-            r'^### (.*?)$', r'<h3>\1</h3>',
-            text, flags=re.MULTILINE
-        )
-        text = re.sub(
-            r'^#### (.*?)$', r'<h4>\1</h4>',
-            text, flags=re.MULTILINE
+            r"^#### (.*?)$", r"<h4>\1</h4>", text, flags=re.MULTILINE
         )
 
         # Convert bold and italic
-        text = re.sub(
-            r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text
-        )
-        text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+        text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+        text = re.sub(r"\*(.*?)\*", r"<em>\1</em>", text)
 
         # Convert code blocks
         text = re.sub(
-            r'```(.*?)```', r'<pre><code>\1</code></pre>',
-            text, flags=re.DOTALL
+            r"```(.*?)```",
+            r"<pre><code>\1</code></pre>",
+            text,
+            flags=re.DOTALL,
         )
-        text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+        text = re.sub(r"`(.*?)`", r"<code>\1</code>", text)
 
         # Convert lists
+        text = re.sub(r"^- (.*?)$", r"<li>\1</li>", text, flags=re.MULTILINE)
         text = re.sub(
-            r'^- (.*?)$', r'<li>\1</li>',
-            text, flags=re.MULTILINE
-        )
-        text = re.sub(
-            r'^(\d+)\. (.*?)$', r'<li>\2</li>',
-            text, flags=re.MULTILINE
+            r"^(\d+)\. (.*?)$", r"<li>\2</li>", text, flags=re.MULTILINE
         )
 
         # Wrap consecutive list items
         text = re.sub(
-            r'(<li>.*?</li>)(?=\s*<li>)', r'\1',
-            text, flags=re.DOTALL
+            r"(<li>.*?</li>)(?=\s*<li>)", r"\1", text, flags=re.DOTALL
         )
         text = re.sub(
-            r'(<li>.*?</li>(?:\s*<li>.*?</li>)*)',
-            r'<ul>\1</ul>', text, flags=re.DOTALL
+            r"(<li>.*?</li>(?:\s*<li>.*?</li>)*)",
+            r"<ul>\1</ul>",
+            text,
+            flags=re.DOTALL,
         )
 
         # Convert line breaks to paragraphs
-        paragraphs = text.split('\n\n')
+        paragraphs = text.split("\n\n")
         html_paragraphs = []
         for para in paragraphs:
             para = para.strip()
-            if para and not para.startswith('<'):
-                para = f'<p>{para}</p>'
+            if para and not para.startswith("<"):
+                para = f"<p>{para}</p>"
             if para:
                 html_paragraphs.append(para)
 
-        return '\n'.join(html_paragraphs)
+        return "\n".join(html_paragraphs)
 
     def _populate_template_combo(self):
         """Populate the template dropdown from the template manager."""
@@ -699,13 +667,9 @@ class SummaryViewerDialog(QDialog):
         """Handle template selection from dropdown."""
         template_id = self.template_combo.currentData()
         if template_id and self.template_manager:
-            template = self.template_manager.get_template(
-                template_id
-            )
+            template = self.template_manager.get_template(template_id)
             if template:
-                self.custom_prompt_input.setPlainText(
-                    template.prompt_text
-                )
+                self.custom_prompt_input.setPlainText(template.prompt_text)
         else:
             self.custom_prompt_input.clear()
 
@@ -716,29 +680,22 @@ class SummaryViewerDialog(QDialog):
             QMessageBox.warning(
                 self,
                 "No Prompt",
-                "Please select a template or enter"
-                " a custom prompt.",
+                "Please select a template or enter" " a custom prompt.",
             )
             return
 
         template_id = self.template_combo.currentData()
         template_name = ""
         if template_id and self.template_manager:
-            template = self.template_manager.get_template(
-                template_id
-            )
+            template = self.template_manager.get_template(template_id)
             if template:
                 template_name = template.name
 
         self.regenerate_button.setEnabled(False)
         self.regenerate_button.setText("Generating...")
-        self.regenerate_requested.emit(
-            prompt_text, template_name
-        )
+        self.regenerate_requested.emit(prompt_text, template_name)
 
-    def on_regeneration_complete(
-        self, new_summary: str, template_name: str
-    ):
+    def on_regeneration_complete(self, new_summary: str, template_name: str):
         """Called by parent when re-generation completes."""
         self.regenerate_button.setEnabled(True)
         self.regenerate_button.setText("Re-generate Summary")
@@ -747,9 +704,7 @@ class SummaryViewerDialog(QDialog):
             self.summary_text.setPlainText(new_summary)
             self.copy_summary_button.setEnabled(True)
             # Add to history list
-            timestamp = datetime.now().strftime(
-                "%Y-%m-%d %H:%M"
-            )
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
             if template_name:
                 label = f"{timestamp} - {template_name}"
             else:
@@ -773,14 +728,16 @@ class SummaryViewerDialog(QDialog):
         prompt_text = self.custom_prompt_input.toPlainText().strip()
         if not prompt_text:
             QMessageBox.warning(
-                self, "No Prompt",
+                self,
+                "No Prompt",
                 "Enter a prompt before saving as template.",
             )
             return
 
         if not self.template_manager:
             QMessageBox.warning(
-                self, "Error",
+                self,
+                "Error",
                 "Template manager not available.",
             )
             return
@@ -792,11 +749,10 @@ class SummaryViewerDialog(QDialog):
             template = self.template_manager.save_custom_template(
                 name.strip(), prompt_text
             )
-            self.template_combo.addItem(
-                name.strip(), template.template_id
-            )
+            self.template_combo.addItem(name.strip(), template.template_id)
             QMessageBox.information(
-                self, "Saved",
+                self,
+                "Saved",
                 f"Template '{name.strip()}' saved successfully.",
             )
 
@@ -812,9 +768,7 @@ class SummaryViewerDialog(QDialog):
         if not self.current_recording_data:
             return
 
-        history = self.current_recording_data.get(
-            "summary_history", []
-        )
+        history = self.current_recording_data.get("summary_history", [])
         for entry in reversed(history):
             timestamp = entry.get("created_at", "Unknown")
             try:
@@ -828,17 +782,14 @@ class SummaryViewerDialog(QDialog):
             else:
                 label = f"{timestamp} - Original"
             item = QListWidgetItem(label)
-            item.setData(
-                Qt.UserRole, entry.get("content", "")
-            )
+            item.setData(Qt.UserRole, entry.get("content", ""))
             self.history_list.addItem(item)
 
     def create_footer(self, parent_layout):
         """Create the footer with action buttons."""
         footer_frame = QFrame()
         footer_frame.setStyleSheet(
-            "background-color: #2b2b2b;"
-            " border-top: 1px solid #555;"
+            "background-color: #2b2b2b;" " border-top: 1px solid #555;"
         )
         footer_frame.setFixedHeight(60)
 
@@ -846,29 +797,19 @@ class SummaryViewerDialog(QDialog):
         footer_layout.setContentsMargins(20, 10, 20, 10)
 
         # Copy buttons
-        self.copy_summary_button = QPushButton(
-            "📋 Copy Summary"
-        )
+        self.copy_summary_button = QPushButton("📋 Copy Summary")
         self.copy_summary_button.setEnabled(False)
-        self.copy_summary_button.clicked.connect(
-            self.copy_summary
-        )
+        self.copy_summary_button.clicked.connect(self.copy_summary)
         footer_layout.addWidget(self.copy_summary_button)
 
-        self.copy_display_button = QPushButton(
-            "📋 Copy Display"
-        )
+        self.copy_display_button = QPushButton("📋 Copy Display")
         self.copy_display_button.setEnabled(False)
         self.copy_display_button.clicked.connect(self.copy_display)
         footer_layout.addWidget(self.copy_display_button)
 
-        self.copy_markdown_button = QPushButton(
-            "📋 Copy Markdown"
-        )
+        self.copy_markdown_button = QPushButton("📋 Copy Markdown")
         self.copy_markdown_button.setEnabled(False)
-        self.copy_markdown_button.clicked.connect(
-            self.copy_markdown
-        )
+        self.copy_markdown_button.clicked.connect(self.copy_markdown)
         footer_layout.addWidget(self.copy_markdown_button)
 
         footer_layout.addStretch()
@@ -877,30 +818,28 @@ class SummaryViewerDialog(QDialog):
         close_button = QPushButton("✕ Close")
         close_button.clicked.connect(self.accept)
         close_button.setStyleSheet(
-            "QPushButton { background-color: #666;"
-            " color: white; }"
+            "QPushButton { background-color: #666;" " color: white; }"
         )
         footer_layout.addWidget(close_button)
 
         parent_layout.addWidget(footer_frame)
 
     def load_recording_data(
-        self, recording_data: Dict,
-        markdown_path: Optional[str] = None
+        self, recording_data: Dict, markdown_path: Optional[str] = None
     ):
         """Load recording data into the viewer."""
         self.current_recording_data = recording_data
         self.current_markdown_path = markdown_path
 
         # Update header info
-        filename = recording_data.get('filename', 'Unknown')
-        created_at = recording_data.get('created_at', 'Unknown')
+        filename = recording_data.get("filename", "Unknown")
+        created_at = recording_data.get("created_at", "Unknown")
         self.recording_info_label.setText(
             f"Recording: {filename} | Created: {created_at}"
         )
 
         # Load summary
-        summary = recording_data.get('summary', '')
+        summary = recording_data.get("summary", "")
         if summary:
             self.summary_text.setPlainText(summary)
             self.copy_summary_button.setEnabled(True)
@@ -913,9 +852,7 @@ class SummaryViewerDialog(QDialog):
         # Load markdown if available
         if markdown_path and Path(markdown_path).exists():
             try:
-                with open(
-                    markdown_path, 'r', encoding='utf-8'
-                ) as f:
+                with open(markdown_path, "r", encoding="utf-8") as f:
                     markdown_content = f.read()
 
                 # Update raw markdown tab
@@ -929,30 +866,22 @@ class SummaryViewerDialog(QDialog):
                 self.open_markdown_button.setEnabled(True)
 
                 # Update markdown display tab
-                html_content = self.markdown_to_html(
-                    markdown_content
-                )
+                html_content = self.markdown_to_html(markdown_content)
                 self.markdown_browser.setHtml(html_content)
                 self.display_info_label.setText(
                     f"Displaying: {Path(markdown_path).name}"
                 )
 
             except Exception as e:
-                logger.error(
-                    f"Error loading markdown file: {e}"
-                )
+                logger.error(f"Error loading markdown file: {e}")
                 self.markdown_text.setPlainText(
                     f"Error loading markdown file: {e}"
                 )
-                self.markdown_info_label.setText(
-                    "Error loading markdown"
-                )
+                self.markdown_info_label.setText("Error loading markdown")
                 self.markdown_browser.setPlainText(
                     f"Error loading markdown file: {e}"
                 )
-                self.display_info_label.setText(
-                    "Error loading markdown"
-                )
+                self.display_info_label.setText("Error loading markdown")
         else:
             self.markdown_text.setPlainText(
                 "No markdown file available for this recording."
@@ -967,9 +896,7 @@ class SummaryViewerDialog(QDialog):
             self.markdown_browser.setPlainText(
                 "No markdown file available for this recording."
             )
-            self.display_info_label.setText(
-                "No markdown content to display"
-            )
+            self.display_info_label.setText("No markdown content to display")
 
         # Load summary history
         self._load_summary_history()
@@ -978,12 +905,10 @@ class SummaryViewerDialog(QDialog):
         self.load_recording_details()
 
         # Load speaker panel
-        if hasattr(self, 'speaker_panel'):
+        if hasattr(self, "speaker_panel"):
             self.speaker_panel.load_recording(recording_data)
 
-        logger.info(
-            f"Loaded recording data for: {filename}"
-        )
+        logger.info(f"Loaded recording data for: {filename}")
 
     def load_recording_details(self):
         """Load recording details into the details tab."""
@@ -1003,36 +928,28 @@ class SummaryViewerDialog(QDialog):
         basic_layout = QVBoxLayout(basic_info)
 
         info_items = [
-            ("Title", recording.get('title', 'Untitled')),
-            ("Filename", recording.get('filename', 'Unknown')),
+            ("Title", recording.get("title", "Untitled")),
+            ("Filename", recording.get("filename", "Unknown")),
             (
                 "Category",
-                recording.get('category', 'other').title(),
+                recording.get("category", "other").title(),
             ),
             (
                 "Duration",
-                self.format_duration(
-                    recording.get('duration', 0)
-                ),
+                self.format_duration(recording.get("duration", 0)),
             ),
             (
                 "File Size",
-                self.format_file_size(
-                    recording.get('file_size', 0)
-                ),
+                self.format_file_size(recording.get("file_size", 0)),
             ),
-            ("Created", recording.get('created_at', 'Unknown'))
+            ("Created", recording.get("created_at", "Unknown")),
         ]
 
         for key, value in info_items:
             item_layout = QHBoxLayout()
             key_label = QLabel(f"{key}:")
-            key_label.setStyleSheet(
-                "font-weight: bold; min-width: 100px;"
-            )
-            value_label = QLabel(
-                str(value) if value else "N/A"
-            )
+            key_label.setStyleSheet("font-weight: bold; min-width: 100px;")
+            value_label = QLabel(str(value) if value else "N/A")
             value_label.setWordWrap(True)
 
             item_layout.addWidget(key_label)
@@ -1042,17 +959,15 @@ class SummaryViewerDialog(QDialog):
         self.details_content_layout.addWidget(basic_info)
 
         # Transcription -- prefer diarized version
-        diarized = recording.get('diarized_transcription')
-        plain_transcription = recording.get('transcription')
+        diarized = recording.get("diarized_transcription")
+        plain_transcription = recording.get("transcription")
         if diarized or plain_transcription:
             if diarized:
                 lbl = "🎤 Transcription (Speaker-Labeled)"
             else:
                 lbl = "🎤 Transcription"
             transcription_group = QGroupBox(lbl)
-            transcription_layout = QVBoxLayout(
-                transcription_group
-            )
+            transcription_layout = QVBoxLayout(transcription_group)
 
             transcription_text = QTextEdit()
             transcription_text.setReadOnly(True)
@@ -1068,57 +983,46 @@ class SummaryViewerDialog(QDialog):
                     " padding: 8px;"
                 )
             else:
-                transcription_text.setPlainText(
-                    plain_transcription
-                )
+                transcription_text.setPlainText(plain_transcription)
                 transcription_text.setStyleSheet(
-                    "background-color: #2b2b2b;"
-                    " border: 1px solid #555;"
+                    "background-color: #2b2b2b;" " border: 1px solid #555;"
                 )
 
             transcription_layout.addWidget(transcription_text)
-            self.details_content_layout.addWidget(
-                transcription_group
-            )
+            self.details_content_layout.addWidget(transcription_group)
 
         # Key points if available
-        if recording.get('key_points'):
+        if recording.get("key_points"):
             key_points_group = QGroupBox("🔑 Key Points")
             key_points_layout = QVBoxLayout(key_points_group)
 
-            if isinstance(recording['key_points'], list):
+            if isinstance(recording["key_points"], list):
                 key_points_text = "\n".join(
-                    [
-                        f"• {point}"
-                        for point in recording['key_points']
-                    ]
+                    [f"• {point}" for point in recording["key_points"]]
                 )
             else:
-                key_points_text = recording['key_points']
+                key_points_text = recording["key_points"]
 
             key_points_display = QTextEdit()
             key_points_display.setPlainText(key_points_text)
             key_points_display.setReadOnly(True)
             key_points_display.setMaximumHeight(150)
             key_points_display.setStyleSheet(
-                "background-color: #2b2b2b;"
-                " border: 1px solid #555;"
+                "background-color: #2b2b2b;" " border: 1px solid #555;"
             )
 
             key_points_layout.addWidget(key_points_display)
-            self.details_content_layout.addWidget(
-                key_points_group
-            )
+            self.details_content_layout.addWidget(key_points_group)
 
         # Tags if available
-        if recording.get('tags'):
+        if recording.get("tags"):
             tags_group = QGroupBox("🏷️ Tags")
             tags_layout = QVBoxLayout(tags_group)
 
-            if isinstance(recording['tags'], list):
-                tags_text = ", ".join(recording['tags'])
+            if isinstance(recording["tags"], list):
+                tags_text = ", ".join(recording["tags"])
             else:
-                tags_text = recording['tags']
+                tags_text = recording["tags"]
 
             tags_label = QLabel(tags_text)
             tags_label.setWordWrap(True)
@@ -1130,38 +1034,26 @@ class SummaryViewerDialog(QDialog):
     def copy_summary(self):
         """Copy summary text to clipboard."""
         summary_text = self.summary_text.toPlainText()
-        no_summary_msg = (
-            "No AI summary available for this recording."
-        )
+        no_summary_msg = "No AI summary available for this recording."
         if summary_text and summary_text != no_summary_msg:
             QApplication.clipboard().setText(summary_text)
-            self.show_status_message(
-                "Summary copied to clipboard"
-            )
+            self.show_status_message("Summary copied to clipboard")
 
     def copy_display(self):
         """Copy display content to clipboard."""
         display_text = self.markdown_browser.toPlainText()
-        no_md_msg = (
-            "No markdown file available for this recording."
-        )
+        no_md_msg = "No markdown file available for this recording."
         if display_text and display_text != no_md_msg:
             QApplication.clipboard().setText(display_text)
-            self.show_status_message(
-                "Display content copied to clipboard"
-            )
+            self.show_status_message("Display content copied to clipboard")
 
     def copy_markdown(self):
         """Copy markdown text to clipboard."""
         markdown_text = self.markdown_text.toPlainText()
-        no_md_msg = (
-            "No markdown file available for this recording."
-        )
+        no_md_msg = "No markdown file available for this recording."
         if markdown_text and markdown_text != no_md_msg:
             QApplication.clipboard().setText(markdown_text)
-            self.show_status_message(
-                "Markdown copied to clipboard"
-            )
+            self.show_status_message("Markdown copied to clipboard")
 
     def export_markdown(self):
         """Export markdown to a new file."""
@@ -1170,32 +1062,32 @@ class SummaryViewerDialog(QDialog):
             or not Path(self.current_markdown_path).exists()
         ):
             QMessageBox.warning(
-                self, "Export Error",
+                self,
+                "Export Error",
                 "No markdown file available to export.",
             )
             return
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename, _ = QFileDialog.getSaveFileName(
             self,
             "Export Markdown File",
             f"summary_{timestamp}.md",
-            "Markdown Files (*.md);;All Files (*)"
+            "Markdown Files (*.md);;All Files (*)",
         )
 
         if filename:
             try:
                 import shutil
-                shutil.copy2(
-                    self.current_markdown_path, filename
-                )
+
+                shutil.copy2(self.current_markdown_path, filename)
                 self.show_status_message(
-                    "Markdown exported to:"
-                    f" {Path(filename).name}"
+                    "Markdown exported to:" f" {Path(filename).name}"
                 )
             except Exception as e:
                 QMessageBox.critical(
-                    self, "Export Error",
+                    self,
+                    "Export Error",
                     f"Failed to export markdown:\n{e}",
                 )
 
@@ -1206,7 +1098,8 @@ class SummaryViewerDialog(QDialog):
             or not Path(self.current_markdown_path).exists()
         ):
             QMessageBox.warning(
-                self, "File Error",
+                self,
+                "File Error",
                 "No markdown file available to open.",
             )
             return
@@ -1220,12 +1113,12 @@ class SummaryViewerDialog(QDialog):
                 os.startfile(self.current_markdown_path)
             elif system == "Darwin":  # macOS
                 subprocess.run(
-                    ['open', self.current_markdown_path],
+                    ["open", self.current_markdown_path],
                     check=True,
                 )
             else:  # Linux and others
                 subprocess.run(
-                    ['xdg-open', self.current_markdown_path],
+                    ["xdg-open", self.current_markdown_path],
                     check=True,
                 )
 
@@ -1252,7 +1145,7 @@ class SummaryViewerDialog(QDialog):
         if not bytes_size or bytes_size <= 0:
             return "0 B"
 
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if bytes_size < 1024:
                 return f"{bytes_size:.1f} {unit}"
             bytes_size /= 1024
@@ -1281,7 +1174,7 @@ class SummaryViewerDialog(QDialog):
         lines = diarized_text.strip().split("\n")
         html_parts = [
             '<div style="font-family: Segoe UI, Arial,'
-            ' sans-serif; font-size: 13px;'
+            " sans-serif; font-size: 13px;"
             ' line-height: 1.6; color: #ffffff;">'
         ]
 
@@ -1291,36 +1184,29 @@ class SummaryViewerDialog(QDialog):
                 continue
 
             # Match "Speaker N:" pattern
-            match = re.match(
-                r'^(Speaker\s+\d+):\s*(.*)', line
-            )
+            match = re.match(r"^(Speaker\s+\d+):\s*(.*)", line)
             if match:
                 speaker = match.group(1)
                 text = match.group(2)
 
                 if speaker not in speaker_color_map:
-                    speaker_color_map[speaker] = (
-                        speaker_colors[
-                            color_idx % len(speaker_colors)
-                        ]
-                    )
+                    speaker_color_map[speaker] = speaker_colors[
+                        color_idx % len(speaker_colors)
+                    ]
                     color_idx += 1
 
                 color = speaker_color_map[speaker]
                 html_parts.append(
                     f'<p style="margin: 6px 0;">'
                     f'<b style="color: {color};">'
-                    f'{speaker}:</b> {text}'
-                    f'</p>'
+                    f"{speaker}:</b> {text}"
+                    f"</p>"
                 )
             else:
-                html_parts.append(
-                    f'<p style="margin: 6px 0;">'
-                    f'{line}</p>'
-                )
+                html_parts.append(f'<p style="margin: 6px 0;">' f"{line}</p>")
 
-        html_parts.append('</div>')
-        return ''.join(html_parts)
+        html_parts.append("</div>")
+        return "".join(html_parts)
 
     def show_status_message(self, message: str):
         """Show a temporary status message."""
@@ -1338,18 +1224,14 @@ class SummaryViewerDialog(QDialog):
             self.restoreGeometry(geometry)
 
         # Tab selection
-        current_tab = settings.value(
-            "summary_viewer/current_tab", 0, type=int
-        )
+        current_tab = settings.value("summary_viewer/current_tab", 0, type=int)
         if 0 <= current_tab < self.tab_widget.count():
             self.tab_widget.setCurrentIndex(current_tab)
 
     def save_settings(self):
         """Save dialog settings."""
         settings = QSettings()
-        settings.setValue(
-            "summary_viewer/geometry", self.saveGeometry()
-        )
+        settings.setValue("summary_viewer/geometry", self.saveGeometry())
         settings.setValue(
             "summary_viewer/current_tab",
             self.tab_widget.currentIndex(),
