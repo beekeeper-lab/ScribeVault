@@ -9,7 +9,7 @@
 | BEAN-005 | API Retry & Rate Limit Handling | P2 | Approved | |
 | BEAN-006 | Speaker Auto-Diarization | P1 | Approved | |
 | BEAN-007 | Speaker Manual Labeling UI | P1 | Approved | |
-| BEAN-008 | Consistent Logging Framework | P2 | Approved | |
+| BEAN-008 | Consistent Logging Framework | P2 | Done | bean/BEAN-008-consistent-logging-framework |
 | BEAN-009 | Pipeline Status Feedback to User | P2 | Approved | |
 | BEAN-010 | PySide6 Feature Parity with CustomTkinter | P2 | Approved | |
 | BEAN-011 | Summary Re-generation with Prompt Templates | P2 | Approved | |

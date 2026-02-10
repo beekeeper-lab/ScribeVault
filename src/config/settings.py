@@ -10,8 +10,6 @@ from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
 import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Try to import keyring for secure storage
@@ -93,6 +91,7 @@ class AppSettings:
     ui: UISettings
     recordings_dir: str = "recordings"
     vault_dir: str = "vault"
+    log_level: str = "INFO"
 
 class SettingsManager:
     """Manages application settings and configuration."""
@@ -121,10 +120,11 @@ class SettingsManager:
                     summarization=SummarizationSettings(**data.get('summarization', {})),
                     ui=UISettings(**data.get('ui', {})),
                     recordings_dir=data.get('recordings_dir', 'recordings'),
-                    vault_dir=data.get('vault_dir', 'vault')
+                    vault_dir=data.get('vault_dir', 'vault'),
+                    log_level=data.get('log_level', 'INFO')
                 )
             except Exception as e:
-                print(f"Error loading settings: {e}")
+                logger.error("Error loading settings: %s", e)
                 
         # Return defaults if file doesn't exist or failed to load
         return AppSettings(
@@ -139,7 +139,7 @@ class SettingsManager:
             with open(self.config_file, 'w') as f:
                 json.dump(asdict(self.settings), f, indent=2)
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            logger.error("Error saving settings: %s", e)
             
     def get_openai_api_key(self) -> Optional[str]:
         """Get OpenAI API key from secure storage or environment."""
