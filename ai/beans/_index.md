@@ -6,7 +6,7 @@
 | BEAN-002 | Thread Safety & Resource Cleanup | P0 | Approved | |
 | BEAN-003 | Vault Delete & Export Implementation | P1 | Approved | |
 | BEAN-004 | API Key Validation & Secure Storage | P1 | Approved | |
-| BEAN-005 | API Retry & Rate Limit Handling | P2 | In Progress | bean/BEAN-005-api-retry-and-rate-limiting |
+| BEAN-005 | API Retry & Rate Limit Handling | P2 | Done | bean/BEAN-005-api-retry-and-rate-limiting |
 | BEAN-006 | Speaker Auto-Diarization | P1 | Approved | |
 | BEAN-007 | Speaker Manual Labeling UI | P1 | Approved | |
 | BEAN-008 | Consistent Logging Framework | P2 | Approved | |
