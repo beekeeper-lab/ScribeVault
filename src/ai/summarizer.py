@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 # Import the markdown generator
 try:
     from export.markdown_generator import MarkdownGenerator, MarkdownException
@@ -55,7 +57,7 @@ class SummarizerService:
             try:
                 self.markdown_generator = MarkdownGenerator()
             except Exception as e:
-                print(f"Warning: Could not initialize markdown generator: {e}")
+                logger.warning("Could not initialize markdown generator: %s", e)
                 self.markdown_generator = None
         else:
             self.markdown_generator = None
@@ -220,7 +222,7 @@ class SummarizerService:
                         )
                         result['markdown_path'] = str(markdown_path)
                     except MarkdownException as e:
-                        print(f"Warning: Failed to generate markdown file: {e}")
+                        logger.warning("Failed to generate markdown file: %s", e)
                         result['error'] = f"Markdown generation failed: {e}"
                 else:
                     result['error'] = "Markdown generator not available"
@@ -228,7 +230,7 @@ class SummarizerService:
                 result['error'] = "Failed to generate summary"
             
         except Exception as e:
-            print(f"Error in generate_summary_with_markdown: {e}")
+            logger.error("Error in generate_summary_with_markdown: %s", e)
             result['error'] = str(e)
         
         return result

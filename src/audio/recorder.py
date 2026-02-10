@@ -13,8 +13,6 @@ import logging
 import signal
 import os
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AudioException(Exception):
@@ -291,7 +289,7 @@ class AudioRecorder:
                 with self._lock:
                     self.frames.append(data)
             except Exception as e:
-                logger.error(f"Recording error: {e}")
+                logger.error("Recording error: %s", e)
                 break
         
     def _audio_callback(self, in_data, frame_count, time_info, status):
@@ -627,7 +625,7 @@ class AudioRecorder:
             wf.setframerate(sample_rate)
             wf.writeframes(b''.join(frames))
             
-        print(f"Created dummy recording with speech-like patterns: {self.output_path}")
+        logger.info("Created dummy recording with speech-like patterns: %s", self.output_path)
             
     def cleanup(self):
         """Explicitly release all resources held by the recorder.
