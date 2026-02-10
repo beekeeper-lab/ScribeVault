@@ -27,10 +27,10 @@ class RecordingException(AudioException):
 
 class AudioRecorder:
     """Handles audio recording functionality."""
-    
+
     def __init__(self, sample_rate: int = 44100, chunk_size: int = 1024, channels: int = 1):
         """Initialize the audio recorder.
-        
+
         Args:
             sample_rate: Audio sample rate in Hz
             chunk_size: Number of frames per buffer
@@ -40,31 +40,43 @@ class AudioRecorder:
         self.chunk_size = chunk_size
         self.channels = channels
         self.format = pyaudio.paInt16
-        
+
+        self._lock = threading.Lock()
         self.audio = pyaudio.PyAudio()
         self.stream: Optional[pyaudio.Stream] = None
         self.frames = []
         self.is_recording = False
+        self._cleaned_up = False
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit — ensures cleanup."""
+        self.cleanup()
+        return False
         
     def start_recording(self) -> Path:
         """Start recording audio with proper fallback chain.
-        
+
         Returns:
             Path to the recording file that will be created
-            
+
         Raises:
             RecordingException: If no recording method works
         """
-        if self.is_recording:
-            raise RuntimeError("Already recording")
-            
+        with self._lock:
+            if self.is_recording:
+                raise RuntimeError("Already recording")
+
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         recordings_dir = Path("recordings")
         recordings_dir.mkdir(exist_ok=True)
-        
+
         self.output_path = recordings_dir / f"recording-{timestamp}.wav"
-        
+
         # Try recording methods in order of preference
         try:
             logger.info("Attempting PyAudio recording...")
@@ -82,13 +94,14 @@ class AudioRecorder:
             
     def _try_pyaudio_recording(self) -> Path:
         """Try recording with PyAudio.
-        
+
         Returns:
             Path to recording file
-            
+
         Raises:
             AudioException: If PyAudio recording fails
         """
+        test_stream = None
         try:
             # Test if we can create a stream
             test_stream = self.audio.open(
@@ -99,11 +112,13 @@ class AudioRecorder:
                 frames_per_buffer=self.chunk_size
             )
             test_stream.close()
-            
+            test_stream = None
+
             # Initialize recording
-            self.frames = []
-            self.is_recording = True
-            
+            with self._lock:
+                self.frames = []
+                self.is_recording = True
+
             # Create recording stream
             self.stream = self.audio.open(
                 format=self.format,
@@ -113,16 +128,25 @@ class AudioRecorder:
                 frames_per_buffer=self.chunk_size,
                 stream_callback=self._audio_callback
             )
-            
+
             self.stream.start_stream()
             logger.info("PyAudio recording started successfully")
             return self.output_path
-            
+
         except Exception as e:
             logger.error(f"PyAudio recording failed: {e}")
-            self.is_recording = False
-            if hasattr(self, 'stream') and self.stream:
-                self.stream.close()
+            with self._lock:
+                self.is_recording = False
+            if test_stream:
+                try:
+                    test_stream.close()
+                except Exception:
+                    pass
+            if self.stream:
+                try:
+                    self.stream.close()
+                except Exception:
+                    pass
                 self.stream = None
             raise AudioException(f"PyAudio recording failed: {e}")
             
@@ -161,41 +185,45 @@ class AudioRecorder:
         
     def stop_recording(self) -> Optional[Path]:
         """Stop recording and save the audio file.
-        
+
         Returns:
             Path to the saved recording file, or None if no recording was active
         """
-        if not self.is_recording:
-            if hasattr(self, 'output_path') and self.output_path.exists():
-                return self.output_path
-            return None
-            
-        self.is_recording = False
-        
+        with self._lock:
+            if not self.is_recording:
+                if hasattr(self, 'output_path') and self.output_path.exists():
+                    return self.output_path
+                return None
+            self.is_recording = False
+
         try:
             # Handle PyAudio stream
             if hasattr(self, 'stream') and self.stream:
                 logger.info("Stopping PyAudio recording...")
-                self.stream.stop_stream()
-                self.stream.close()
-                self.stream = None
-                
-                if self.frames:
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                finally:
+                    self.stream = None
+
+                with self._lock:
+                    frames = list(self.frames)
+                if frames:
                     self._save_recording()
                     logger.info(f"PyAudio recording saved: {self.output_path}")
                     return self.output_path
-                    
+
             # Handle FFmpeg process
             elif hasattr(self, 'ffmpeg_process') and self.ffmpeg_process:
                 logger.info("Stopping FFmpeg recording...")
-                
+
                 # Gracefully terminate FFmpeg
                 try:
                     if os.name != 'nt':  # Unix-like systems
                         os.killpg(os.getpgid(self.ffmpeg_process.pid), signal.SIGTERM)
                     else:  # Windows
                         self.ffmpeg_process.terminate()
-                    
+
                     # Wait for process to finish with timeout
                     try:
                         self.ffmpeg_process.wait(timeout=5)
@@ -206,42 +234,49 @@ class AudioRecorder:
                         else:
                             self.ffmpeg_process.kill()
                         self.ffmpeg_process.wait()
-                        
+
                 except ProcessLookupError:
                     # Process already terminated
                     pass
-                
+
                 # Check if file was created successfully
                 if self.output_path.exists() and self.output_path.stat().st_size > 0:
                     logger.info(f"FFmpeg recording saved: {self.output_path}")
                     return self.output_path
                 else:
                     logger.error("FFmpeg recording failed - no file created or file is empty")
-                    
+
             # Return test recording path if it exists
             elif hasattr(self, 'output_path') and self.output_path.exists():
                 logger.info(f"Test recording available: {self.output_path}")
                 return self.output_path
-                
+
         except Exception as e:
             logger.error(f"Error stopping recording: {e}")
-            
+
         return None
         
     def _record_loop(self):
         """Recording loop that runs in a separate thread."""
-        while self.is_recording and self.stream:
+        while True:
+            with self._lock:
+                if not self.is_recording:
+                    break
+            if not self.stream:
+                break
             try:
                 data = self.stream.read(self.chunk_size, exception_on_overflow=False)
-                self.frames.append(data)
+                with self._lock:
+                    self.frames.append(data)
             except Exception as e:
-                print(f"Recording error: {e}")
+                logger.error(f"Recording error: {e}")
                 break
         
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """Callback function for audio stream."""
-        if self.is_recording:
-            self.frames.append(in_data)
+        with self._lock:
+            if self.is_recording:
+                self.frames.append(in_data)
         return (in_data, pyaudio.paContinue)
         
     def _save_recording(self):
@@ -267,7 +302,8 @@ class AudioRecorder:
                 raise AudioException("Invalid output path for FFmpeg recording")
             
             logger.info("Starting FFmpeg recording...")
-            self.is_recording = True
+            with self._lock:
+                self.is_recording = True
             
             # Determine audio input based on platform
             system = subprocess.run(['uname', '-s'], capture_output=True, text=True)
@@ -306,11 +342,13 @@ class AudioRecorder:
             
         except subprocess.SubprocessError as e:
             logger.error(f"FFmpeg subprocess error: {e}")
-            self.is_recording = False
+            with self._lock:
+                self.is_recording = False
             raise AudioException(f"FFmpeg recording failed: {e}")
         except Exception as e:
             logger.error(f"FFmpeg recording failed: {e}")
-            self.is_recording = False
+            with self._lock:
+                self.is_recording = False
             raise AudioException(f"FFmpeg recording failed: {e}")
     
     def _create_test_recording(self) -> Path:
@@ -321,7 +359,8 @@ class AudioRecorder:
         """
         try:
             logger.info("Creating test recording file...")
-            self.is_recording = True
+            with self._lock:
+                self.is_recording = True
             
             # Generate 3 seconds of varied tones that simulate speech
             import struct
@@ -365,7 +404,8 @@ class AudioRecorder:
             
         except Exception as e:
             logger.error(f"Failed to create test recording: {e}")
-            self.is_recording = False
+            with self._lock:
+                self.is_recording = False
             raise RecordingException(f"Could not create test recording: {e}")
     
     def _create_dummy_recording(self):
@@ -414,37 +454,53 @@ class AudioRecorder:
             
         print(f"Created dummy recording with speech-like patterns: {self.output_path}")
             
-    def __del__(self):
-        """Cleanup when the recorder is destroyed."""
+    def cleanup(self):
+        """Explicitly release all resources held by the recorder.
+
+        Safe to call multiple times. Stops any active recording, closes
+        PyAudio streams, terminates FFmpeg processes, and shuts down
+        the PyAudio instance.
+        """
+        if self._cleaned_up:
+            return
+        self._cleaned_up = True
+
         try:
             # Stop recording if active
-            if self.is_recording:
-                self.stop_recording()
-                
+            with self._lock:
+                was_recording = self.is_recording
+                self.is_recording = False
+
+            if was_recording:
+                # Close stream without going through stop_recording
+                # to avoid re-entrancy issues
+                pass
+
             # Clean up PyAudio stream
-            if hasattr(self, 'stream') and self.stream:
+            if self.stream:
                 try:
                     self.stream.stop_stream()
                     self.stream.close()
                 except Exception:
                     pass
-                    
+                self.stream = None
+
             # Clean up FFmpeg process
             if hasattr(self, 'ffmpeg_process') and self.ffmpeg_process:
                 try:
-                    if self.ffmpeg_process.poll() is None:  # Still running
+                    if self.ffmpeg_process.poll() is None:
                         self.ffmpeg_process.terminate()
                         self.ffmpeg_process.wait(timeout=2)
                 except Exception:
                     pass
-                    
+
             # Terminate PyAudio
-            if hasattr(self, 'audio'):
+            if hasattr(self, 'audio') and self.audio:
                 try:
                     self.audio.terminate()
                 except Exception:
                     pass
-                    
+
         except Exception as e:
             logger.error(f"Error in AudioRecorder cleanup: {e}")
             

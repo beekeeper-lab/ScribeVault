@@ -4,6 +4,7 @@ Configuration management for ScribeVault.
 
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
@@ -99,33 +100,38 @@ class SettingsManager:
     
     def __init__(self, config_file: str = "config/settings.json"):
         """Initialize settings manager.
-        
+
         Args:
             config_file: Path to the configuration file
         """
+        self._lock = threading.Lock()
         self.config_file = Path(config_file)
         self.config_file.parent.mkdir(exist_ok=True)
-        
+
         # Load settings or create defaults
         self.settings = self._load_settings()
         
     def _load_settings(self) -> AppSettings:
-        """Load settings from file or create defaults."""
-        if self.config_file.exists():
-            try:
-                with open(self.config_file, 'r') as f:
-                    data = json.load(f)
-                    
-                return AppSettings(
-                    transcription=TranscriptionSettings(**data.get('transcription', {})),
-                    summarization=SummarizationSettings(**data.get('summarization', {})),
-                    ui=UISettings(**data.get('ui', {})),
-                    recordings_dir=data.get('recordings_dir', 'recordings'),
-                    vault_dir=data.get('vault_dir', 'vault')
-                )
-            except Exception as e:
-                print(f"Error loading settings: {e}")
-                
+        """Load settings from file or create defaults.
+
+        Thread-safe: acquires the settings lock during file read.
+        """
+        with self._lock:
+            if self.config_file.exists():
+                try:
+                    with open(self.config_file, 'r') as f:
+                        data = json.load(f)
+
+                    return AppSettings(
+                        transcription=TranscriptionSettings(**data.get('transcription', {})),
+                        summarization=SummarizationSettings(**data.get('summarization', {})),
+                        ui=UISettings(**data.get('ui', {})),
+                        recordings_dir=data.get('recordings_dir', 'recordings'),
+                        vault_dir=data.get('vault_dir', 'vault')
+                    )
+                except Exception as e:
+                    print(f"Error loading settings: {e}")
+
         # Return defaults if file doesn't exist or failed to load
         return AppSettings(
             transcription=TranscriptionSettings(),
@@ -134,12 +140,16 @@ class SettingsManager:
         )
         
     def save_settings(self):
-        """Save current settings to file."""
-        try:
-            with open(self.config_file, 'w') as f:
-                json.dump(asdict(self.settings), f, indent=2)
-        except Exception as e:
-            print(f"Error saving settings: {e}")
+        """Save current settings to file.
+
+        Thread-safe: acquires the settings lock during file write.
+        """
+        with self._lock:
+            try:
+                with open(self.config_file, 'w') as f:
+                    json.dump(asdict(self.settings), f, indent=2)
+            except Exception as e:
+                print(f"Error saving settings: {e}")
             
     def get_openai_api_key(self) -> Optional[str]:
         """Get OpenAI API key from secure storage or environment."""
