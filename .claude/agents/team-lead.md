@@ -84,13 +84,12 @@ Use these skills at the specified points in the workflow. Skills are in `.claude
 ScribeVault is a PySide6 desktop application for audio recording, transcription, and intelligent summarization with configurable cost-optimized processing.
 
 **Key modules:**
-- `src/gui/` — GUI components (PySide6 in `qt_*.py`, original CustomTkinter in `main_window.py`)
+- `src/gui/` — GUI components (PySide6)
 - `src/audio/recorder.py` — Audio recording and processing
 - `src/transcription/whisper_service.py` — Whisper integration (API + local)
 - `src/ai/summarizer.py` — OpenAI summarization
 - `src/config/settings.py` — Configuration management
-- `main_qt.py` — PySide6 entry point
-- `main.py` — Original GUI entry point
+- `main.py` — PySide6 entry point
 
 **Tech stack:** Python >=3.8, PySide6, OpenAI, Whisper, PyAudio, pip deps, flake8/black/isort lint, mypy types, pytest
 

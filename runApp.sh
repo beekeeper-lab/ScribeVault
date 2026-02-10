@@ -11,7 +11,7 @@ echo ""
 
 # Function to check if ScribeVault is running
 check_running() {
-    if pgrep -f "python.*main_qt.py" > /dev/null; then
+    if pgrep -f "python.*main.py" > /dev/null; then
         return 0  # Running
     else
         return 1  # Not running
@@ -22,7 +22,7 @@ check_running() {
 echo "🔍 Checking for running ScribeVault instances..."
 if check_running; then
     echo "⏹️  Stopping existing ScribeVault processes..."
-    pkill -f "python.*main_qt.py" || true
+    pkill -f "python.*main.py" || true
     
     # Wait a moment for processes to stop
     sleep 2
@@ -30,7 +30,7 @@ if check_running; then
     # Check if still running and force kill if necessary
     if check_running; then
         echo "🔨 Force stopping stubborn processes..."
-        pkill -9 -f "python.*main_qt.py" || true
+        pkill -9 -f "python.*main.py" || true
         sleep 1
     fi
     
@@ -41,8 +41,8 @@ fi
 echo ""
 
 # Check if we're in the right directory
-if [[ ! -f "main_qt.py" ]]; then
-    echo "❌ Error: main_qt.py not found. Please run this script from the ScribeVault directory."
+if [[ ! -f "main.py" ]]; then
+    echo "❌ Error: main.py not found. Please run this script from the ScribeVault directory."
     exit 1
 fi
 
@@ -91,7 +91,7 @@ echo "===================="
 echo ""
 
 # Run the PySide6 application and capture exit code
-python main_qt.py
+python main.py
 EXIT_CODE=$?
 
 echo ""

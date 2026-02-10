@@ -10,7 +10,7 @@ A modern GUI application for audio recording, transcription, and intelligent sum
 - 📝 **AI Summarization** - Generate summaries using OpenAI GPT
 - 📚 **Vault Management** - Organize, view, edit, and delete your recordings
 - ⚙️ **Smart Configuration** - Comprehensive settings with cost comparison
-- 📱 **Modern UI** - Clean, intuitive interface built with CustomTkinter
+- 📱 **Modern UI** - Clean, intuitive interface built with PySide6
 - 🔒 **Enterprise Security** - Secure API key storage, input validation, and data protection
 
 ## 🛡️ Security & Quality
@@ -165,12 +165,12 @@ If you prefer manual installation or the automated setup doesn't work:
 
 ```
 ScribeVault/
-├── main.py                    # Application entry point
+├── main.py                    # Application entry point (PySide6)
 ├── src/
-│   ├── gui/                   # GUI components
-│   │   ├── main_window.py     # Main application window
-│   │   ├── settings_window.py # Configuration interface
-│   │   └── assets.py          # Asset management
+│   ├── gui/                   # GUI components (PySide6)
+│   │   ├── qt_main_window.py  # Main application window
+│   │   ├── qt_settings_dialog.py # Configuration interface
+│   │   └── qt_app.py          # Qt application framework
 │   ├── audio/                 # Audio recording/processing
 │   ├── transcription/         # Whisper integration (API + local)
 │   ├── ai/                    # OpenAI integration

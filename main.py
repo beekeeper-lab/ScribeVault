@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-ScribeVault - Audio Recording, Transcription, and AI Summarization Tool
-
-A modern GUI application for capturing, transcribing, and organizing audio content.
+Main entry point for ScribeVault PySide6 application.
 """
 
 import sys
@@ -11,25 +9,48 @@ from pathlib import Path
 
 # Add src directory to Python path
 src_path = Path(__file__).parent / "src"
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(src_path))
 
-# Now import the main application
-from gui.main_window import ScribeVaultApp
+# Set environment variables for better Qt experience
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
 
 def main():
-    """Main entry point for ScribeVault application."""
+    """Main application entry point."""
     try:
-        app = ScribeVaultApp()
-        app.run()
-    except KeyboardInterrupt:
-        print("\nScribeVault terminated by user.")
-        sys.exit(0)
+        # Import PySide6 components
+        from gui.qt_app import create_qt_application
+        from gui.qt_main_window import ScribeVaultMainWindow
+        
+        # Create Qt application
+        app = create_qt_application(sys.argv)
+        
+        # Create main window
+        main_window = ScribeVaultMainWindow()
+        app.set_main_window(main_window)
+        
+        # Show window
+        main_window.show()
+        
+        # Run application
+        exit_code = app.exec()
+        
+        return exit_code
+        
+    except ImportError as e:
+        print("Error: PySide6 is not installed.")
+        print("Please install PySide6 dependencies:")
+        print("pip install -r requirements.txt")
+        print(f"Import error: {e}")
+        return 1
+        
     except Exception as e:
-        print(f"Error starting ScribeVault: {e}")
+        print(f"Application error: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)
