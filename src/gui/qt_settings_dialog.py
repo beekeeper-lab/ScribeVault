@@ -22,23 +22,20 @@ logger = logging.getLogger(__name__)
 
 
 class APIKeyValidator(QThread):
-    """Background thread to validate API keys."""
-    
+    """Background thread to validate API keys with live API check."""
+
     validation_complete = Signal(bool, str)  # success, message
-    
+
     def __init__(self, settings_manager: SettingsManager, api_key: str):
         super().__init__()
         self.settings_manager = settings_manager
         self.api_key = api_key
-        
+
     def run(self):
-        """Validate the API key in background."""
+        """Validate the API key with a live API call in background."""
         try:
-            is_valid = self.settings_manager.validate_openai_api_key(self.api_key)
-            if is_valid:
-                self.validation_complete.emit(True, "API key is valid!")
-            else:
-                self.validation_complete.emit(False, "API key is invalid or inactive.")
+            is_valid, message = self.settings_manager.validate_openai_api_key_live(self.api_key)
+            self.validation_complete.emit(is_valid, message)
         except Exception as e:
             self.validation_complete.emit(False, f"Validation error: {str(e)}")
 
@@ -125,11 +122,16 @@ class SettingsDialog(QDialog):
         self.validate_key_button = QPushButton("Validate")
         self.validate_key_button.clicked.connect(self.validate_api_key)
         openai_layout.addWidget(self.validate_key_button, 0, 2)
-        
-        openai_layout.addWidget(QLabel("Model:"), 1, 0)
+
+        # API key status indicator
+        self.api_key_status_label = QLabel("")
+        self.api_key_status_label.setWordWrap(True)
+        openai_layout.addWidget(self.api_key_status_label, 1, 0, 1, 3)
+
+        openai_layout.addWidget(QLabel("Model:"), 2, 0)
         self.openai_model = QComboBox()
         self.openai_model.addItems(["whisper-1"])
-        openai_layout.addWidget(self.openai_model, 1, 1)
+        openai_layout.addWidget(self.openai_model, 2, 1)
         
         # Local Whisper settings
         self.local_group = QGroupBox("Local Whisper Settings")
@@ -420,30 +422,77 @@ class SettingsDialog(QDialog):
         self.update_cost_estimation()
         
     def validate_api_key(self):
-        """Validate the OpenAI API key."""
+        """Validate the OpenAI API key with a live API check."""
         api_key = self.openai_api_key.text().strip()
         if not api_key:
-            QMessageBox.warning(self, "Validation", "Please enter an API key first.")
+            self._update_api_key_status("not_configured", "No API key entered")
             return
-            
+
+        # Format check first (instant feedback)
+        if not self.settings_manager.validate_openai_api_key(api_key):
+            self._update_api_key_status("invalid", "Invalid format. Key must start with 'sk-' and be at least 20 characters.")
+            return
+
         # Disable button and show progress
         self.validate_key_button.setText("Validating...")
         self.validate_key_button.setEnabled(False)
-        
-        # Start validation in background
+        self._update_api_key_status("checking", "Validating API key...")
+
+        # Start live validation in background
         self.validator_thread = APIKeyValidator(self.settings_manager, api_key)
         self.validator_thread.validation_complete.connect(self.on_validation_complete)
         self.validator_thread.start()
-        
+
     def on_validation_complete(self, success: bool, message: str):
         """Handle API key validation completion."""
         self.validate_key_button.setText("Validate")
         self.validate_key_button.setEnabled(True)
-        
+
         if success:
-            QMessageBox.information(self, "Validation Success", message)
+            self._update_api_key_status("valid", message)
         else:
-            QMessageBox.warning(self, "Validation Failed", message)
+            self._update_api_key_status("invalid", message)
+
+    def _update_api_key_status(self, status: str, message: str):
+        """Update the API key status indicator.
+
+        Args:
+            status: One of 'valid', 'invalid', 'not_configured', 'checking'
+            message: Status message to display
+        """
+        styles = {
+            "valid": "color: #4CAF50; font-weight: bold;",
+            "invalid": "color: #F44336; font-weight: bold;",
+            "not_configured": "color: #FF9800; font-weight: bold;",
+            "checking": "color: #2196F3; font-style: italic;",
+        }
+        icons = {
+            "valid": "Valid",
+            "invalid": "Invalid",
+            "not_configured": "Not Configured",
+            "checking": "Checking...",
+        }
+        style = styles.get(status, "")
+        icon = icons.get(status, "")
+        self.api_key_status_label.setStyleSheet(style)
+        self.api_key_status_label.setText(f"Status: {icon} - {message}")
+
+    def _refresh_api_key_status(self):
+        """Refresh the API key status based on current state."""
+        if self.settings_manager.has_openai_api_key():
+            method = self.settings_manager.get_api_key_storage_method()
+            method_labels = {
+                "keyring": "system keyring",
+                "encrypted_config": "encrypted config",
+                "environment": "environment variable",
+            }
+            label = method_labels.get(method, method)
+            self._update_api_key_status(
+                "valid",
+                f"Key configured (stored in {label})"
+            )
+        else:
+            self._update_api_key_status("not_configured", "No API key configured")
             
     def update_cost_estimation(self):
         """Update simplified cost estimation display."""
@@ -583,10 +632,11 @@ class SettingsDialog(QDialog):
             self.device.setCurrentText(settings.transcription.device)
             self.language.setCurrentText(settings.transcription.language)
             
-            # Load API key
+            # Load API key and update status
             api_key = self.settings_manager.get_openai_api_key()
             if api_key:
                 self.openai_api_key.setText(api_key)
+            self._refresh_api_key_status()
                 
             # Summarization settings
             self.summarization_enabled.setChecked(settings.summarization.enabled)
@@ -651,9 +701,21 @@ class SettingsDialog(QDialog):
             self.settings_manager.settings.recordings_dir = self.recordings_dir.text()
             self.settings_manager.settings.vault_dir = self.vault_dir.text()
             
-            # Save API key if provided
+            # Save API key if provided (with format validation)
             api_key = self.openai_api_key.text().strip()
             if api_key:
+                if not self.settings_manager.validate_openai_api_key(api_key):
+                    reply = QMessageBox.warning(
+                        self,
+                        "Invalid API Key Format",
+                        "The API key format appears invalid (must start with 'sk-' "
+                        "and be at least 20 characters).\n\n"
+                        "Save anyway?",
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.No,
+                    )
+                    if reply != QMessageBox.Yes:
+                        return
                 self.settings_manager.save_openai_api_key(api_key)
                 
             # Save settings to file
