@@ -19,7 +19,7 @@ def check_imports():
         "export.markdown_generator",
         "ai.summarizer", 
         "vault.manager",
-        "gui.main_window",
+        "gui.qt_main_window",
         "audio.recorder",
         "transcription.whisper_service",
         "config.settings"
@@ -101,8 +101,8 @@ def check_dependencies():
     print("\n📦 Checking dependencies...")
     
     required = [
-        ("customtkinter", "customtkinter"),
-        ("openai", "openai"), 
+        ("PySide6", "PySide6"),
+        ("openai", "openai"),
         ("python-dotenv", "dotenv"),
         ("pyaudio", "pyaudio"),
         ("requests", "requests"),

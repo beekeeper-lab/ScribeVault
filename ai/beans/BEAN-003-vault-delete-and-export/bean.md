@@ -8,11 +8,11 @@
 | Title     | Vault Delete & Export Implementation |
 | Type      | bug-fix |
 | Priority  | P1 |
-| Status    | Approved   |
+| Status    | Done   |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:39 |
+| Completed | 2026-02-10   |
+| Duration  | ~15 min      |
 
 ## Problem Statement
 
@@ -51,15 +51,17 @@ Users can delete recordings (with confirmation dialog) and export recordings (au
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create VaultManager module (src/vault/) | developer | — | DONE |
+| 2 | Implement delete_recording in vault dialog | developer | T1 | DONE |
+| 3 | Implement export_recording in vault dialog | developer | T1 | DONE |
+| 4 | Write tests for delete and export | tech-qa | T2, T3 | DONE |
+| 5 | Final verification — tests, lint, integration | tech-qa | T4 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 5     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

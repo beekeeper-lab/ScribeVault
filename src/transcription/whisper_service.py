@@ -5,13 +5,13 @@ Supports both OpenAI API and local Whisper models.
 
 import openai
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any, List
 import os
 from dotenv import load_dotenv
 import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+from utils.retry import retry_on_transient_error, APIRetryError
+
 logger = logging.getLogger(__name__)
 
 class TranscriptionException(Exception):
@@ -47,7 +47,7 @@ class WhisperService:
             
             # Auto-default to local if OpenAI API key is missing/invalid
             if settings.service == "openai" and not settings_manager.has_openai_api_key():
-                print("⚠️ OpenAI API key not configured. Defaulting to local transcription.")
+                logger.warning("OpenAI API key not configured. Defaulting to local transcription.")
                 self.use_local = True
             else:
                 self.use_local = settings.service == "local"
@@ -75,7 +75,7 @@ class WhisperService:
             # Check API key before creating client
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key or api_key.strip() == "":
-                print("⚠️ No OpenAI API key found. Falling back to local transcription.")
+                logger.warning("No OpenAI API key found. Falling back to local transcription.")
                 self.use_local = True
                 if LOCAL_WHISPER_AVAILABLE:
                     self._load_local_model()
@@ -87,14 +87,14 @@ class WhisperService:
     def _load_local_model(self):
         """Load the local Whisper model."""
         try:
-            print(f"Loading local Whisper model: {self.local_model_name}")
+            logger.info("Loading local Whisper model: %s", self.local_model_name)
             self.local_model = whisper.load_model(
-                self.local_model_name, 
+                self.local_model_name,
                 device=self.device if self.device != "auto" else None
             )
-            print("Local Whisper model loaded successfully")
+            logger.info("Local Whisper model loaded successfully")
         except Exception as e:
-            print(f"Error loading local Whisper model: {e}")
+            logger.error("Error loading local Whisper model: %s", e)
             raise
         
     def transcribe_audio(self, audio_path: Path, language: str = None) -> Optional[str]:
@@ -118,32 +118,47 @@ class WhisperService:
         else:
             return self._transcribe_api(audio_path, language)
             
+    @retry_on_transient_error()
+    def _call_transcription_api(self, audio_file, language: str = None,
+                                response_format: str = "text",
+                                timestamp_granularities=None):
+        """Make a transcription API call with retry on transient errors."""
+        params = {
+            "model": "whisper-1",
+            "file": audio_file,
+            "response_format": response_format,
+        }
+        if language:
+            params["language"] = language
+        if timestamp_granularities:
+            params["timestamp_granularities"] = timestamp_granularities
+        return self.client.audio.transcriptions.create(**params)
+
     def _transcribe_api(self, audio_path: Path, language: str = None) -> Optional[str]:
         """Transcribe using OpenAI API."""
         try:
             logger.info(f"Starting API transcription for: {audio_path.name}")
-            
+
             with open(audio_path, "rb") as audio_file:
-                params = {
-                    "model": "whisper-1",
-                    "file": audio_file,
-                    "response_format": "text"
-                }
-                
-                if language:
-                    params["language"] = language
-                
-                transcript = self.client.audio.transcriptions.create(**params)
-                
+                transcript = self._call_transcription_api(
+                    audio_file, language=language, response_format="text"
+                )
+
             logger.info("API transcription completed successfully")
             return transcript
-            
-        except openai.APIError as e:
-            logger.error(f"OpenAI API error: {e}", exc_info=True)
-            raise TranscriptionException(f"API transcription failed: {e}")
+
+        except APIRetryError as e:
+            logger.error("API transcription failed after retries: %s", e)
+            raise TranscriptionException(
+                "Transcription failed after multiple retries. "
+                "Please check your connection and try again."
+            )
         except FileNotFoundError:
             logger.error(f"Audio file not found: {audio_path}")
             raise TranscriptionException(f"Audio file not found: {audio_path}")
+        except openai.APIError as e:
+            logger.error(f"OpenAI API error: {e}", exc_info=True)
+            raise TranscriptionException(f"API transcription failed: {e}")
         except Exception as e:
             logger.exception("Unexpected error in API transcription")
             raise TranscriptionException(f"Unexpected transcription error: {e}")
@@ -192,21 +207,19 @@ class WhisperService:
         """Get timestamps using OpenAI API."""
         try:
             with open(audio_path, "rb") as audio_file:
-                params = {
-                    "model": "whisper-1",
-                    "file": audio_file,
-                    "response_format": "verbose_json",
-                    "timestamp_granularities": ["word"]
-                }
-                
-                if language:
-                    params["language"] = language
-                    
-                transcript = self.client.audio.transcriptions.create(**params)
+                transcript = self._call_transcription_api(
+                    audio_file,
+                    language=language,
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"],
+                )
             return transcript
-            
+
+        except APIRetryError as e:
+            logger.error("Timestamp transcription failed after retries: %s", e)
+            return None
         except Exception as e:
-            print(f"API timestamp transcription error: {e}")
+            logger.error("API timestamp transcription error: %s", e)
             return None
             
     def _transcribe_local_with_timestamps(self, audio_path: Path, language: str = None) -> Optional[dict]:
@@ -224,9 +237,137 @@ class WhisperService:
             return result
             
         except Exception as e:
-            print(f"Local timestamp transcription error: {e}")
+            logger.error("Local timestamp transcription error: %s", e)
             return None
             
+    def transcribe_with_diarization(
+        self, audio_path: Path, language: str = None
+    ) -> Dict[str, Any]:
+        """Transcribe audio with speaker diarization.
+
+        Gets word-level timestamps from Whisper, then runs diarization
+        to identify speaker changes. Falls back to plain transcription
+        if diarization fails or is disabled.
+
+        Args:
+            audio_path: Path to the audio file
+            language: Language code or None for auto-detection
+
+        Returns:
+            Dict with keys:
+              - 'transcription': raw transcription text
+              - 'diarized_transcription': speaker-labeled text (or None)
+        """
+        # Get raw transcription
+        transcription = self.transcribe_audio(audio_path, language)
+
+        result = {
+            "transcription": transcription,
+            "diarized_transcription": None,
+        }
+
+        # Check if diarization is enabled via settings
+        diarization_settings = None
+        if self.settings_manager:
+            diarization_settings = getattr(
+                self.settings_manager.settings, "diarization", None
+            )
+            if diarization_settings and not diarization_settings.enabled:
+                logger.info("Diarization is disabled in settings")
+                return result
+
+        # Try to get word-level timestamps for diarization
+        try:
+            timestamp_result = self.transcribe_with_timestamps(audio_path, language)
+            word_timestamps = self._extract_word_timestamps(timestamp_result)
+        except Exception as e:
+            logger.warning(f"Could not get word timestamps for diarization: {e}")
+            return result
+
+        # Run diarization
+        try:
+            from transcription.diarization import DiarizationService, SCIPY_AVAILABLE
+
+            if not SCIPY_AVAILABLE:
+                logger.warning("scipy not available — skipping diarization")
+                return result
+
+            num_speakers = 0
+            sensitivity = 0.5
+            if diarization_settings:
+                num_speakers = diarization_settings.num_speakers
+                sensitivity = diarization_settings.sensitivity
+
+            service = DiarizationService(
+                num_speakers=num_speakers, sensitivity=sensitivity
+            )
+            diarization_result = service.diarize(audio_path, word_timestamps)
+
+            if diarization_result and diarization_result.segments:
+                result["diarized_transcription"] = (
+                    diarization_result.to_labeled_text()
+                )
+                logger.info(
+                    f"Diarization complete: {diarization_result.num_speakers} speakers detected"
+                )
+            else:
+                logger.info("Diarization returned no segments — using plain transcription")
+
+        except Exception as e:
+            logger.warning(f"Diarization failed, falling back to plain transcription: {e}")
+
+        return result
+
+    def _extract_word_timestamps(
+        self, timestamp_result
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Extract word-level timestamps from a Whisper timestamp result.
+
+        Handles both OpenAI API format and local Whisper format.
+
+        Returns:
+            List of dicts with 'word', 'start', 'end' keys, or None.
+        """
+        if timestamp_result is None:
+            return None
+
+        words = []
+
+        # OpenAI API format: object with .words attribute
+        if hasattr(timestamp_result, "words"):
+            for w in timestamp_result.words:
+                words.append({
+                    "word": getattr(w, "word", str(w)),
+                    "start": getattr(w, "start", 0),
+                    "end": getattr(w, "end", 0),
+                })
+            return words if words else None
+
+        # Local Whisper format: dict with 'segments' containing 'words'
+        if isinstance(timestamp_result, dict):
+            segments = timestamp_result.get("segments", [])
+            for seg in segments:
+                seg_words = seg.get("words", [])
+                for w in seg_words:
+                    words.append({
+                        "word": w.get("word", ""),
+                        "start": w.get("start", 0),
+                        "end": w.get("end", 0),
+                    })
+            if words:
+                return words
+
+            # Fallback: use segment-level timestamps
+            for seg in segments:
+                words.append({
+                    "word": seg.get("text", "").strip(),
+                    "start": seg.get("start", 0),
+                    "end": seg.get("end", 0),
+                })
+            return words if words else None
+
+        return None
+
     def get_service_info(self) -> dict:
         """Get information about the current transcription service."""
         if self.use_local:

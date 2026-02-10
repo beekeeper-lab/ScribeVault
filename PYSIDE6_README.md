@@ -49,7 +49,7 @@ venv\Scripts\activate     # Windows
 pip install -r requirements.txt
 
 # Run PySide6 version
-python main_qt.py
+python main.py
 ```
 
 ## 🔧 Requirements
@@ -96,7 +96,7 @@ python main.py
 # New PySide6 version
 ./runApp_qt.sh
 # or
-python main_qt.py
+python main.py
 ```
 
 ## 📋 Feature Comparison
@@ -189,7 +189,7 @@ python -m pip install PySide6
 python -c "import PySide6; print('PySide6 OK')"
 
 # Run with debug output
-QT_LOGGING_RULES="*=true" python main_qt.py
+QT_LOGGING_RULES="*=true" python main.py
 ```
 
 #### Audio Issues
