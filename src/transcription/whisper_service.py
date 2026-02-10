@@ -10,8 +10,6 @@ import os
 from dotenv import load_dotenv
 import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TranscriptionException(Exception):
@@ -47,7 +45,7 @@ class WhisperService:
             
             # Auto-default to local if OpenAI API key is missing/invalid
             if settings.service == "openai" and not settings_manager.has_openai_api_key():
-                print("⚠️ OpenAI API key not configured. Defaulting to local transcription.")
+                logger.warning("OpenAI API key not configured. Defaulting to local transcription.")
                 self.use_local = True
             else:
                 self.use_local = settings.service == "local"
@@ -75,7 +73,7 @@ class WhisperService:
             # Check API key before creating client
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key or api_key.strip() == "":
-                print("⚠️ No OpenAI API key found. Falling back to local transcription.")
+                logger.warning("No OpenAI API key found. Falling back to local transcription.")
                 self.use_local = True
                 if LOCAL_WHISPER_AVAILABLE:
                     self._load_local_model()
@@ -87,14 +85,14 @@ class WhisperService:
     def _load_local_model(self):
         """Load the local Whisper model."""
         try:
-            print(f"Loading local Whisper model: {self.local_model_name}")
+            logger.info("Loading local Whisper model: %s", self.local_model_name)
             self.local_model = whisper.load_model(
-                self.local_model_name, 
+                self.local_model_name,
                 device=self.device if self.device != "auto" else None
             )
-            print("Local Whisper model loaded successfully")
+            logger.info("Local Whisper model loaded successfully")
         except Exception as e:
-            print(f"Error loading local Whisper model: {e}")
+            logger.error("Error loading local Whisper model: %s", e)
             raise
         
     def transcribe_audio(self, audio_path: Path, language: str = None) -> Optional[str]:
@@ -206,7 +204,7 @@ class WhisperService:
             return transcript
             
         except Exception as e:
-            print(f"API timestamp transcription error: {e}")
+            logger.error("API timestamp transcription error: %s", e)
             return None
             
     def _transcribe_local_with_timestamps(self, audio_path: Path, language: str = None) -> Optional[dict]:
@@ -224,7 +222,7 @@ class WhisperService:
             return result
             
         except Exception as e:
-            print(f"Local timestamp transcription error: {e}")
+            logger.error("Local timestamp transcription error: %s", e)
             return None
             
     def get_service_info(self) -> dict:

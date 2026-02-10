@@ -2,6 +2,7 @@
 AI summarization service for ScribeVault.
 """
 
+import logging
 import openai
 import os
 from dotenv import load_dotenv
@@ -9,6 +10,8 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Import the markdown generator
 try:
@@ -31,7 +34,7 @@ class SummarizerService:
             try:
                 self.markdown_generator = MarkdownGenerator()
             except Exception as e:
-                print(f"Warning: Could not initialize markdown generator: {e}")
+                logger.warning("Could not initialize markdown generator: %s", e)
                 self.markdown_generator = None
         else:
             self.markdown_generator = None
@@ -69,7 +72,7 @@ class SummarizerService:
             return response.choices[0].message.content.strip()
             
         except Exception as e:
-            print(f"Summarization error: {e}")
+            logger.error("Summarization error: %s", e)
             return None
             
     def extract_key_points(self, text: str) -> Optional[list]:
@@ -101,7 +104,7 @@ class SummarizerService:
             return key_points
             
         except Exception as e:
-            print(f"Key point extraction error: {e}")
+            logger.error("Key point extraction error: %s", e)
             return None
             
     def categorize_content(self, text: str) -> Optional[str]:
@@ -130,7 +133,7 @@ class SummarizerService:
             return response.choices[0].message.content.strip().lower()
             
         except Exception as e:
-            print(f"Categorization error: {e}")
+            logger.error("Categorization error: %s", e)
             return "other"
     
     def generate_summary_with_markdown(
@@ -188,7 +191,7 @@ class SummarizerService:
                         )
                         result['markdown_path'] = str(markdown_path)
                     except MarkdownException as e:
-                        print(f"Warning: Failed to generate markdown file: {e}")
+                        logger.warning("Failed to generate markdown file: %s", e)
                         result['error'] = f"Markdown generation failed: {e}"
                 else:
                     result['error'] = "Markdown generator not available"
@@ -196,7 +199,7 @@ class SummarizerService:
                 result['error'] = "Failed to generate summary"
             
         except Exception as e:
-            print(f"Error in generate_summary_with_markdown: {e}")
+            logger.error("Error in generate_summary_with_markdown: %s", e)
             result['error'] = str(e)
         
         return result
@@ -248,5 +251,5 @@ Please analyze the following meeting transcript:"""
             return response.choices[0].message.content.strip()
             
         except Exception as e:
-            print(f"Structured summary generation error: {e}")
+            logger.error("Structured summary generation error: %s", e)
             return None
