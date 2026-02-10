@@ -4,7 +4,7 @@
 |----|-------|----------|--------|--------|
 | BEAN-001 | Periodic Audio Checkpoint Saving | P0 | Approved | |
 | BEAN-002 | Thread Safety & Resource Cleanup | P0 | Approved | |
-| BEAN-003 | Vault Delete & Export Implementation | P1 | Approved | |
+| BEAN-003 | Vault Delete & Export Implementation | P1 | Done | bean/BEAN-003-vault-delete-and-export |
 | BEAN-004 | API Key Validation & Secure Storage | P1 | Approved | |
 | BEAN-005 | API Retry & Rate Limit Handling | P2 | Approved | |
 | BEAN-006 | Speaker Auto-Diarization | P1 | Approved | |
