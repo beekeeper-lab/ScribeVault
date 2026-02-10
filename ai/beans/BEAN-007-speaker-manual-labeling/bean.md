@@ -8,11 +8,12 @@
 | Title     | Speaker Manual Labeling UI |
 | Type      | feature |
 | Priority  | P1 |
-| Status    | Approved   |
+| Status    | Done         |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:54 |
+| Completed | 2026-02-10 16:10 |
+| Duration  | ~16 min      |
 
 ## Problem Statement
 
@@ -52,9 +53,11 @@ Users can open a transcription, assign real names to speaker labels, and save th
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Implement VaultManager Module | developer | — | DONE |
+| 2 | Implement Speaker Management Service | developer | T001 | DONE |
+| 3 | Build Speaker Management Panel UI | developer | T001, T002 | DONE |
+| 4 | Write Tests for Speaker Labeling | tech-qa | T001, T002, T003 | DONE |
+| 5 | Integration Verification & Lint Cleanup | tech-qa | T004 | DONE |
 
 ## Telemetry
 

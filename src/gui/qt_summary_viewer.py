@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QIcon, QTextDocument, QTextCursor
 
+from gui.speaker_panel import SpeakerPanel
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,11 +26,12 @@ logger = logging.getLogger(__name__)
 class SummaryViewerDialog(QDialog):
     """Dialog for viewing AI summaries and markdown content."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, vault_manager=None):
         super().__init__(parent)
         self.current_recording_data = None
         self.current_markdown_path = None
-        
+        self._vault_manager = vault_manager
+
         self.setup_ui()
         self.load_settings()
         
@@ -107,7 +110,10 @@ class SummaryViewerDialog(QDialog):
         
         # Recording details tab
         self.create_details_tab()
-        
+
+        # Speaker management tab
+        self.create_speaker_tab()
+
         parent_layout.addWidget(self.tab_widget)
         
     def create_summary_tab(self):
@@ -262,6 +268,13 @@ class SummaryViewerDialog(QDialog):
         
         self.tab_widget.addTab(details_widget, "ℹ️ Details")
         
+    def create_speaker_tab(self):
+        """Create the speaker management tab."""
+        self.speaker_panel = SpeakerPanel()
+        if self._vault_manager:
+            self.speaker_panel.set_vault_manager(self._vault_manager)
+        self.tab_widget.addTab(self.speaker_panel, "Speaker Labels")
+
     def setup_markdown_styling(self):
         """Setup custom CSS styling for markdown rendering."""
         css_style = """
@@ -581,7 +594,11 @@ class SummaryViewerDialog(QDialog):
             
         # Load details
         self.load_recording_details()
-        
+
+        # Load speaker panel
+        if hasattr(self, 'speaker_panel'):
+            self.speaker_panel.load_recording(recording_data)
+
         logger.info(f"Loaded recording data for: {filename}")
         
     def load_recording_details(self):
