@@ -2,11 +2,16 @@
 AI summarization service for ScribeVault.
 """
 
+import logging
 import openai
 import os
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any
 from pathlib import Path
+
+from utils.retry import retry_on_transient_error, APIRetryError
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -36,13 +41,27 @@ class SummarizerService:
         else:
             self.markdown_generator = None
         
+    @retry_on_transient_error()
+    def _call_chat_api(self, system_prompt: str, user_content: str,
+                       temperature: float = 0.5, max_tokens: int = 500):
+        """Make a chat completion API call with retry on transient errors."""
+        return self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
     def summarize_text(self, text: str, style: str = "concise") -> Optional[str]:
         """Generate a summary of the provided text.
-        
+
         Args:
             text: The text to summarize
             style: Summary style ("concise", "detailed", "bullet_points")
-            
+
         Returns:
             Generated summary or None if summarization failed
         """
@@ -53,84 +72,78 @@ class SummarizerService:
                 "detailed": "You are a helpful assistant that creates detailed summaries with key points and context.",
                 "bullet_points": "You are a helpful assistant that creates bullet-point summaries of transcripts."
             }
-            
+
             system_prompt = prompts.get(style, prompts["concise"])
-            
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Summarize the following transcript:\n\n{text}"}
-                ],
+
+            response = self._call_chat_api(
+                system_prompt=system_prompt,
+                user_content=f"Summarize the following transcript:\n\n{text}",
                 temperature=0.5,
-                max_tokens=500
+                max_tokens=500,
             )
-            
+
             return response.choices[0].message.content.strip()
-            
+
+        except APIRetryError as e:
+            logger.error("Summarization failed after retries: %s", e)
+            return None
         except Exception as e:
-            print(f"Summarization error: {e}")
+            logger.error("Summarization error: %s", e)
             return None
             
     def extract_key_points(self, text: str) -> Optional[list]:
         """Extract key points from the text.
-        
+
         Args:
             text: The text to analyze
-            
+
         Returns:
             List of key points or None if extraction failed
         """
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "Extract 3-5 key points from the transcript. Return them as a JSON array of strings."
-                    },
-                    {"role": "user", "content": text}
-                ],
+            response = self._call_chat_api(
+                system_prompt="Extract 3-5 key points from the transcript. Return them as a JSON array of strings.",
+                user_content=text,
                 temperature=0.3,
-                max_tokens=300
+                max_tokens=300,
             )
-            
+
             # Parse the JSON response
             import json
             key_points = json.loads(response.choices[0].message.content)
             return key_points
-            
+
+        except APIRetryError as e:
+            logger.error("Key point extraction failed after retries: %s", e)
+            return None
         except Exception as e:
-            print(f"Key point extraction error: {e}")
+            logger.error("Key point extraction error: %s", e)
             return None
             
     def categorize_content(self, text: str) -> Optional[str]:
         """Categorize the content type.
-        
+
         Args:
             text: The text to categorize
-            
+
         Returns:
             Content category or None if categorization failed
         """
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "Categorize this transcript into one of these categories: meeting, lecture, interview, note, call, presentation, other. Return only the category name."
-                    },
-                    {"role": "user", "content": text}
-                ],
+            response = self._call_chat_api(
+                system_prompt="Categorize this transcript into one of these categories: meeting, lecture, interview, note, call, presentation, other. Return only the category name.",
+                user_content=text,
                 temperature=0.1,
-                max_tokens=50
+                max_tokens=50,
             )
-            
+
             return response.choices[0].message.content.strip().lower()
-            
+
+        except APIRetryError as e:
+            logger.error("Categorization failed after retries: %s", e)
+            return "other"
         except Exception as e:
-            print(f"Categorization error: {e}")
+            logger.error("Categorization error: %s", e)
             return "other"
     
     def generate_summary_with_markdown(
@@ -235,18 +248,18 @@ Your task:
 
 Please analyze the following meeting transcript:"""
 
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": structured_prompt},
-                    {"role": "user", "content": f"Meeting Transcript:\n\n{transcription}"}
-                ],
+            response = self._call_chat_api(
+                system_prompt=structured_prompt,
+                user_content=f"Meeting Transcript:\n\n{transcription}",
                 temperature=0.3,
-                max_tokens=1000
+                max_tokens=1000,
             )
-            
+
             return response.choices[0].message.content.strip()
-            
+
+        except APIRetryError as e:
+            logger.error("Structured summary failed after retries: %s", e)
+            return None
         except Exception as e:
-            print(f"Structured summary generation error: {e}")
+            logger.error("Structured summary generation error: %s", e)
             return None
