@@ -8,7 +8,7 @@
 | Title     | Summary Re-generation with Prompt Templates |
 | Type      | feature |
 | Priority  | P2 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
