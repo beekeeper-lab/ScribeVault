@@ -163,15 +163,18 @@ class SummarizerService:
                 result['error'] = "No transcription available for summarization"
                 return result
             
-            # Generate summary - use structured format for meetings
+            # Generate summary based on provided parameters
             category = recording_data.get('category', 'other')
-            
-            if category in ['meeting', 'call', 'interview']:
-                # Use structured template for business/professional recordings
-                summary = self.generate_structured_summary(transcription)
-            else:
-                # Use standard summary for other types
+
+            if template_prompt:
+                # Custom prompt overrides all other logic
+                summary = self.summarize_with_prompt(transcription, template_prompt)
+            elif style != "concise" or category not in ['meeting', 'call', 'interview']:
+                # User explicitly chose a style, or non-meeting category
                 summary = self.summarize_text(transcription, style)
+            else:
+                # Default: structured format for meetings with default style
+                summary = self.generate_structured_summary(transcription)
             if summary:
                 result['summary'] = summary
                 
@@ -201,6 +204,33 @@ class SummarizerService:
         
         return result
     
+    def summarize_with_prompt(self, text: str, prompt: str) -> Optional[str]:
+        """Generate a summary using a custom prompt.
+
+        Args:
+            text: The text to summarize
+            prompt: Custom system prompt for summarization
+
+        Returns:
+            Generated summary or None if summarization failed
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": f"Analyze the following transcript:\n\n{text}"}
+                ],
+                temperature=0.5,
+                max_tokens=1000
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            print(f"Custom prompt summarization error: {e}")
+            return None
+
     def generate_structured_summary(self, transcription: str) -> Optional[str]:
         """Generate a structured professional meeting summary using the custom template.
         

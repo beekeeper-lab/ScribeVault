@@ -11,9 +11,10 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget,
     QLabel, QPushButton, QTextEdit, QScrollArea,
     QGroupBox, QMessageBox, QFileDialog, QTabWidget,
-    QFrame, QSplitter, QApplication, QTextBrowser
+    QFrame, QSplitter, QApplication, QTextBrowser,
+    QComboBox, QListWidget, QListWidgetItem, QInputDialog
 )
-from PySide6.QtCore import Qt, QSize, QSettings
+from PySide6.QtCore import Qt, QSize, QSettings, Signal
 from PySide6.QtGui import QFont, QIcon, QTextDocument, QTextCursor
 
 import logging
@@ -23,12 +24,17 @@ logger = logging.getLogger(__name__)
 
 class SummaryViewerDialog(QDialog):
     """Dialog for viewing AI summaries and markdown content."""
-    
-    def __init__(self, parent=None):
+
+    # Signal emitted when user requests re-generation
+    # Args: (prompt_text: str, template_name: str)
+    regenerate_requested = Signal(str, str)
+
+    def __init__(self, parent=None, template_manager=None):
         super().__init__(parent)
         self.current_recording_data = None
         self.current_markdown_path = None
-        
+        self.template_manager = template_manager
+
         self.setup_ui()
         self.load_settings()
         
@@ -111,11 +117,11 @@ class SummaryViewerDialog(QDialog):
         parent_layout.addWidget(self.tab_widget)
         
     def create_summary_tab(self):
-        """Create the summary display tab."""
+        """Create the summary display tab with re-generation controls."""
         summary_widget = QWidget()
         layout = QVBoxLayout(summary_widget)
         layout.setContentsMargins(20, 20, 20, 20)
-        
+
         # Summary content
         self.summary_text = QTextEdit()
         self.summary_text.setReadOnly(True)
@@ -130,9 +136,82 @@ class SummaryViewerDialog(QDialog):
             }
         """)
         self.summary_text.setPlaceholderText("AI summary will appear here when a recording with summary is loaded...")
-        
-        layout.addWidget(self.summary_text)
-        
+
+        layout.addWidget(self.summary_text, 3)
+
+        # Re-generation controls group
+        regen_group = QGroupBox("Re-generate Summary")
+        regen_layout = QVBoxLayout(regen_group)
+
+        # Template selection row
+        template_row = QHBoxLayout()
+        template_label = QLabel("Template:")
+        template_label.setStyleSheet("font-weight: bold; min-width: 70px;")
+        template_row.addWidget(template_label)
+
+        self.template_combo = QComboBox()
+        self.template_combo.addItem("-- Custom Prompt --", "")
+        self._populate_template_combo()
+        self.template_combo.currentIndexChanged.connect(self._on_template_selected)
+        template_row.addWidget(self.template_combo, 1)
+
+        regen_layout.addLayout(template_row)
+
+        # Custom prompt input
+        self.custom_prompt_input = QTextEdit()
+        self.custom_prompt_input.setMaximumHeight(80)
+        self.custom_prompt_input.setPlaceholderText("Enter a custom prompt for summary re-generation...")
+        self.custom_prompt_input.setStyleSheet("""
+            QTextEdit {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border: 1px solid #555;
+                padding: 8px;
+            }
+        """)
+        regen_layout.addWidget(self.custom_prompt_input)
+
+        # Action buttons row
+        action_row = QHBoxLayout()
+
+        self.regenerate_button = QPushButton("Re-generate Summary")
+        self.regenerate_button.setStyleSheet(
+            "QPushButton { background-color: #0078d4; color: white; font-weight: bold; padding: 6px 16px; }"
+        )
+        self.regenerate_button.clicked.connect(self._on_regenerate_clicked)
+        action_row.addWidget(self.regenerate_button)
+
+        self.save_template_button = QPushButton("Save as Template")
+        self.save_template_button.setToolTip("Save the current custom prompt as a reusable template")
+        self.save_template_button.clicked.connect(self._on_save_template_clicked)
+        action_row.addWidget(self.save_template_button)
+
+        action_row.addStretch()
+        regen_layout.addLayout(action_row)
+
+        layout.addWidget(regen_group)
+
+        # Summary history group
+        history_group = QGroupBox("Summary History")
+        history_layout = QVBoxLayout(history_group)
+
+        self.history_list = QListWidget()
+        self.history_list.setMaximumHeight(100)
+        self.history_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border: 1px solid #555;
+            }
+            QListWidget::item:selected {
+                background-color: #0078d4;
+            }
+        """)
+        self.history_list.itemClicked.connect(self._on_history_item_clicked)
+        history_layout.addWidget(self.history_list)
+
+        layout.addWidget(history_group)
+
         self.tab_widget.addTab(summary_widget, "📄 Summary")
         
     def create_markdown_display_tab(self):
@@ -488,6 +567,114 @@ class SummaryViewerDialog(QDialog):
         
         return '\n'.join(html_paragraphs)
         
+    def _populate_template_combo(self):
+        """Populate the template dropdown from the template manager."""
+        if not self.template_manager:
+            return
+        for template in self.template_manager.get_all_templates():
+            prefix = "[Built-in] " if template.is_builtin else ""
+            self.template_combo.addItem(
+                f"{prefix}{template.name}", template.template_id
+            )
+
+    def _on_template_selected(self, index):
+        """Handle template selection from dropdown."""
+        template_id = self.template_combo.currentData()
+        if template_id and self.template_manager:
+            template = self.template_manager.get_template(template_id)
+            if template:
+                self.custom_prompt_input.setPlainText(template.prompt_text)
+        else:
+            self.custom_prompt_input.clear()
+
+    def _on_regenerate_clicked(self):
+        """Handle the re-generate button click."""
+        prompt_text = self.custom_prompt_input.toPlainText().strip()
+        if not prompt_text:
+            QMessageBox.warning(
+                self,
+                "No Prompt",
+                "Please select a template or enter a custom prompt.",
+            )
+            return
+
+        template_id = self.template_combo.currentData()
+        template_name = ""
+        if template_id and self.template_manager:
+            template = self.template_manager.get_template(template_id)
+            if template:
+                template_name = template.name
+
+        self.regenerate_button.setEnabled(False)
+        self.regenerate_button.setText("Generating...")
+        self.regenerate_requested.emit(prompt_text, template_name)
+
+    def on_regeneration_complete(self, new_summary: str, template_name: str):
+        """Called by parent when re-generation completes."""
+        self.regenerate_button.setEnabled(True)
+        self.regenerate_button.setText("Re-generate Summary")
+
+        if new_summary:
+            self.summary_text.setPlainText(new_summary)
+            self.copy_summary_button.setEnabled(True)
+            # Add to history list
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            label = f"{timestamp} - {template_name}" if template_name else f"{timestamp} - Custom"
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, new_summary)
+            self.history_list.insertItem(0, item)
+
+    def on_regeneration_error(self, error_msg: str):
+        """Called by parent when re-generation fails."""
+        self.regenerate_button.setEnabled(True)
+        self.regenerate_button.setText("Re-generate Summary")
+        QMessageBox.critical(self, "Re-generation Error", f"Failed to re-generate summary:\n{error_msg}")
+
+    def _on_save_template_clicked(self):
+        """Save the current custom prompt as a template."""
+        prompt_text = self.custom_prompt_input.toPlainText().strip()
+        if not prompt_text:
+            QMessageBox.warning(self, "No Prompt", "Enter a prompt before saving as template.")
+            return
+
+        if not self.template_manager:
+            QMessageBox.warning(self, "Error", "Template manager not available.")
+            return
+
+        name, ok = QInputDialog.getText(
+            self, "Save Template", "Template name:"
+        )
+        if ok and name.strip():
+            template = self.template_manager.save_custom_template(name.strip(), prompt_text)
+            self.template_combo.addItem(name.strip(), template.template_id)
+            QMessageBox.information(self, "Saved", f"Template '{name.strip()}' saved successfully.")
+
+    def _on_history_item_clicked(self, item):
+        """Display a historical summary when clicked."""
+        summary_content = item.data(Qt.UserRole)
+        if summary_content:
+            self.summary_text.setPlainText(summary_content)
+
+    def _load_summary_history(self):
+        """Load summary history from the recording data into the history list."""
+        self.history_list.clear()
+        if not self.current_recording_data:
+            return
+
+        history = self.current_recording_data.get("summary_history", [])
+        for entry in reversed(history):
+            timestamp = entry.get("created_at", "Unknown")
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                timestamp = dt.strftime("%Y-%m-%d %H:%M")
+            except (ValueError, TypeError):
+                pass
+            template_name = entry.get("template_name", "")
+            label = f"{timestamp} - {template_name}" if template_name else f"{timestamp} - Original"
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, entry.get("content", ""))
+            self.history_list.addItem(item)
+
     def create_footer(self, parent_layout):
         """Create the footer with action buttons."""
         footer_frame = QFrame()
@@ -579,9 +766,12 @@ class SummaryViewerDialog(QDialog):
             self.markdown_browser.setPlainText("No markdown file available for this recording.")
             self.display_info_label.setText("No markdown content to display")
             
+        # Load summary history
+        self._load_summary_history()
+
         # Load details
         self.load_recording_details()
-        
+
         logger.info(f"Loaded recording data for: {filename}")
         
     def load_recording_details(self):
