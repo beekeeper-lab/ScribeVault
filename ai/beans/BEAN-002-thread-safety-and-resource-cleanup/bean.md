@@ -8,7 +8,7 @@
 | Title     | Thread Safety & Resource Cleanup |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |

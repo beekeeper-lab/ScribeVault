@@ -8,7 +8,7 @@
 | Title     | Speaker Manual Labeling UI |
 | Type      | feature |
 | Priority  | P1 |
-| Status    | Unapproved   |
+| Status    | Approved   |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
