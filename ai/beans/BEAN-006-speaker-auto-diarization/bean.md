@@ -8,11 +8,12 @@
 | Title     | Speaker Auto-Diarization |
 | Type      | feature |
 | Priority  | P1 |
-| Status    | Approved   |
+| Status    | Done         |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:39 |
+| Completed | 2026-02-10 15:48 |
+| Duration  | ~9 min           |
 
 ## Problem Statement
 
@@ -41,27 +42,31 @@ Automatically detect speaker changes during transcription and tag each segment w
 
 ## Acceptance Criteria
 
-- [ ] Transcription output includes speaker labels (e.g., "Speaker 1: ...", "Speaker 2: ...")
-- [ ] Speaker changes are detected with reasonable accuracy (>80% for 2-3 speaker conversations)
-- [ ] Diarized transcription is stored in vault alongside raw transcription
-- [ ] Summary viewer displays speaker labels with visual distinction
-- [ ] Works with both API and local Whisper transcription
-- [ ] Graceful fallback to unlabeled transcription if diarization fails
-- [ ] New tests cover diarization output format
+- [x] Transcription output includes speaker labels (e.g., "Speaker 1: ...", "Speaker 2: ...")
+- [x] Speaker changes are detected with reasonable accuracy (>80% for 2-3 speaker conversations)
+- [x] Diarized transcription is stored in vault alongside raw transcription
+- [x] Summary viewer displays speaker labels with visual distinction
+- [x] Works with both API and local Whisper transcription
+- [x] Graceful fallback to unlabeled transcription if diarization fails
+- [x] New tests cover diarization output format
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create DiarizationService module | developer | none | DONE |
+| 2 | Add diarization configuration settings | developer | none | DONE |
+| 3 | Integrate diarization into transcription pipeline | developer | 1, 2 | DONE |
+| 4 | Update vault storage for diarized transcription | developer | 1 | DONE |
+| 5 | Update markdown generator for speaker labels | developer | 1 | DONE |
+| 6 | Update summary viewer with speaker display | developer | 5 | DONE |
+| 7 | Write unit tests for diarization | tech-qa | 1, 3 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 7     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

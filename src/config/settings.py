@@ -69,6 +69,21 @@ class SummarizationSettings:
             raise ValueError(f"Invalid max_tokens: {self.max_tokens}. Must be between 1 and 4000")
 
 @dataclass
+class DiarizationSettings:
+    """Speaker diarization configuration."""
+    enabled: bool = True
+    num_speakers: int = 0  # 0 = auto-detect, or specify 2-6
+    sensitivity: float = 0.5  # 0.0-1.0, higher = more speaker splits
+
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        if self.num_speakers < 0 or self.num_speakers > 6:
+            raise ValueError(f"Invalid num_speakers: {self.num_speakers}. Must be 0 (auto) or 2-6")
+
+        if self.sensitivity < 0.0 or self.sensitivity > 1.0:
+            raise ValueError(f"Invalid sensitivity: {self.sensitivity}. Must be between 0.0 and 1.0")
+
+@dataclass
 class UISettings:
     """User interface configuration."""
     theme: str = "dark"
@@ -106,6 +121,7 @@ class AppSettings:
     """Main application settings."""
     transcription: TranscriptionSettings
     summarization: SummarizationSettings
+    diarization: DiarizationSettings
     ui: UISettings
     recording: RecordingSettings = None
     recordings_dir: str = "recordings"
@@ -145,6 +161,7 @@ class SettingsManager:
                     return AppSettings(
                         transcription=TranscriptionSettings(**data.get('transcription', {})),
                         summarization=SummarizationSettings(**data.get('summarization', {})),
+                        diarization=DiarizationSettings(**data.get('diarization', {})),
                         ui=UISettings(**data.get('ui', {})),
                         recording=RecordingSettings(**data.get('recording', {})),
                         recordings_dir=data.get('recordings_dir', 'recordings'),
@@ -157,6 +174,7 @@ class SettingsManager:
         return AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
+            diarization=DiarizationSettings(),
             ui=UISettings(),
             recording=RecordingSettings()
         )
