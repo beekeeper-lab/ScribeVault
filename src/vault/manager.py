@@ -2,23 +2,29 @@
 Vault manager for ScribeVault recording storage.
 
 Manages a SQLite database of recordings with metadata, transcriptions,
-and AI summaries. Handles CRUD operations with validation and sanitization.
-Supports pipeline status persistence for recording workflow tracking.
+and AI summaries. Handles CRUD operations with validation and
+sanitization. Supports pipeline status persistence for recording
+workflow tracking.
 """
 
 import json
 import logging
 import sqlite3
+import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-VALID_CATEGORIES = {"meeting", "interview", "lecture", "note", "other"}
+VALID_CATEGORIES = {
+    "meeting", "interview", "lecture", "note", "other",
+}
 
 
 class VaultException(Exception):
     """Exception raised for vault operation errors."""
+
     pass
 
 
@@ -29,13 +35,15 @@ class VaultManager:
         """Initialize the vault manager.
 
         Args:
-            vault_dir: Directory for the vault database. Defaults to 'vault/'.
+            vault_dir: Directory for the vault database.
+                Defaults to 'vault/'.
         """
         if vault_dir is None:
             vault_dir = Path("vault")
         self.vault_dir = Path(vault_dir)
         self.vault_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.vault_dir / "scribevault.db"
+        self._lock = threading.Lock()
         self._init_database()
 
     def _init_database(self):
@@ -53,28 +61,41 @@ class VaultManager:
 
             if table_exists:
                 # Check for archived column (old schema)
-                cursor = conn.execute("PRAGMA table_info(recordings)")
-                columns = {row[1] for row in cursor.fetchall()}
+                cursor = conn.execute(
+                    "PRAGMA table_info(recordings)"
+                )
+                columns = {
+                    row[1] for row in cursor.fetchall()
+                }
                 if "archived" in columns:
                     self._migrate_from_archived(conn)
                     # Re-read columns after migration
-                    cursor = conn.execute("PRAGMA table_info(recordings)")
-                    columns = {row[1] for row in cursor.fetchall()}
-                # Check if markdown_path column exists, add if missing
+                    cursor = conn.execute(
+                        "PRAGMA table_info(recordings)"
+                    )
+                    columns = {
+                        row[1] for row in cursor.fetchall()
+                    }
+                # Add missing columns
                 if "markdown_path" not in columns:
                     conn.execute(
-                        "ALTER TABLE recordings ADD COLUMN markdown_path TEXT"
+                        "ALTER TABLE recordings "
+                        "ADD COLUMN markdown_path TEXT"
                     )
-                # Check if original_transcription column exists, add if missing
                 if "original_transcription" not in columns:
                     conn.execute(
                         "ALTER TABLE recordings "
                         "ADD COLUMN original_transcription TEXT"
                     )
-                # Check if pipeline_status column exists, add if missing
                 if "pipeline_status" not in columns:
                     conn.execute(
-                        "ALTER TABLE recordings ADD COLUMN pipeline_status TEXT"
+                        "ALTER TABLE recordings "
+                        "ADD COLUMN pipeline_status TEXT"
+                    )
+                if "summary_history" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recordings "
+                        "ADD COLUMN summary_history TEXT"
                     )
             else:
                 self._create_table(conn)
@@ -88,59 +109,80 @@ class VaultManager:
                 title TEXT,
                 description TEXT,
                 category TEXT CHECK(category IN (
-                    'meeting', 'interview', 'lecture', 'note', 'other'
+                    'meeting', 'interview',
+                    'lecture', 'note', 'other'
                 )) DEFAULT 'other',
-                duration REAL CHECK(duration >= 0) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                file_size INTEGER CHECK(file_size >= 0) DEFAULT 0,
+                duration REAL
+                    CHECK(duration >= 0) DEFAULT 0,
+                created_at TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP,
+                file_size INTEGER
+                    CHECK(file_size >= 0) DEFAULT 0,
                 transcription TEXT,
                 original_transcription TEXT,
                 summary TEXT,
                 key_points TEXT,
                 tags TEXT,
+                summary_history TEXT,
                 markdown_path TEXT,
                 pipeline_status TEXT
             )
         """)
 
-    def _migrate_from_archived(self, conn: sqlite3.Connection):
+    def _migrate_from_archived(
+        self, conn: sqlite3.Connection
+    ):
         """Migrate from old schema with archived column."""
-        logger.info("Migrating database: removing archived column")
+        logger.info(
+            "Migrating database: removing archived column"
+        )
 
         # Keep only non-archived recordings
         conn.execute(
             "CREATE TABLE recordings_new AS "
-            "SELECT id, filename, title, description, category, duration, "
-            "created_at, file_size, transcription, summary, key_points, tags "
+            "SELECT id, filename, title, description, "
+            "category, duration, created_at, file_size, "
+            "transcription, summary, key_points, tags "
             "FROM recordings WHERE archived = 0"
         )
         conn.execute("DROP TABLE recordings")
-        conn.execute("ALTER TABLE recordings_new RENAME TO recordings")
+        conn.execute(
+            "ALTER TABLE recordings_new "
+            "RENAME TO recordings"
+        )
 
         # Re-apply constraints by recreating properly
-        rows = conn.execute("SELECT * FROM recordings").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM recordings"
+        ).fetchall()
         conn.execute("DROP TABLE recordings")
         self._create_table(conn)
         for row in rows:
             conn.execute(
                 "INSERT INTO recordings "
-                "(id, filename, title, description, category, duration, "
-                "created_at, file_size, transcription, summary, "
+                "(id, filename, title, description, "
+                "category, duration, created_at, "
+                "file_size, transcription, summary, "
                 "key_points, tags) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES "
+                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 row,
             )
 
     @staticmethod
-    def _sanitize_text(text: Optional[str]) -> Optional[str]:
-        """Sanitize text input by stripping whitespace and null bytes."""
+    def _sanitize_text(
+        text: Optional[str],
+    ) -> Optional[str]:
+        """Sanitize text input by stripping whitespace."""
         if text is None:
             return None
         return text.replace("\x00", "").strip()
 
     @staticmethod
-    def _normalize_category(category: Optional[str]) -> str:
-        """Normalize category to a valid value, defaulting to 'other'."""
+    def _normalize_category(
+        category: Optional[str],
+    ) -> str:
+        """Normalize category, defaulting to 'other'."""
         if category and category in VALID_CATEGORIES:
             return category
         return "other"
@@ -166,21 +208,21 @@ class VaultManager:
             filename: Audio filename (must be unique).
             title: Recording title.
             description: Recording description.
-            category: Category (meeting, interview, lecture, note, other).
+            category: Category name.
             duration: Duration in seconds.
             file_size: File size in bytes.
             transcription: Transcription text.
             summary: AI summary text.
             key_points: List of key points.
             tags: List of tags.
-            markdown_path: Path to markdown summary file.
-            pipeline_status: Pipeline status dict for workflow tracking.
+            markdown_path: Path to markdown file.
+            pipeline_status: Pipeline status dict.
 
         Returns:
             The new recording's ID.
 
         Raises:
-            VaultException: If filename is empty or duplicate.
+            VaultException: If filename is empty or dup.
         """
         # Validate filename
         if not filename or not filename.strip():
@@ -204,32 +246,56 @@ class VaultManager:
             file_size = 0
 
         # Serialize JSON fields
-        key_points_json = json.dumps(key_points) if key_points else None
+        kp_json = (
+            json.dumps(key_points) if key_points else None
+        )
         tags_json = json.dumps(tags) if tags else None
-        pipeline_status_json = json.dumps(pipeline_status) if pipeline_status else None
+        ps_json = (
+            json.dumps(pipeline_status)
+            if pipeline_status
+            else None
+        )
 
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with sqlite3.connect(
+                str(self.db_path)
+            ) as conn:
                 conn.execute("PRAGMA foreign_keys = ON")
                 cursor = conn.execute(
                     "INSERT INTO recordings "
-                    "(filename, title, description, category, duration, "
-                    "file_size, transcription, summary, key_points, tags, "
+                    "(filename, title, description, "
+                    "category, duration, file_size, "
+                    "transcription, summary, "
+                    "key_points, tags, "
                     "markdown_path, pipeline_status) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "VALUES "
+                    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
-                        filename, title, description, category,
-                        duration, file_size, transcription, summary,
-                        key_points_json, tags_json, markdown_path,
-                        pipeline_status_json,
+                        filename,
+                        title,
+                        description,
+                        category,
+                        duration,
+                        file_size,
+                        transcription,
+                        summary,
+                        kp_json,
+                        tags_json,
+                        markdown_path,
+                        ps_json,
                     ),
                 )
                 recording_id = cursor.lastrowid
-                logger.info(f"Added recording {recording_id}: {filename}")
+                logger.info(
+                    "Added recording %s: %s",
+                    recording_id,
+                    filename,
+                )
                 return recording_id
         except sqlite3.IntegrityError as e:
             raise VaultException(
-                f"Recording with filename '{filename}' already exists"
+                f"Recording with filename "
+                f"'{filename}' already exists"
             ) from e
 
     def get_recordings(
@@ -239,11 +305,12 @@ class VaultManager:
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[Dict[str, Any]]:
-        """Retrieve recordings with optional filtering and pagination.
+        """Retrieve recordings with optional filtering.
 
         Args:
             category: Filter by category.
-            search_query: Search in title, description, transcription, filename.
+            search_query: Search in title, description,
+                transcription, filename.
             limit: Maximum number of results.
             offset: Number of results to skip.
 
@@ -251,12 +318,16 @@ class VaultManager:
             List of recording dictionaries.
 
         Raises:
-            VaultException: If pagination parameters are invalid.
+            VaultException: If pagination params invalid.
         """
         if limit is not None and limit < 0:
-            raise VaultException("Limit cannot be negative")
+            raise VaultException(
+                "Limit cannot be negative"
+            )
         if offset < 0:
-            raise VaultException("Offset cannot be negative")
+            raise VaultException(
+                "Offset cannot be negative"
+            )
 
         query = "SELECT * FROM recordings WHERE 1=1"
         params: list = []
@@ -267,8 +338,10 @@ class VaultManager:
 
         if search_query:
             query += (
-                " AND (title LIKE ? OR description LIKE ? "
-                "OR transcription LIKE ? OR filename LIKE ?)"
+                " AND (title LIKE ? "
+                "OR description LIKE ? "
+                "OR transcription LIKE ? "
+                "OR filename LIKE ?)"
             )
             like_param = f"%{search_query}%"
             params.extend([like_param] * 4)
@@ -284,7 +357,9 @@ class VaultManager:
             query += " LIMIT -1 OFFSET ?"
             params.append(offset)
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with sqlite3.connect(
+            str(self.db_path)
+        ) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(query, params)
@@ -292,14 +367,16 @@ class VaultManager:
 
         return [self._row_to_dict(row) for row in rows]
 
-    def get_recording_by_id(self, recording_id: int) -> Optional[Dict[str, Any]]:
+    def get_recording_by_id(
+        self, recording_id: int
+    ) -> Optional[Dict[str, Any]]:
         """Retrieve a single recording by ID.
 
         Args:
-            recording_id: ID of the recording to retrieve.
+            recording_id: ID of the recording.
 
         Returns:
-            Recording dictionary, or None if not found.
+            Recording dict, or None if not found.
 
         Raises:
             VaultException: If recording_id is invalid.
@@ -307,7 +384,9 @@ class VaultManager:
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with sqlite3.connect(
+            str(self.db_path)
+        ) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
@@ -337,23 +416,23 @@ class VaultManager:
         """Update a recording's metadata.
 
         Args:
-            recording_id: ID of the recording to update.
+            recording_id: ID of the recording.
             title: New title (None to skip).
             description: New description (None to skip).
             category: New category (None to skip).
-            transcription: New transcription (None to skip).
-            original_transcription: New original transcription (None to skip).
+            transcription: New transcription text.
+            original_transcription: Original text.
             summary: New summary (None to skip).
-            key_points: New key points list (None to skip).
-            tags: New tags list (None to skip).
-            markdown_path: New markdown path (None to skip).
-            pipeline_status: New pipeline status dict (None to skip).
+            key_points: New key points list.
+            tags: New tags list.
+            markdown_path: New markdown path.
+            pipeline_status: New pipeline status dict.
 
         Returns:
             True if update was successful.
 
         Raises:
-            VaultException: If recording_id is invalid or not found.
+            VaultException: If ID is invalid or not found.
         """
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
@@ -373,16 +452,26 @@ class VaultManager:
             params.append(self._sanitize_text(title))
         if description is not None:
             updates.append("description = ?")
-            params.append(self._sanitize_text(description))
+            params.append(
+                self._sanitize_text(description)
+            )
         if category is not None:
             updates.append("category = ?")
-            params.append(self._normalize_category(category))
+            params.append(
+                self._normalize_category(category)
+            )
         if transcription is not None:
             updates.append("transcription = ?")
-            params.append(self._sanitize_text(transcription))
+            params.append(
+                self._sanitize_text(transcription)
+            )
         if original_transcription is not None:
             updates.append("original_transcription = ?")
-            params.append(self._sanitize_text(original_transcription))
+            params.append(
+                self._sanitize_text(
+                    original_transcription
+                )
+            )
         if summary is not None:
             updates.append("summary = ?")
             params.append(self._sanitize_text(summary))
@@ -403,16 +492,26 @@ class VaultManager:
             return True  # Nothing to update
 
         params.append(recording_id)
-        query = f"UPDATE recordings SET {', '.join(updates)} WHERE id = ?"
+        set_clause = ", ".join(updates)
+        query = (
+            f"UPDATE recordings SET {set_clause} "
+            f"WHERE id = ?"
+        )
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with sqlite3.connect(
+            str(self.db_path)
+        ) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             conn.execute(query, params)
 
-        logger.info(f"Updated recording {recording_id}")
+        logger.info(
+            "Updated recording %s", recording_id
+        )
         return True
 
-    def delete_recording(self, recording_id: int) -> bool:
+    def delete_recording(
+        self, recording_id: int
+    ) -> bool:
         """Delete a recording from the database.
 
         Args:
@@ -422,12 +521,14 @@ class VaultManager:
             True if deletion was successful.
 
         Raises:
-            VaultException: If recording_id is invalid or not found.
+            VaultException: If ID is invalid or not found.
         """
         if recording_id < 1:
             raise VaultException("Invalid recording ID")
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with sqlite3.connect(
+            str(self.db_path)
+        ) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             cursor = conn.execute(
                 "DELETE FROM recordings WHERE id = ?",
@@ -435,14 +536,96 @@ class VaultManager:
             )
             if cursor.rowcount == 0:
                 raise VaultException(
-                    f"Recording not found: {recording_id}"
+                    "Recording not found: "
+                    f"{recording_id}"
                 )
 
-        logger.info(f"Deleted recording {recording_id}")
+        logger.info(
+            "Deleted recording %s", recording_id
+        )
         return True
 
-    def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
-        """Convert a database row to a dictionary with deserialized JSON fields."""
+    def add_summary(
+        self,
+        recording_id: int,
+        content: str,
+        template_name: str = "",
+        prompt_used: str = "",
+    ) -> bool:
+        """Add a new summary to a recording's history.
+
+        Updates both the main summary field and the
+        summary_history JSON list.
+
+        Args:
+            recording_id: The recording to update.
+            content: Summary text content.
+            template_name: Name of template used.
+            prompt_used: The actual prompt text used.
+
+        Returns:
+            True on success.
+
+        Raises:
+            VaultException: If recording not found.
+        """
+        if recording_id < 1:
+            raise VaultException("Invalid recording ID")
+
+        with self._lock:
+            with sqlite3.connect(
+                str(self.db_path)
+            ) as conn:
+                conn.execute("PRAGMA foreign_keys = ON")
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT summary_history "
+                    "FROM recordings WHERE id = ?",
+                    (recording_id,),
+                ).fetchone()
+                if not row:
+                    raise VaultException(
+                        "Recording not found: "
+                        f"{recording_id}"
+                    )
+
+                # Load existing history
+                history_json = row["summary_history"]
+                history = (
+                    json.loads(history_json)
+                    if history_json
+                    else []
+                )
+
+                # Append new entry
+                entry = {
+                    "content": content,
+                    "template_name": template_name,
+                    "prompt_used": prompt_used,
+                    "created_at": (
+                        datetime.now().isoformat()
+                    ),
+                }
+                history.append(entry)
+
+                # Update summary and summary_history
+                conn.execute(
+                    "UPDATE recordings "
+                    "SET summary = ?, "
+                    "summary_history = ? "
+                    "WHERE id = ?",
+                    (
+                        content,
+                        json.dumps(history),
+                        recording_id,
+                    ),
+                )
+        return True
+
+    def _row_to_dict(
+        self, row: sqlite3.Row
+    ) -> Dict[str, Any]:
+        """Convert a database row to a dictionary."""
         d = dict(row)
 
         # Deserialize JSON fields
@@ -458,10 +641,28 @@ class VaultManager:
 
         # Deserialize pipeline_status JSON field
         pipeline_value = d.get("pipeline_status")
-        if pipeline_value and isinstance(pipeline_value, str):
+        if pipeline_value and isinstance(
+            pipeline_value, str
+        ):
             try:
-                d["pipeline_status"] = json.loads(pipeline_value)
+                d["pipeline_status"] = json.loads(
+                    pipeline_value
+                )
             except (json.JSONDecodeError, TypeError):
                 d["pipeline_status"] = None
+
+        # Deserialize summary_history
+        history_value = d.get("summary_history")
+        if history_value and isinstance(
+            history_value, str
+        ):
+            try:
+                d["summary_history"] = json.loads(
+                    history_value
+                )
+            except (json.JSONDecodeError, TypeError):
+                d["summary_history"] = []
+        else:
+            d["summary_history"] = []
 
         return d
