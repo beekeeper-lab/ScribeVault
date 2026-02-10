@@ -425,7 +425,9 @@ class VaultDialog(QDialog):
             
         try:
             # Create and show summary viewer
-            summary_viewer = SummaryViewerDialog(self)
+            summary_viewer = SummaryViewerDialog(
+                self, vault_manager=self.vault_manager
+            )
             summary_viewer.load_recording_data(recording, recording.get('markdown_path'))
             summary_viewer.exec()
             
