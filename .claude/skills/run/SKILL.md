@@ -24,7 +24,7 @@ Pulls the latest code from `main` or `test` and launches the ScribeVault PySide6
 4. **Checkout branch** — `git checkout <branch>` (default: `main`). Only `main` and `test` are valid targets.
 5. **Pull** — `git pull origin <branch>`.
 6. **Sync dependencies** — `uv sync` to ensure packages match the pulled code.
-7. **Launch app** — `python main_qt.py`. This runs in the foreground — the app window opens and Claude waits for it to exit.
+7. **Launch app** — `python main.py`. This runs in the foreground — the app window opens and Claude waits for it to exit.
 8. **Restore** — After the app exits:
    - `git checkout <original-branch>`
    - If we stashed: `git stash pop`

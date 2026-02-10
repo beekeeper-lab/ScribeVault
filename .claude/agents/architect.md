@@ -69,14 +69,11 @@ ScribeVault is a PySide6 desktop application for audio recording, transcription,
 ```
 src/
   gui/
-    main_window.py         — Original CustomTkinter main window
     qt_main_window.py      — PySide6 main window
     qt_app.py              — PySide6 application setup
     qt_settings_dialog.py  — PySide6 settings dialog
     qt_summary_viewer.py   — PySide6 summary viewer
     qt_vault_dialog.py     — PySide6 vault dialog
-    settings_window.py     — Original settings window
-    assets.py              — Asset management
   audio/recorder.py        — Audio recording and processing
   transcription/whisper_service.py — Whisper integration (API + local)
   ai/summarizer.py         — OpenAI summarization
@@ -89,7 +86,7 @@ config/                    — User configuration files
 - PySide6 signal/slot for GUI events
 - OpenAI API for transcription and summarization
 - Local Whisper for cost-optimized transcription
-- Dual GUI: CustomTkinter (original) and PySide6 (migration in progress)
+- PySide6 as the single GUI framework
 
 **Tech stack:** Python >=3.8, PySide6, OpenAI, Whisper, PyAudio, pip deps, flake8/black/isort lint, mypy types, pytest
 

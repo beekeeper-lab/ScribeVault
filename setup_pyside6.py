@@ -144,7 +144,7 @@ echo Activating virtual environment...
 call venv\\Scripts\\activate.bat
 
 echo Starting ScribeVault...
-python main_qt.py
+python main.py
 
 if %ERRORLEVEL% neq 0 (
     echo.
@@ -192,7 +192,7 @@ echo "Press Ctrl+C to stop"
 echo "=================================="
 echo ""
 
-python main_qt.py
+python main.py
 EXIT_CODE=$?
 
 echo ""
@@ -249,7 +249,7 @@ def main():
         print("1. Run: runApp_qt.bat")
     else:
         print("1. Run: ./runApp_qt.sh")
-    print("2. Or manually: source venv/bin/activate && python main_qt.py")
+    print("2. Or manually: source venv/bin/activate && python main.py")
     print("")
     print("The new PySide6 interface provides:")
     print("• Native look and feel")
