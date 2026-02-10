@@ -19,12 +19,31 @@ except ImportError:
 
 class SummarizerService:
     """Handles text summarization using OpenAI GPT."""
-    
-    def __init__(self):
-        """Initialize the summarizer service."""
-        self.client = openai.OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+
+    def __init__(self, settings_manager=None):
+        """Initialize the summarizer service.
+
+        Args:
+            settings_manager: Optional SettingsManager instance for secure key retrieval.
+                If not provided, falls back to OPENAI_API_KEY environment variable.
+
+        Raises:
+            ValueError: If no API key is available from any source.
+        """
+        api_key = None
+        if settings_manager:
+            api_key = settings_manager.get_openai_api_key()
+
+        if not api_key:
+            api_key = os.getenv("OPENAI_API_KEY")
+
+        if not api_key or not api_key.strip():
+            raise ValueError(
+                "OpenAI API key not configured. "
+                "Set it in Settings or via the OPENAI_API_KEY environment variable."
+            )
+
+        self.client = openai.OpenAI(api_key=api_key.strip())
         
         # Initialize markdown generator if available
         if MARKDOWN_AVAILABLE:
