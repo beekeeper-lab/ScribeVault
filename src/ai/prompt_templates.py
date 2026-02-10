@@ -156,10 +156,7 @@ class PromptTemplateManager:
     def _save_custom_templates(self):
         """Save custom templates to config file."""
         try:
-            templates = [
-                t.to_dict()
-                for t in self._custom_templates.values()
-            ]
+            templates = [t.to_dict() for t in self._custom_templates.values()]
             data = {"templates": templates}
             with open(self.config_file, "w") as f:
                 json.dump(data, f, indent=2)
@@ -190,7 +187,9 @@ class PromptTemplateManager:
         return self._custom_templates.get(template_id)
 
     def save_custom_template(
-        self, name: str, prompt_text: str,
+        self,
+        name: str,
+        prompt_text: str,
     ) -> PromptTemplate:
         """Save a new custom template.
 

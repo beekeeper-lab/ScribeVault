@@ -147,7 +147,8 @@ class TestPromptTemplateManager(unittest.TestCase):
     def test_save_custom_template(self):
         """Test saving a custom template."""
         template = self.manager.save_custom_template(
-            "My Template", "Summarize briefly.",
+            "My Template",
+            "Summarize briefly.",
         )
         self.assertFalse(template.is_builtin)
         self.assertEqual(template.name, "My Template")

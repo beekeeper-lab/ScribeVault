@@ -27,6 +27,7 @@ def _make_mock_response(content: str):
 class TestSummarizeWithPrompt(unittest.TestCase):
     """Tests for the new summarize_with_prompt method."""
 
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("ai.summarizer.openai.OpenAI")
     def setUp(self, mock_openai_cls):
         self.mock_client = MagicMock()
@@ -56,8 +57,8 @@ class TestSummarizeWithPrompt(unittest.TestCase):
 
     def test_summarize_with_prompt_returns_none_on_error(self):
         """Returns None when API call fails."""
-        self.mock_client.chat.completions.create.side_effect = (
-            Exception("API error")
+        self.mock_client.chat.completions.create.side_effect = Exception(
+            "API error"
         )
 
         result = self.service.summarize_with_prompt("text", "prompt")
@@ -77,6 +78,7 @@ class TestSummarizeWithPrompt(unittest.TestCase):
 class TestStyleParameterFix(unittest.TestCase):
     """Tests for the summary style parameter bug fix."""
 
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch("ai.summarizer.openai.OpenAI")
     def setUp(self, mock_openai_cls):
         self.mock_client = MagicMock()
@@ -91,13 +93,13 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         result = self.service.generate_summary_with_markdown(
-            {"transcription": "Meeting text...",
-             "category": "meeting"},
+            {"transcription": "Meeting text...", "category": "meeting"},
             style="concise",
         )
 
         self.assertEqual(
-            result["summary"], "Structured meeting summary",
+            result["summary"],
+            "Structured meeting summary",
         )
         # Verify structured prompt was used (longer prompt text)
         call_args = self.mock_client.chat.completions.create.call_args
@@ -111,8 +113,7 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         result = self.service.generate_summary_with_markdown(
-            {"transcription": "Meeting text...",
-             "category": "meeting"},
+            {"transcription": "Meeting text...", "category": "meeting"},
             style="bullet_points",
         )
 
@@ -129,8 +130,7 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         result = self.service.generate_summary_with_markdown(
-            {"transcription": "Meeting text...",
-             "category": "meeting"},
+            {"transcription": "Meeting text...", "category": "meeting"},
             style="detailed",
         )
 
@@ -155,7 +155,8 @@ class TestStyleParameterFix(unittest.TestCase):
         call_args = self.mock_client.chat.completions.create.call_args
         system_msg = call_args[1]["messages"][0]["content"]
         self.assertEqual(
-            system_msg, "List all mentioned technologies.",
+            system_msg,
+            "List all mentioned technologies.",
         )
 
     def test_non_meeting_with_concise_style(self):
@@ -165,8 +166,7 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         result = self.service.generate_summary_with_markdown(
-            {"transcription": "Note text...",
-             "category": "note"},
+            {"transcription": "Note text...", "category": "note"},
             style="concise",
         )
 
@@ -182,8 +182,7 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         self.service.generate_summary_with_markdown(
-            {"transcription": "Call text...",
-             "category": "call"},
+            {"transcription": "Call text...", "category": "call"},
             style="concise",
         )
 
@@ -198,8 +197,7 @@ class TestStyleParameterFix(unittest.TestCase):
         )
 
         self.service.generate_summary_with_markdown(
-            {"transcription": "Interview text...",
-             "category": "interview"},
+            {"transcription": "Interview text...", "category": "interview"},
             style="bullet_points",
         )
 
@@ -240,11 +238,13 @@ class TestSummaryHistoryStorage(unittest.TestCase):
     def test_add_summary_creates_history(self):
         """add_summary creates a summary_history entry."""
         rec_id = self.vault_manager.add_recording(
-            filename="test.wav", transcription="Some text",
+            filename="test.wav",
+            transcription="Some text",
         )
 
         self.vault_manager.add_summary(
-            rec_id, "Summary 1",
+            rec_id,
+            "Summary 1",
             template_name="Brief Summary",
         )
 
@@ -265,11 +265,13 @@ class TestSummaryHistoryStorage(unittest.TestCase):
 
         self.vault_manager.add_summary(rec_id, "First summary")
         self.vault_manager.add_summary(
-            rec_id, "Second summary",
+            rec_id,
+            "Second summary",
             template_name="Action Items",
         )
         self.vault_manager.add_summary(
-            rec_id, "Third summary",
+            rec_id,
+            "Third summary",
             template_name="Custom",
         )
 
@@ -308,7 +310,8 @@ class TestSummaryHistoryStorage(unittest.TestCase):
         """History entries store the prompt used."""
         rec_id = self.vault_manager.add_recording(filename="test.wav")
         self.vault_manager.add_summary(
-            rec_id, "Summary",
+            rec_id,
+            "Summary",
             template_name="Custom",
             prompt_used="Extract action items",
         )
