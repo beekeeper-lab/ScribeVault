@@ -29,6 +29,27 @@ class MarkdownGenerator:
         self.daily_dir.mkdir(exist_ok=True)
         self.by_category_dir.mkdir(exist_ok=True)
         
+    def _format_diarized_transcription(self, diarized_text: str) -> str:
+        """Format diarized transcription with speaker labels as markdown.
+
+        Converts "Speaker N: text" lines into bold-labeled markdown paragraphs.
+        """
+        lines = diarized_text.strip().split("\n")
+        formatted = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Check for "Speaker N:" pattern
+            if ": " in line:
+                colon_pos = line.index(": ")
+                label = line[:colon_pos]
+                text = line[colon_pos + 2:]
+                formatted.append(f"**{label}:** {text}")
+            else:
+                formatted.append(line)
+        return "\n\n".join(formatted)
+
     def save_markdown_file(self, recording_data: Dict[str, Any], template_prompt: Optional[str] = None) -> Path:
         """Generate and save markdown file for a recording."""
         try:
@@ -39,6 +60,7 @@ class MarkdownGenerator:
             duration = recording_data.get('duration', 0)
             summary = recording_data.get('summary', 'No summary available')
             transcription = recording_data.get('transcription', 'No transcription available')
+            diarized_transcription = recording_data.get('diarized_transcription')
             
             # Parse datetime for formatting
             try:
@@ -84,9 +106,7 @@ class MarkdownGenerator:
 
 ## 📝 Complete Transcription
 
-```
-{transcription}
-```
+{self._format_transcription_section(transcription, diarized_transcription)}
 
 ---
 
@@ -119,6 +139,16 @@ class MarkdownGenerator:
             logger.error(f"Failed to save markdown file: {e}")
             raise MarkdownException(f"Markdown save failed: {e}")
     
+    def _format_transcription_section(self, transcription: str, diarized_transcription: Optional[str] = None) -> str:
+        """Format the transcription section for markdown output.
+
+        Uses speaker-labeled format when diarized transcription is available,
+        otherwise falls back to code-block format.
+        """
+        if diarized_transcription:
+            return self._format_diarized_transcription(diarized_transcription)
+        return f"```\n{transcription}\n```"
+
     def _format_duration(self, duration: float) -> str:
         """Format duration in seconds to human-readable format."""
         if duration <= 0:

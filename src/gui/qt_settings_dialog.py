@@ -15,30 +15,27 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont, QIcon
 
-from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, UISettings, AppSettings
+from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, UISettings, AudioSettings, AppSettings, AUDIO_PRESETS
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class APIKeyValidator(QThread):
-    """Background thread to validate API keys."""
-    
+    """Background thread to validate API keys with live API check."""
+
     validation_complete = Signal(bool, str)  # success, message
-    
+
     def __init__(self, settings_manager: SettingsManager, api_key: str):
         super().__init__()
         self.settings_manager = settings_manager
         self.api_key = api_key
-        
+
     def run(self):
-        """Validate the API key in background."""
+        """Validate the API key with a live API call in background."""
         try:
-            is_valid = self.settings_manager.validate_openai_api_key(self.api_key)
-            if is_valid:
-                self.validation_complete.emit(True, "API key is valid!")
-            else:
-                self.validation_complete.emit(False, "API key is invalid or inactive.")
+            is_valid, message = self.settings_manager.validate_openai_api_key_live(self.api_key)
+            self.validation_complete.emit(is_valid, message)
         except Exception as e:
             self.validation_complete.emit(False, f"Validation error: {str(e)}")
 
@@ -69,6 +66,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.tab_widget)
         
         # Create tabs
+        self.create_audio_tab()
         self.create_transcription_tab()
         self.create_summarization_tab()
         self.create_ui_tab()
@@ -97,6 +95,98 @@ class SettingsDialog(QDialog):
         
         layout.addLayout(button_layout)
         
+    def create_audio_tab(self):
+        """Create audio recording quality settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        # Quality preset
+        preset_group = QGroupBox("Recording Quality")
+        preset_layout = QGridLayout(preset_group)
+
+        preset_layout.addWidget(QLabel("Preset:"), 0, 0)
+        self.audio_preset = QComboBox()
+        for key, info in AUDIO_PRESETS.items():
+            self.audio_preset.addItem(info["label"], key)
+        self.audio_preset.currentIndexChanged.connect(
+            self._on_audio_preset_changed
+        )
+        preset_layout.addWidget(self.audio_preset, 0, 1)
+
+        self.preset_description = QLabel("")
+        self.preset_description.setStyleSheet(
+            "color: #888; font-size: 11px;"
+        )
+        self.preset_description.setWordWrap(True)
+        preset_layout.addWidget(self.preset_description, 1, 0, 1, 2)
+
+        # File-size estimate
+        self.file_size_label = QLabel("")
+        self.file_size_label.setStyleSheet(
+            "font-weight: bold; font-size: 12px; padding: 4px;"
+        )
+        preset_layout.addWidget(self.file_size_label, 2, 0, 1, 2)
+
+        layout.addWidget(preset_group)
+
+        # Input device selection
+        device_group = QGroupBox("Input Device")
+        device_layout = QGridLayout(device_group)
+
+        device_layout.addWidget(QLabel("Microphone:"), 0, 0)
+        self.audio_device = QComboBox()
+        self.audio_device.addItem("System Default", None)
+        device_layout.addWidget(self.audio_device, 0, 1)
+
+        self.refresh_devices_button = QPushButton("Refresh")
+        self.refresh_devices_button.clicked.connect(
+            self._refresh_audio_devices
+        )
+        device_layout.addWidget(self.refresh_devices_button, 0, 2)
+
+        layout.addWidget(device_group)
+        layout.addStretch()
+
+        self.tab_widget.addTab(tab, "Audio")
+
+        # Populate devices on next event-loop tick
+        QTimer.singleShot(100, self._refresh_audio_devices)
+
+    def _on_audio_preset_changed(self, index: int):
+        """Handle audio preset selection change."""
+        preset_key = self.audio_preset.currentData()
+        if preset_key and preset_key in AUDIO_PRESETS:
+            info = AUDIO_PRESETS[preset_key]
+            self.preset_description.setText(
+                f"{info['description']}\n"
+                f"Sample rate: {info['sample_rate']} Hz  |  "
+                f"Channels: {info['channels']}"
+            )
+            size_mb = AudioSettings.estimate_file_size_per_minute(
+                info["sample_rate"], info["channels"]
+            )
+            self.file_size_label.setText(
+                f"Estimated file size: {size_mb:.1f} MB per minute"
+            )
+
+    def _refresh_audio_devices(self):
+        """Refresh the list of available audio input devices."""
+        self.audio_device.clear()
+        self.audio_device.addItem("System Default", None)
+        try:
+            import pyaudio
+            pa = pyaudio.PyAudio()
+            for i in range(pa.get_device_count()):
+                try:
+                    dev = pa.get_device_info_by_index(i)
+                    if dev["maxInputChannels"] > 0:
+                        self.audio_device.addItem(dev["name"], i)
+                except Exception:
+                    pass
+            pa.terminate()
+        except Exception as e:
+            logger.warning(f"Could not enumerate audio devices: {e}")
+
     def create_transcription_tab(self):
         """Create transcription settings tab."""
         tab = QWidget()
@@ -125,11 +215,16 @@ class SettingsDialog(QDialog):
         self.validate_key_button = QPushButton("Validate")
         self.validate_key_button.clicked.connect(self.validate_api_key)
         openai_layout.addWidget(self.validate_key_button, 0, 2)
-        
-        openai_layout.addWidget(QLabel("Model:"), 1, 0)
+
+        # API key status indicator
+        self.api_key_status_label = QLabel("")
+        self.api_key_status_label.setWordWrap(True)
+        openai_layout.addWidget(self.api_key_status_label, 1, 0, 1, 3)
+
+        openai_layout.addWidget(QLabel("Model:"), 2, 0)
         self.openai_model = QComboBox()
         self.openai_model.addItems(["whisper-1"])
-        openai_layout.addWidget(self.openai_model, 1, 1)
+        openai_layout.addWidget(self.openai_model, 2, 1)
         
         # Local Whisper settings
         self.local_group = QGroupBox("Local Whisper Settings")
@@ -420,30 +515,77 @@ class SettingsDialog(QDialog):
         self.update_cost_estimation()
         
     def validate_api_key(self):
-        """Validate the OpenAI API key."""
+        """Validate the OpenAI API key with a live API check."""
         api_key = self.openai_api_key.text().strip()
         if not api_key:
-            QMessageBox.warning(self, "Validation", "Please enter an API key first.")
+            self._update_api_key_status("not_configured", "No API key entered")
             return
-            
+
+        # Format check first (instant feedback)
+        if not self.settings_manager.validate_openai_api_key(api_key):
+            self._update_api_key_status("invalid", "Invalid format. Key must start with 'sk-' and be at least 20 characters.")
+            return
+
         # Disable button and show progress
         self.validate_key_button.setText("Validating...")
         self.validate_key_button.setEnabled(False)
-        
-        # Start validation in background
+        self._update_api_key_status("checking", "Validating API key...")
+
+        # Start live validation in background
         self.validator_thread = APIKeyValidator(self.settings_manager, api_key)
         self.validator_thread.validation_complete.connect(self.on_validation_complete)
         self.validator_thread.start()
-        
+
     def on_validation_complete(self, success: bool, message: str):
         """Handle API key validation completion."""
         self.validate_key_button.setText("Validate")
         self.validate_key_button.setEnabled(True)
-        
+
         if success:
-            QMessageBox.information(self, "Validation Success", message)
+            self._update_api_key_status("valid", message)
         else:
-            QMessageBox.warning(self, "Validation Failed", message)
+            self._update_api_key_status("invalid", message)
+
+    def _update_api_key_status(self, status: str, message: str):
+        """Update the API key status indicator.
+
+        Args:
+            status: One of 'valid', 'invalid', 'not_configured', 'checking'
+            message: Status message to display
+        """
+        styles = {
+            "valid": "color: #4CAF50; font-weight: bold;",
+            "invalid": "color: #F44336; font-weight: bold;",
+            "not_configured": "color: #FF9800; font-weight: bold;",
+            "checking": "color: #2196F3; font-style: italic;",
+        }
+        icons = {
+            "valid": "Valid",
+            "invalid": "Invalid",
+            "not_configured": "Not Configured",
+            "checking": "Checking...",
+        }
+        style = styles.get(status, "")
+        icon = icons.get(status, "")
+        self.api_key_status_label.setStyleSheet(style)
+        self.api_key_status_label.setText(f"Status: {icon} - {message}")
+
+    def _refresh_api_key_status(self):
+        """Refresh the API key status based on current state."""
+        if self.settings_manager.has_openai_api_key():
+            method = self.settings_manager.get_api_key_storage_method()
+            method_labels = {
+                "keyring": "system keyring",
+                "encrypted_config": "encrypted config",
+                "environment": "environment variable",
+            }
+            label = method_labels.get(method, method)
+            self._update_api_key_status(
+                "valid",
+                f"Key configured (stored in {label})"
+            )
+        else:
+            self._update_api_key_status("not_configured", "No API key configured")
             
     def update_cost_estimation(self):
         """Update simplified cost estimation display."""
@@ -576,6 +718,19 @@ class SettingsDialog(QDialog):
         try:
             settings = self.settings
             
+            # Audio settings
+            preset_index = self.audio_preset.findData(settings.audio.preset)
+            if preset_index >= 0:
+                self.audio_preset.setCurrentIndex(preset_index)
+            self._on_audio_preset_changed(self.audio_preset.currentIndex())
+            # Select saved input device
+            if settings.audio.input_device_index is not None:
+                dev_idx = self.audio_device.findData(
+                    settings.audio.input_device_index
+                )
+                if dev_idx >= 0:
+                    self.audio_device.setCurrentIndex(dev_idx)
+
             # Transcription settings
             self.transcription_service.setCurrentText(settings.transcription.service)
             self.openai_model.setCurrentText(settings.transcription.openai_model)
@@ -583,10 +738,11 @@ class SettingsDialog(QDialog):
             self.device.setCurrentText(settings.transcription.device)
             self.language.setCurrentText(settings.transcription.language)
             
-            # Load API key
+            # Load API key and update status
             api_key = self.settings_manager.get_openai_api_key()
             if api_key:
                 self.openai_api_key.setText(api_key)
+            self._refresh_api_key_status()
                 
             # Summarization settings
             self.summarization_enabled.setChecked(settings.summarization.enabled)
@@ -620,6 +776,19 @@ class SettingsDialog(QDialog):
     def save_settings(self):
         """Save settings and close dialog."""
         try:
+            # Create new audio settings
+            preset_key = self.audio_preset.currentData() or "standard"
+            preset_params = AUDIO_PRESETS.get(preset_key, AUDIO_PRESETS["standard"])
+            device_data = self.audio_device.currentData()
+            device_name = self.audio_device.currentText()
+            audio = AudioSettings(
+                preset=preset_key,
+                sample_rate=preset_params["sample_rate"],
+                channels=preset_params["channels"],
+                input_device_index=device_data,
+                input_device_name=device_name,
+            )
+
             # Create new settings objects
             transcription = TranscriptionSettings(
                 service=self.transcription_service.currentText(),
@@ -645,15 +814,28 @@ class SettingsDialog(QDialog):
             )
             
             # Update settings manager
+            self.settings_manager.settings.audio = audio
             self.settings_manager.settings.transcription = transcription
             self.settings_manager.settings.summarization = summarization
             self.settings_manager.settings.ui = ui
             self.settings_manager.settings.recordings_dir = self.recordings_dir.text()
             self.settings_manager.settings.vault_dir = self.vault_dir.text()
             
-            # Save API key if provided
+            # Save API key if provided (with format validation)
             api_key = self.openai_api_key.text().strip()
             if api_key:
+                if not self.settings_manager.validate_openai_api_key(api_key):
+                    reply = QMessageBox.warning(
+                        self,
+                        "Invalid API Key Format",
+                        "The API key format appears invalid (must start with 'sk-' "
+                        "and be at least 20 characters).\n\n"
+                        "Save anyway?",
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.No,
+                    )
+                    if reply != QMessageBox.Yes:
+                        return
                 self.settings_manager.save_openai_api_key(api_key)
                 
             # Save settings to file
@@ -827,6 +1009,7 @@ class SettingsDialog(QDialog):
                 transcription=TranscriptionSettings(),
                 summarization=SummarizationSettings(),
                 ui=UISettings(),
+                audio=AudioSettings(),
                 recordings_dir="recordings",
                 vault_dir="vault"
             )

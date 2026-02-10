@@ -8,11 +8,11 @@
 | Title     | Summary Re-generation with Prompt Templates |
 | Type      | feature |
 | Priority  | P2 |
-| Status    | Approved   |
+| Status    | Done   |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 16:19 |
+| Completed | 2026-02-10 16:36 |
+| Duration  | 17m          |
 
 ## Problem Statement
 
@@ -45,27 +45,31 @@ Users can regenerate summaries on any existing transcription using either predef
 
 ## Acceptance Criteria
 
-- [ ] "Re-generate Summary" button available in vault detail view
-- [ ] Built-in prompt templates available in dropdown (at least 5 templates)
-- [ ] Free-text prompt input available for custom prompts
-- [ ] Custom prompts can be saved as new templates
-- [ ] Summary style parameter works correctly for all recording categories
-- [ ] Multiple summaries stored per recording (viewable in history)
-- [ ] New tests cover re-generation and template management
+- [x] "Re-generate Summary" button available in vault detail view
+- [x] Built-in prompt templates available in dropdown (at least 5 templates)
+- [x] Free-text prompt input available for custom prompts
+- [x] Custom prompts can be saved as new templates
+- [x] Summary style parameter works correctly for all recording categories
+- [x] Multiple summaries stored per recording (viewable in history)
+- [x] New tests cover re-generation and template management
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create Prompt Template Manager | developer | - | DONE |
+| 2 | Fix Summary Style Parameter Bug | developer | T01 | DONE |
+| 3 | Add Summary History Storage | developer | T01 | DONE |
+| 4 | Add Re-generation UI to Summary Viewer | developer | T01,T02,T03 | DONE |
+| 5 | Integrate Re-generation into Vault Dialog | developer | T01,T02,T03,T04 | DONE |
+| 6 | Write Tests for Re-generation and Templates | tech-qa | T04,T05 | DONE |
+| 7 | Final Verification and Cleanup | team-lead | T06 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 7     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
