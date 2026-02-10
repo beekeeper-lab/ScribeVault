@@ -8,11 +8,11 @@
 | Title     | API Retry & Rate Limit Handling |
 | Type      | enhancement |
 | Priority  | P2 |
-| Status    | Approved   |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-10 15:54 |
+| Completed | 2026-02-10 16:01 |
+| Duration  | ~7 min       |
 
 ## Problem Statement
 
@@ -40,27 +40,40 @@ API calls automatically retry with exponential backoff on transient failures, an
 
 ## Acceptance Criteria
 
-- [ ] Transient API errors (429, 500, 502, 503, timeout) trigger automatic retry
-- [ ] Retry uses exponential backoff (1s, 2s, 4s)
-- [ ] Maximum 3 retries before giving up
-- [ ] Each retry attempt is logged at warning level
-- [ ] Final failure produces user-friendly error message (not raw API error)
-- [ ] Retry logic is shared (not duplicated) between summarizer and whisper service
-- [ ] New tests cover retry behavior with mocked API responses
+- [x] Transient API errors (429, 500, 502, 503, timeout) trigger automatic retry
+- [x] Retry uses exponential backoff (1s, 2s, 4s)
+- [x] Maximum 3 retries before giving up
+- [x] Each retry attempt is logged at warning level
+- [x] Final failure produces user-friendly error message (not raw API error)
+- [x] Retry logic is shared (not duplicated) between summarizer and whisper service
+- [x] New tests cover retry behavior with mocked API responses
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Create shared retry utility module | developer | — | Done |
+| 2 | Integrate retry into summarizer | developer | TASK-001 | Done |
+| 3 | Integrate retry into whisper service | developer | TASK-001 | Done |
+| 4 | Write tests for retry utility | tech-qa | TASK-001 | Done |
+| 5 | Write integration tests for retry in services | tech-qa | TASK-002, TASK-003 | Done |
+
+## Dependency Graph
+
+```mermaid
+graph TD
+    T1[TASK-001: Retry Utility] --> T2[TASK-002: Summarizer Integration]
+    T1 --> T3[TASK-003: Whisper Integration]
+    T1 --> T4[TASK-004: Retry Unit Tests]
+    T2 --> T5[TASK-005: Integration Tests]
+    T3 --> T5
+```
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 5     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
