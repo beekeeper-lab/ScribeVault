@@ -126,7 +126,14 @@ class VaultDialog(QDialog):
         export_button.clicked.connect(self.export_recording)
         export_button.setMaximumHeight(30)
         table_controls.addWidget(export_button)
-        
+
+        play_button = QPushButton("🔊 Play Audio")
+        play_button.setToolTip("Play audio file with system player")
+        play_button.clicked.connect(self.play_audio)
+        play_button.setStyleSheet("QPushButton { background-color: #388E3C; color: white; }")
+        play_button.setMaximumHeight(30)
+        table_controls.addWidget(play_button)
+
         table_controls.addStretch()
         
         view_files_button = QPushButton("📁 Open Vault")
@@ -285,10 +292,10 @@ class VaultDialog(QDialog):
             # Check search text
             if search_text:
                 searchable_text = " ".join([
-                    recording.get('title', ''),
-                    recording.get('description', ''),
-                    recording.get('filename', ''),
-                    recording.get('transcription', '')
+                    recording.get('title') or '',
+                    recording.get('description') or '',
+                    recording.get('filename') or '',
+                    recording.get('transcription') or '',
                 ]).lower()
                 
                 if search_text not in searchable_text:
@@ -334,32 +341,54 @@ class VaultDialog(QDialog):
         logger.info(f"Showing details for recording: {recording.get('filename', 'Unknown')}")
         
         # Create details widgets
-        self.create_detail_section("📝 Basic Information", [
+        info_items = [
+            ("Recording ID", recording.get('id', 'N/A')),
             ("Title", recording.get('title', 'Untitled')),
             ("Filename", recording.get('filename', 'Unknown')),
             ("Category", recording.get('category', 'other').title()),
             ("Duration", self.format_duration(recording.get('duration', 0))),
             ("File Size", self.format_file_size(recording.get('file_size', 0))),
-            ("Created", recording.get('created_at', 'Unknown'))
-        ])
-        
+            ("Created", recording.get('created_at', 'Unknown')),
+        ]
+        self.create_detail_section("📝 Basic Information", info_items)
+
+        # Action buttons for the selected recording
+        actions_group = QGroupBox("Actions")
+        actions_layout = QHBoxLayout(actions_group)
+
+        play_btn = QPushButton("🔊 Play Audio")
+        play_btn.clicked.connect(self.play_audio)
+        play_btn.setStyleSheet("QPushButton { background-color: #388E3C; color: white; }")
+        actions_layout.addWidget(play_btn)
+
+        edit_btn = QPushButton("✏️ Edit")
+        edit_btn.clicked.connect(self.edit_recording)
+        actions_layout.addWidget(edit_btn)
+
+        summary_btn = QPushButton("🤖 Summary")
+        summary_btn.clicked.connect(self.view_summary)
+        summary_btn.setStyleSheet("QPushButton { background-color: #0078d4; color: white; }")
+        actions_layout.addWidget(summary_btn)
+
+        self.details_layout.addWidget(actions_group)
+
         if recording.get('description'):
             self.create_text_section("📋 Description", recording['description'])
-        
+
         if recording.get('transcription'):
             self.create_text_section("🎤 Transcription", recording['transcription'])
-        
+
         if recording.get('summary'):
             self.create_text_section("🤖 AI Summary", recording['summary'])
-        
+
         if recording.get('key_points'):
             key_points_text = "\n".join([f"• {point}" for point in recording['key_points']])
             self.create_text_section("🔑 Key Points", key_points_text)
-        
+
         if recording.get('tags'):
             tags_text = ", ".join(recording['tags'])
             self.create_detail_section("🏷️ Tags", [("Tags", tags_text)])
-        
+
         self.details_layout.addStretch()
         
     def show_empty_details(self):
@@ -454,23 +483,86 @@ class VaultDialog(QDialog):
         
         if reply == QMessageBox.Yes:
             try:
-                # TODO: Implement delete_recording method in VaultManager
-                QMessageBox.information(self, "Delete", "Delete functionality coming soon!")
-                self.update_status("Delete functionality not yet implemented")
+                recording_id = recording.get('id')
+                if recording_id is None:
+                    QMessageBox.warning(self, "Delete Error", "Recording has no ID.")
+                    return
+
+                self.vault_manager.delete_recording(recording_id)
+
+                # Optionally delete audio file
+                audio_file = Path("recordings") / recording.get('filename', '')
+                if audio_file.exists():
+                    audio_file.unlink()
+
+                self.update_status(f"Recording '{recording.get('title', 'Untitled')}' deleted")
+                self.load_recordings()
+                self.show_empty_details()
+
+            except VaultException as e:
+                logger.error(f"Error deleting recording: {e}")
+                QMessageBox.warning(self, "Delete Error", f"Failed to delete recording: {e}")
             except Exception as e:
                 logger.error(f"Error deleting recording: {e}")
                 QMessageBox.warning(self, "Delete Error", f"Failed to delete recording: {e}")
                 
     def export_recording(self):
-        """Export the selected recording."""
+        """Export the selected recording to a markdown file."""
         current_row = self.recordings_table.currentRow()
         if current_row < 0:
             QMessageBox.information(self, "No Selection", "Please select a recording to export.")
             return
-            
-        # TODO: Implement export functionality
-        QMessageBox.information(self, "Export", "Export functionality coming soon!")
-        self.update_status("Export functionality not yet implemented")
+
+        title_item = self.recordings_table.item(current_row, 0)
+        recording = title_item.data(Qt.UserRole)
+        if not recording:
+            QMessageBox.warning(self, "Error", "Could not retrieve recording data.")
+            return
+
+        # Suggest a filename
+        title = recording.get('title') or recording.get('filename', 'recording')
+        safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title).strip()
+        suggested = f"{safe_title}.md" if safe_title else "recording.md"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Recording", suggested,
+            "Markdown Files (*.md);;Text Files (*.txt);;All Files (*)"
+        )
+        if not file_path:
+            return
+
+        try:
+            lines = [f"# {recording.get('title', 'Untitled')}\n"]
+            lines.append(f"**Filename:** {recording.get('filename', 'N/A')}\n")
+            lines.append(f"**Category:** {recording.get('category', 'other').title()}\n")
+            lines.append(f"**Duration:** {self.format_duration(recording.get('duration', 0))}\n")
+            lines.append(f"**File Size:** {self.format_file_size(recording.get('file_size', 0))}\n")
+            lines.append(f"**Created:** {recording.get('created_at', 'Unknown')}\n")
+
+            if recording.get('description'):
+                lines.append(f"\n## Description\n\n{recording['description']}\n")
+
+            if recording.get('transcription'):
+                lines.append(f"\n## Transcription\n\n{recording['transcription']}\n")
+
+            if recording.get('summary'):
+                lines.append(f"\n## AI Summary\n\n{recording['summary']}\n")
+
+            if recording.get('key_points'):
+                lines.append("\n## Key Points\n")
+                for point in recording['key_points']:
+                    lines.append(f"- {point}\n")
+
+            if recording.get('tags'):
+                lines.append(f"\n**Tags:** {', '.join(recording['tags'])}\n")
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+
+            self.update_status(f"Exported to {Path(file_path).name}")
+        except Exception as e:
+            logger.error(f"Error exporting recording: {e}")
+            QMessageBox.warning(self, "Export Error", f"Failed to export recording: {e}")
         
     def open_vault_folder(self):
         """Open the vault folder in file manager."""
@@ -500,6 +592,123 @@ class VaultDialog(QDialog):
                 f"Vault folder location:\n{vault_path}\n\nError opening folder: {e}"
             )
         
+    def play_audio(self):
+        """Play the audio file for the selected recording using the system player."""
+        current_row = self.recordings_table.currentRow()
+        if current_row < 0:
+            QMessageBox.information(self, "No Selection", "Please select a recording to play.")
+            return
+
+        title_item = self.recordings_table.item(current_row, 0)
+        recording = title_item.data(Qt.UserRole)
+        if not recording:
+            QMessageBox.warning(self, "Error", "Could not retrieve recording data.")
+            return
+
+        filename = recording.get('filename', '')
+        audio_file = Path("recordings") / filename
+        if not audio_file.exists():
+            QMessageBox.warning(
+                self, "File Not Found",
+                f"Audio file not found:\n{audio_file}"
+            )
+            return
+
+        try:
+            import platform
+            import subprocess
+
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(str(audio_file))
+            elif system == "Darwin":
+                subprocess.run(["open", str(audio_file)])
+            else:
+                subprocess.run(["xdg-open", str(audio_file)])
+
+            self.update_status(f"Playing {filename}")
+        except Exception as e:
+            logger.error(f"Error playing audio: {e}")
+            QMessageBox.warning(self, "Playback Error", f"Could not play audio: {e}")
+
+    def edit_recording(self):
+        """Open an edit dialog for the selected recording."""
+        current_row = self.recordings_table.currentRow()
+        if current_row < 0:
+            QMessageBox.information(self, "No Selection", "Please select a recording to edit.")
+            return
+
+        title_item = self.recordings_table.item(current_row, 0)
+        recording = title_item.data(Qt.UserRole)
+        if not recording:
+            QMessageBox.warning(self, "Error", "Could not retrieve recording data.")
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Recording")
+        dialog.setMinimumSize(400, 300)
+
+        layout = QVBoxLayout(dialog)
+
+        form_layout = QGridLayout()
+
+        form_layout.addWidget(QLabel("Title:"), 0, 0)
+        title_edit = QLineEdit(recording.get('title', ''))
+        form_layout.addWidget(title_edit, 0, 1)
+
+        form_layout.addWidget(QLabel("Description:"), 1, 0, Qt.AlignTop)
+        desc_edit = QTextEdit()
+        desc_edit.setPlainText(recording.get('description', ''))
+        desc_edit.setMaximumHeight(120)
+        form_layout.addWidget(desc_edit, 1, 1)
+
+        form_layout.addWidget(QLabel("Category:"), 2, 0)
+        category_combo = QComboBox()
+        category_combo.addItems(["meeting", "interview", "lecture", "note", "other"])
+        current_cat = recording.get('category', 'other')
+        idx = category_combo.findText(current_cat)
+        if idx >= 0:
+            category_combo.setCurrentIndex(idx)
+        form_layout.addWidget(category_combo, 2, 1)
+
+        layout.addLayout(form_layout)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet("QPushButton { background-color: #0078d4; color: white; }")
+        button_layout.addWidget(save_btn)
+
+        layout.addLayout(button_layout)
+
+        def save_changes():
+            try:
+                recording_id = recording.get('id')
+                if recording_id is None:
+                    QMessageBox.warning(dialog, "Error", "Recording has no ID.")
+                    return
+
+                self.vault_manager.update_recording(
+                    recording_id,
+                    title=title_edit.text().strip(),
+                    description=desc_edit.toPlainText().strip(),
+                    category=category_combo.currentText(),
+                )
+                self.update_status(f"Recording '{title_edit.text().strip()}' updated")
+                dialog.accept()
+                self.load_recordings()
+            except VaultException as e:
+                logger.error(f"Error updating recording: {e}")
+                QMessageBox.warning(dialog, "Update Error", f"Failed to update recording: {e}")
+
+        save_btn.clicked.connect(save_changes)
+        dialog.exec()
+
     def format_duration(self, seconds: float) -> str:
         """Format duration in seconds to MM:SS format."""
         if not seconds or seconds <= 0:
