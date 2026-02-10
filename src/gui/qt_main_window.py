@@ -62,18 +62,30 @@ class RecordingWorker(ScribeVaultWorker):
                 
             # Transcribe audio if service is available
             transcript = None
+            diarized_transcript = None
             if self.whisper_service:
                 self.emit_status("Transcribing audio...")
                 self.emit_progress(30)
-                
-                transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
+
+                # Try transcription with diarization
+                try:
+                    diarize_result = self.whisper_service.transcribe_with_diarization(
+                        str(self.audio_path)
+                    )
+                    transcript = diarize_result.get("transcription")
+                    diarized_transcript = diarize_result.get("diarized_transcription")
+                    if diarized_transcript:
+                        self.emit_status("Transcription with speaker diarization complete")
+                except Exception:
+                    # Fallback to plain transcription
+                    transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
             else:
                 self.emit_status("Transcription service not available - skipping...")
                 logger.warning("Whisper service not available - recording saved without transcription")
-                
+
             if self.is_cancelled():
                 return
-                
+
             self.emit_progress(60)
             
             # Generate summary if requested and services are available
@@ -88,6 +100,7 @@ class RecordingWorker(ScribeVaultWorker):
                 recording_data = {
                     'filename': self.audio_path.name,
                     'transcription': transcript,
+                    'diarized_transcription': diarized_transcript,
                     'file_size': self.audio_path.stat().st_size,
                     'duration': self._get_audio_duration(),
                     'created_at': datetime.now().isoformat(),
@@ -128,6 +141,7 @@ class RecordingWorker(ScribeVaultWorker):
             # Emit results
             result = {
                 'transcript': transcript,
+                'diarized_transcript': diarized_transcript,
                 'summary': summary,
                 'markdown_path': markdown_path,
                 'recording_id': recording_id
@@ -697,6 +711,7 @@ class ScribeVaultMainWindow(QMainWindow):
             self.current_recording_data = {
                 'filename': self.current_recording_path.name if self.current_recording_path else 'Unknown',
                 'transcription': result.get('transcript'),
+                'diarized_transcription': result.get('diarized_transcript'),
                 'summary': result.get('summary'),
                 'created_at': datetime.now().isoformat(),
                 'duration': 0,  # Will be calculated if needed
@@ -705,8 +720,10 @@ class ScribeVaultMainWindow(QMainWindow):
             }
             self.current_markdown_path = result.get('markdown_path')
             
-            # Update text areas
-            if result.get('transcript'):
+            # Update text areas — prefer diarized transcription for display
+            if result.get('diarized_transcript'):
+                self.transcript_text.setPlainText(result['diarized_transcript'])
+            elif result.get('transcript'):
                 self.transcript_text.setPlainText(result['transcript'])
                 
             if result.get('summary'):
