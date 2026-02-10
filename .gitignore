@@ -42,7 +42,7 @@ venv.bak/
 
 # ScribeVault specific
 recordings/
-vault/
+/vault/
 *.wav
 *.mp3
 *.m4a

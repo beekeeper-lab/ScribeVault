@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QMessageBox, QFileDialog, QProgressBar,
     QCheckBox, QSpinBox, QTabWidget, QScrollArea, QFrame
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, Slot
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor
 
 from vault.manager import VaultManager, VaultException
@@ -24,13 +24,43 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class RegenerationWorker(QThread):
+    """Worker thread for summary re-generation."""
+
+    finished = Signal(str, str)  # (summary, template_name)
+    error = Signal(str)
+
+    def __init__(self, summarizer_service, transcription, prompt, template_name=""):
+        super().__init__()
+        self.summarizer_service = summarizer_service
+        self.transcription = transcription
+        self.prompt = prompt
+        self.template_name = template_name
+
+    def run(self):
+        try:
+            result = self.summarizer_service.summarize_with_prompt(
+                self.transcription, self.prompt
+            )
+            if result:
+                self.finished.emit(result, self.template_name)
+            else:
+                self.error.emit("Summarization returned no result")
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class VaultDialog(QDialog):
     """Vault dialog for managing recordings."""
-    
-    def __init__(self, vault_manager: VaultManager, parent=None):
+
+    def __init__(self, vault_manager: VaultManager, parent=None,
+                 summarizer_service=None, template_manager=None):
         super().__init__(parent)
         self.vault_manager = vault_manager
+        self.summarizer_service = summarizer_service
+        self.template_manager = template_manager
         self.current_recordings = []
+        self._regen_worker = None
         
         self.setup_ui()
         self.show_empty_details()  # Initialize with empty state
@@ -424,15 +454,84 @@ class VaultDialog(QDialog):
             return
             
         try:
-            # Create and show summary viewer
-            summary_viewer = SummaryViewerDialog(self)
+            # Create and show summary viewer with template manager
+            summary_viewer = SummaryViewerDialog(
+                self, template_manager=self.template_manager
+            )
             summary_viewer.load_recording_data(recording, recording.get('markdown_path'))
+
+            # Connect re-generation signal
+            self._current_viewer = summary_viewer
+            self._current_recording = recording
+            summary_viewer.regenerate_requested.connect(
+                self._handle_regeneration_request
+            )
+
             summary_viewer.exec()
-            
+
         except Exception as e:
             logger.error(f"Error showing summary viewer: {e}")
             QMessageBox.critical(self, "Summary Viewer Error", f"Failed to open summary viewer: {e}")
         
+    @Slot(str, str)
+    def _handle_regeneration_request(self, prompt_text, template_name):
+        """Handle a re-generation request from the summary viewer."""
+        if not self.summarizer_service:
+            if hasattr(self, '_current_viewer') and self._current_viewer:
+                self._current_viewer.on_regeneration_error(
+                    "Summarizer service not available. Check API key configuration."
+                )
+            return
+
+        recording = getattr(self, '_current_recording', None)
+        if not recording:
+            return
+
+        transcription = recording.get('transcription', '')
+        if not transcription or not transcription.strip():
+            if hasattr(self, '_current_viewer') and self._current_viewer:
+                self._current_viewer.on_regeneration_error(
+                    "No transcription available for this recording."
+                )
+            return
+
+        # Run in worker thread
+        self._regen_worker = RegenerationWorker(
+            self.summarizer_service, transcription, prompt_text, template_name
+        )
+        self._regen_worker.finished.connect(self._on_regeneration_finished)
+        self._regen_worker.error.connect(self._on_regeneration_error)
+        self._regen_worker.start()
+
+    @Slot(str, str)
+    def _on_regeneration_finished(self, new_summary, template_name):
+        """Handle successful re-generation."""
+        recording = getattr(self, '_current_recording', None)
+        if recording and recording.get('id'):
+            try:
+                self.vault_manager.add_summary(
+                    recording['id'],
+                    new_summary,
+                    template_name=template_name,
+                    prompt_used="",
+                )
+                # Update the in-memory recording data
+                recording['summary'] = new_summary
+            except Exception as e:
+                logger.error(f"Failed to store re-generated summary: {e}")
+
+        if hasattr(self, '_current_viewer') and self._current_viewer:
+            self._current_viewer.on_regeneration_complete(new_summary, template_name)
+
+        self.update_status("Summary re-generated successfully")
+
+    @Slot(str)
+    def _on_regeneration_error(self, error_msg):
+        """Handle re-generation error."""
+        if hasattr(self, '_current_viewer') and self._current_viewer:
+            self._current_viewer.on_regeneration_error(error_msg)
+        self.update_status("Summary re-generation failed")
+
     def delete_recording(self):
         """Delete the selected recording."""
         current_row = self.recordings_table.currentRow()
