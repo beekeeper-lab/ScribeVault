@@ -623,17 +623,31 @@ class SummaryViewerDialog(QDialog):
             
         self.details_content_layout.addWidget(basic_info)
         
-        # Transcription
-        if recording.get('transcription'):
-            transcription_group = QGroupBox("🎤 Transcription")
+        # Transcription — prefer diarized version with speaker labels
+        diarized = recording.get('diarized_transcription')
+        plain_transcription = recording.get('transcription')
+        if diarized or plain_transcription:
+            label = "🎤 Transcription (Speaker-Labeled)" if diarized else "🎤 Transcription"
+            transcription_group = QGroupBox(label)
             transcription_layout = QVBoxLayout(transcription_group)
-            
+
             transcription_text = QTextEdit()
-            transcription_text.setPlainText(recording['transcription'])
             transcription_text.setReadOnly(True)
-            transcription_text.setMaximumHeight(200)
-            transcription_text.setStyleSheet("background-color: #2b2b2b; border: 1px solid #555;")
-            
+            transcription_text.setMaximumHeight(300)
+
+            if diarized:
+                # Render speaker labels with HTML styling
+                html = self._format_diarized_html(diarized)
+                transcription_text.setHtml(html)
+                transcription_text.setStyleSheet(
+                    "background-color: #2b2b2b; border: 1px solid #555; padding: 8px;"
+                )
+            else:
+                transcription_text.setPlainText(plain_transcription)
+                transcription_text.setStyleSheet(
+                    "background-color: #2b2b2b; border: 1px solid #555;"
+                )
+
             transcription_layout.addWidget(transcription_text)
             self.details_content_layout.addWidget(transcription_group)
             
@@ -760,6 +774,60 @@ class SummaryViewerDialog(QDialog):
             bytes_size /= 1024
         return f"{bytes_size:.1f} TB"
         
+    def _format_diarized_html(self, diarized_text: str) -> str:
+        """Format diarized transcription as styled HTML for the viewer.
+
+        Each speaker gets a distinct color for visual distinction.
+        """
+        import re
+
+        # Speaker color palette
+        speaker_colors = [
+            "#58a6ff",  # blue
+            "#f78166",  # orange
+            "#7ee787",  # green
+            "#d2a8ff",  # purple
+            "#ff7b72",  # red
+            "#79c0ff",  # light blue
+        ]
+        speaker_color_map = {}
+        color_idx = 0
+
+        lines = diarized_text.strip().split("\n")
+        html_parts = [
+            '<div style="font-family: Segoe UI, Arial, sans-serif; '
+            'font-size: 13px; line-height: 1.6; color: #ffffff;">'
+        ]
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Match "Speaker N:" pattern
+            match = re.match(r'^(Speaker\s+\d+):\s*(.*)', line)
+            if match:
+                speaker = match.group(1)
+                text = match.group(2)
+
+                if speaker not in speaker_color_map:
+                    speaker_color_map[speaker] = speaker_colors[
+                        color_idx % len(speaker_colors)
+                    ]
+                    color_idx += 1
+
+                color = speaker_color_map[speaker]
+                html_parts.append(
+                    f'<p style="margin: 6px 0;">'
+                    f'<b style="color: {color};">{speaker}:</b> {text}'
+                    f'</p>'
+                )
+            else:
+                html_parts.append(f'<p style="margin: 6px 0;">{line}</p>')
+
+        html_parts.append('</div>')
+        return ''.join(html_parts)
+
     def show_status_message(self, message: str):
         """Show a temporary status message."""
         # Create a simple status message that auto-hides

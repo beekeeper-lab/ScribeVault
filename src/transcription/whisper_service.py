@@ -5,7 +5,7 @@ Supports both OpenAI API and local Whisper models.
 
 import openai
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any, List
 import os
 from dotenv import load_dotenv
 import logging
@@ -227,6 +227,134 @@ class WhisperService:
             print(f"Local timestamp transcription error: {e}")
             return None
             
+    def transcribe_with_diarization(
+        self, audio_path: Path, language: str = None
+    ) -> Dict[str, Any]:
+        """Transcribe audio with speaker diarization.
+
+        Gets word-level timestamps from Whisper, then runs diarization
+        to identify speaker changes. Falls back to plain transcription
+        if diarization fails or is disabled.
+
+        Args:
+            audio_path: Path to the audio file
+            language: Language code or None for auto-detection
+
+        Returns:
+            Dict with keys:
+              - 'transcription': raw transcription text
+              - 'diarized_transcription': speaker-labeled text (or None)
+        """
+        # Get raw transcription
+        transcription = self.transcribe_audio(audio_path, language)
+
+        result = {
+            "transcription": transcription,
+            "diarized_transcription": None,
+        }
+
+        # Check if diarization is enabled via settings
+        diarization_settings = None
+        if self.settings_manager:
+            diarization_settings = getattr(
+                self.settings_manager.settings, "diarization", None
+            )
+            if diarization_settings and not diarization_settings.enabled:
+                logger.info("Diarization is disabled in settings")
+                return result
+
+        # Try to get word-level timestamps for diarization
+        try:
+            timestamp_result = self.transcribe_with_timestamps(audio_path, language)
+            word_timestamps = self._extract_word_timestamps(timestamp_result)
+        except Exception as e:
+            logger.warning(f"Could not get word timestamps for diarization: {e}")
+            return result
+
+        # Run diarization
+        try:
+            from transcription.diarization import DiarizationService, SCIPY_AVAILABLE
+
+            if not SCIPY_AVAILABLE:
+                logger.warning("scipy not available — skipping diarization")
+                return result
+
+            num_speakers = 0
+            sensitivity = 0.5
+            if diarization_settings:
+                num_speakers = diarization_settings.num_speakers
+                sensitivity = diarization_settings.sensitivity
+
+            service = DiarizationService(
+                num_speakers=num_speakers, sensitivity=sensitivity
+            )
+            diarization_result = service.diarize(audio_path, word_timestamps)
+
+            if diarization_result and diarization_result.segments:
+                result["diarized_transcription"] = (
+                    diarization_result.to_labeled_text()
+                )
+                logger.info(
+                    f"Diarization complete: {diarization_result.num_speakers} speakers detected"
+                )
+            else:
+                logger.info("Diarization returned no segments — using plain transcription")
+
+        except Exception as e:
+            logger.warning(f"Diarization failed, falling back to plain transcription: {e}")
+
+        return result
+
+    def _extract_word_timestamps(
+        self, timestamp_result
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Extract word-level timestamps from a Whisper timestamp result.
+
+        Handles both OpenAI API format and local Whisper format.
+
+        Returns:
+            List of dicts with 'word', 'start', 'end' keys, or None.
+        """
+        if timestamp_result is None:
+            return None
+
+        words = []
+
+        # OpenAI API format: object with .words attribute
+        if hasattr(timestamp_result, "words"):
+            for w in timestamp_result.words:
+                words.append({
+                    "word": getattr(w, "word", str(w)),
+                    "start": getattr(w, "start", 0),
+                    "end": getattr(w, "end", 0),
+                })
+            return words if words else None
+
+        # Local Whisper format: dict with 'segments' containing 'words'
+        if isinstance(timestamp_result, dict):
+            segments = timestamp_result.get("segments", [])
+            for seg in segments:
+                seg_words = seg.get("words", [])
+                for w in seg_words:
+                    words.append({
+                        "word": w.get("word", ""),
+                        "start": w.get("start", 0),
+                        "end": w.get("end", 0),
+                    })
+            if words:
+                return words
+
+            # Fallback: use segment-level timestamps
+            for seg in segments:
+                words.append({
+                    "word": seg.get("text", "").strip(),
+                    "start": seg.get("start", 0),
+                    "end": seg.get("end", 0),
+                })
+            return words if words else None
+
+        return None
+
     def get_service_info(self) -> dict:
         """Get information about the current transcription service."""
         if self.use_local:
