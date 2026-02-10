@@ -8,9 +8,10 @@
 | Title     | Periodic Audio Checkpoint Saving |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | Approved   |
+| Status    | In Progress  |
+| Owner     | team-lead    |
 | Created   | 2026-02-10   |
-| Started   |              |
+| Started   | 2026-02-10 15:39 |
 | Completed |              |
 | Duration  |              |
 
@@ -50,15 +51,18 @@ Audio data is saved incrementally to disk during recording so that a crash or un
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Add checkpoint interval to AppSettings | developer | — | TODO |
+| 2 | Implement periodic checkpoint flush in AudioRecorder | developer | 1 | TODO |
+| 3 | Finalize checkpoint on stop_recording | developer | 2 | TODO |
+| 4 | Implement orphaned checkpoint recovery | developer | 2 | TODO |
+| 5 | Write unit tests for checkpoint functionality | tech-qa | 2,3,4 | TODO |
+| 6 | Final verification — lint, tests, quality gate | tech-qa | 5 | TODO |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 6     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

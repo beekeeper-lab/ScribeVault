@@ -86,13 +86,31 @@ class UISettings:
             raise ValueError(f"Invalid window_height: {self.window_height}. Must be between 600 and 2160")
 
 @dataclass
+class RecordingSettings:
+    """Recording configuration."""
+    checkpoint_interval_seconds: int = 30
+
+    def __post_init__(self):
+        """Validate settings after initialization."""
+        if self.checkpoint_interval_seconds < 10 or self.checkpoint_interval_seconds > 300:
+            raise ValueError(
+                f"Invalid checkpoint_interval_seconds: {self.checkpoint_interval_seconds}. "
+                "Must be between 10 and 300"
+            )
+
+@dataclass
 class AppSettings:
     """Main application settings."""
     transcription: TranscriptionSettings
     summarization: SummarizationSettings
     ui: UISettings
+    recording: RecordingSettings = None
     recordings_dir: str = "recordings"
     vault_dir: str = "vault"
+
+    def __post_init__(self):
+        if self.recording is None:
+            self.recording = RecordingSettings()
 
 class SettingsManager:
     """Manages application settings and configuration."""
@@ -120,6 +138,7 @@ class SettingsManager:
                     transcription=TranscriptionSettings(**data.get('transcription', {})),
                     summarization=SummarizationSettings(**data.get('summarization', {})),
                     ui=UISettings(**data.get('ui', {})),
+                    recording=RecordingSettings(**data.get('recording', {})),
                     recordings_dir=data.get('recordings_dir', 'recordings'),
                     vault_dir=data.get('vault_dir', 'vault')
                 )
@@ -130,7 +149,8 @@ class SettingsManager:
         return AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
-            ui=UISettings()
+            ui=UISettings(),
+            recording=RecordingSettings()
         )
         
     def save_settings(self):
