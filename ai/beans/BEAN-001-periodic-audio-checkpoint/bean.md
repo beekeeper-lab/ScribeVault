@@ -8,12 +8,12 @@
 | Title     | Periodic Audio Checkpoint Saving |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Owner     | team-lead    |
 | Created   | 2026-02-10   |
 | Started   | 2026-02-10 15:39 |
-| Completed |              |
-| Duration  |              |
+| Completed | 2026-02-10 15:50 |
+| Duration  | ~11 min      |
 
 ## Problem Statement
 
@@ -40,23 +40,23 @@ Audio data is saved incrementally to disk during recording so that a crash or un
 
 ## Acceptance Criteria
 
-- [ ] Audio frames are flushed to a temp file at configurable intervals (default 30s)
-- [ ] If app crashes mid-recording, checkpoint file contains all audio up to last flush
-- [ ] On startup, app detects orphaned checkpoint files and offers recovery
-- [ ] `stop_recording()` finalizes checkpoint into the normal recording output
-- [ ] Existing tests still pass; new tests cover checkpoint creation and recovery
-- [ ] No audible glitches or gaps at checkpoint boundaries in the final audio
+- [x] Audio frames are flushed to a temp file at configurable intervals (default 30s)
+- [x] If app crashes mid-recording, checkpoint file contains all audio up to last flush
+- [x] On startup, app detects orphaned checkpoint files and offers recovery
+- [x] `stop_recording()` finalizes checkpoint into the normal recording output
+- [x] Existing tests still pass; new tests cover checkpoint creation and recovery
+- [x] No audible glitches or gaps at checkpoint boundaries in the final audio
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Add checkpoint interval to AppSettings | developer | — | TODO |
-| 2 | Implement periodic checkpoint flush in AudioRecorder | developer | 1 | TODO |
-| 3 | Finalize checkpoint on stop_recording | developer | 2 | TODO |
-| 4 | Implement orphaned checkpoint recovery | developer | 2 | TODO |
-| 5 | Write unit tests for checkpoint functionality | tech-qa | 2,3,4 | TODO |
-| 6 | Final verification — lint, tests, quality gate | tech-qa | 5 | TODO |
+| 1 | Add checkpoint interval to AppSettings | developer | — | DONE |
+| 2 | Implement periodic checkpoint flush in AudioRecorder | developer | 1 | DONE |
+| 3 | Finalize checkpoint on stop_recording | developer | 2 | DONE |
+| 4 | Implement orphaned checkpoint recovery | developer | 2 | DONE |
+| 5 | Write unit tests for checkpoint functionality | tech-qa | 2,3,4 | DONE |
+| 6 | Final verification — lint, tests, quality gate | tech-qa | 5 | DONE |
 
 ## Telemetry
 
