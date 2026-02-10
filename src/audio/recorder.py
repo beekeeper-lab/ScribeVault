@@ -28,19 +28,22 @@ class RecordingException(AudioException):
 class AudioRecorder:
     """Handles audio recording functionality."""
     
-    def __init__(self, sample_rate: int = 44100, chunk_size: int = 1024, channels: int = 1):
+    def __init__(self, sample_rate: int = 44100, chunk_size: int = 1024,
+                 channels: int = 1, input_device_index: Optional[int] = None):
         """Initialize the audio recorder.
-        
+
         Args:
             sample_rate: Audio sample rate in Hz
             chunk_size: Number of frames per buffer
             channels: Number of audio channels (1 for mono, 2 for stereo)
+            input_device_index: PyAudio device index, or None for default
         """
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
         self.channels = channels
+        self.input_device_index = input_device_index
         self.format = pyaudio.paInt16
-        
+
         self.audio = pyaudio.PyAudio()
         self.stream: Optional[pyaudio.Stream] = None
         self.frames = []
@@ -90,27 +93,28 @@ class AudioRecorder:
             AudioException: If PyAudio recording fails
         """
         try:
-            # Test if we can create a stream
-            test_stream = self.audio.open(
-                format=self.format,
-                channels=self.channels,
-                rate=self.sample_rate,
-                input=True,
-                frames_per_buffer=self.chunk_size
-            )
-            test_stream.close()
-            
-            # Initialize recording
-            self.frames = []
-            self.is_recording = True
-            
-            # Create recording stream
-            self.stream = self.audio.open(
+            # Build common stream kwargs
+            stream_kwargs = dict(
                 format=self.format,
                 channels=self.channels,
                 rate=self.sample_rate,
                 input=True,
                 frames_per_buffer=self.chunk_size,
+            )
+            if self.input_device_index is not None:
+                stream_kwargs["input_device_index"] = self.input_device_index
+
+            # Test if we can create a stream
+            test_stream = self.audio.open(**stream_kwargs)
+            test_stream.close()
+
+            # Initialize recording
+            self.frames = []
+            self.is_recording = True
+
+            # Create recording stream
+            self.stream = self.audio.open(
+                **stream_kwargs,
                 stream_callback=self._audio_callback
             )
             
