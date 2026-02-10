@@ -3,6 +3,7 @@ Vault manager for ScribeVault recording storage.
 
 Manages a SQLite database of recordings with metadata, transcriptions,
 and AI summaries. Handles CRUD operations with validation and sanitization.
+Supports pipeline status persistence for recording workflow tracking.
 """
 
 import json
@@ -70,6 +71,11 @@ class VaultManager:
                         "ALTER TABLE recordings "
                         "ADD COLUMN original_transcription TEXT"
                     )
+                # Check if pipeline_status column exists, add if missing
+                if "pipeline_status" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recordings ADD COLUMN pipeline_status TEXT"
+                    )
             else:
                 self._create_table(conn)
 
@@ -92,7 +98,8 @@ class VaultManager:
                 summary TEXT,
                 key_points TEXT,
                 tags TEXT,
-                markdown_path TEXT
+                markdown_path TEXT,
+                pipeline_status TEXT
             )
         """)
 
@@ -151,6 +158,7 @@ class VaultManager:
         key_points: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
         markdown_path: Optional[str] = None,
+        pipeline_status: Optional[dict] = None,
     ) -> int:
         """Add a recording to the vault.
 
@@ -166,6 +174,7 @@ class VaultManager:
             key_points: List of key points.
             tags: List of tags.
             markdown_path: Path to markdown summary file.
+            pipeline_status: Pipeline status dict for workflow tracking.
 
         Returns:
             The new recording's ID.
@@ -197,6 +206,7 @@ class VaultManager:
         # Serialize JSON fields
         key_points_json = json.dumps(key_points) if key_points else None
         tags_json = json.dumps(tags) if tags else None
+        pipeline_status_json = json.dumps(pipeline_status) if pipeline_status else None
 
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
@@ -205,12 +215,13 @@ class VaultManager:
                     "INSERT INTO recordings "
                     "(filename, title, description, category, duration, "
                     "file_size, transcription, summary, key_points, tags, "
-                    "markdown_path) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "markdown_path, pipeline_status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         filename, title, description, category,
                         duration, file_size, transcription, summary,
                         key_points_json, tags_json, markdown_path,
+                        pipeline_status_json,
                     ),
                 )
                 recording_id = cursor.lastrowid
@@ -321,6 +332,7 @@ class VaultManager:
         key_points: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
         markdown_path: Optional[str] = None,
+        pipeline_status: Optional[dict] = None,
     ) -> bool:
         """Update a recording's metadata.
 
@@ -335,6 +347,7 @@ class VaultManager:
             key_points: New key points list (None to skip).
             tags: New tags list (None to skip).
             markdown_path: New markdown path (None to skip).
+            pipeline_status: New pipeline status dict (None to skip).
 
         Returns:
             True if update was successful.
@@ -382,6 +395,9 @@ class VaultManager:
         if markdown_path is not None:
             updates.append("markdown_path = ?")
             params.append(markdown_path)
+        if pipeline_status is not None:
+            updates.append("pipeline_status = ?")
+            params.append(json.dumps(pipeline_status))
 
         if not updates:
             return True  # Nothing to update
@@ -439,5 +455,13 @@ class VaultManager:
                     d[field] = []
             elif value is None:
                 d[field] = []
+
+        # Deserialize pipeline_status JSON field
+        pipeline_value = d.get("pipeline_status")
+        if pipeline_value and isinstance(pipeline_value, str):
+            try:
+                d["pipeline_status"] = json.loads(pipeline_value)
+            except (json.JSONDecodeError, TypeError):
+                d["pipeline_status"] = None
 
         return d

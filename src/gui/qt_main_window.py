@@ -32,6 +32,12 @@ from ai.summarizer import SummarizerService
 from vault.manager import VaultManager, VaultException
 from config.settings import SettingsManager
 from gui.qt_app import ScribeVaultWorker
+from gui.pipeline_status import (
+    PipelineStatus, STAGE_RECORDING, STAGE_TRANSCRIPTION,
+    STAGE_SUMMARIZATION, STAGE_VAULT_SAVE,
+    STATUS_RUNNING, STATUS_SUCCESS, STATUS_FAILED, STATUS_SKIPPED,
+)
+from gui.pipeline_status_panel import PipelineStatusPanel
 from gui.qt_settings_dialog import SettingsDialog
 from gui.qt_vault_dialog import VaultDialog
 from gui.qt_summary_viewer import SummaryViewerDialog
@@ -41,7 +47,10 @@ logger = logging.getLogger(__name__)
 
 class RecordingWorker(ScribeVaultWorker):
     """Worker thread for audio recording processing."""
-    
+
+    # Signal: (stage_name, status, error_or_empty)
+    stage_update = Signal(str, str, str)
+
     def __init__(self, audio_path: Path, services: dict):
         super().__init__()
         self.audio_path = audio_path
@@ -49,20 +58,37 @@ class RecordingWorker(ScribeVaultWorker):
         self.summarizer_service = services['summarizer']
         self.vault_manager = services['vault']
         self.generate_summary = services.get('generate_summary', False)
-        
+        self.pipeline_status = PipelineStatus()
+
+    def _emit_stage(self, stage: str, status: str, error: str = ""):
+        """Emit stage update signal and update pipeline status."""
+        if status == STATUS_RUNNING:
+            self.pipeline_status.start_stage(stage)
+        elif status == STATUS_SUCCESS:
+            self.pipeline_status.complete_stage(stage)
+        elif status == STATUS_FAILED:
+            self.pipeline_status.fail_stage(stage, error)
+        elif status == STATUS_SKIPPED:
+            self.pipeline_status.skip_stage(stage)
+        self.stage_update.emit(stage, status, error)
+
     def run(self):
         """Process the recording in background thread."""
         try:
+            # --- Recording stage (already recorded, mark success) ---
+            self._emit_stage(STAGE_RECORDING, STATUS_RUNNING)
             self.emit_status("Processing audio file...")
             self.emit_progress(10)
-            
+            self._emit_stage(STAGE_RECORDING, STATUS_SUCCESS)
+
             if self.is_cancelled():
                 return
-                
-            # Transcribe audio if service is available
+
+            # --- Transcription stage ---
             transcript = None
             diarized_transcript = None
             if self.whisper_service:
+                self._emit_stage(STAGE_TRANSCRIPTION, STATUS_RUNNING)
                 self.emit_status("Transcribing audio...")
                 self.emit_progress(30)
 
@@ -75,10 +101,18 @@ class RecordingWorker(ScribeVaultWorker):
                     diarized_transcript = diarize_result.get("diarized_transcription")
                     if diarized_transcript:
                         self.emit_status("Transcription with speaker diarization complete")
-                except Exception:
+                    self._emit_stage(STAGE_TRANSCRIPTION, STATUS_SUCCESS)
+                except Exception as e:
                     # Fallback to plain transcription
-                    transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
+                    try:
+                        transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
+                        self._emit_stage(STAGE_TRANSCRIPTION, STATUS_SUCCESS)
+                    except Exception as e2:
+                        error_msg = str(e2)
+                        self._emit_stage(STAGE_TRANSCRIPTION, STATUS_FAILED, error_msg)
+                        logger.warning(f"Transcription failed: {error_msg}")
             else:
+                self._emit_stage(STAGE_TRANSCRIPTION, STATUS_SKIPPED)
                 self.emit_status("Transcription service not available - skipping...")
                 logger.warning("Whisper service not available - recording saved without transcription")
 
@@ -86,72 +120,99 @@ class RecordingWorker(ScribeVaultWorker):
                 return
 
             self.emit_progress(60)
-            
-            # Generate summary if requested and services are available
+
+            # --- Summarization stage ---
             summary = None
             markdown_path = None
-            
+
             if self.generate_summary and transcript and self.summarizer_service:
+                self._emit_stage(STAGE_SUMMARIZATION, STATUS_RUNNING)
                 self.emit_status("Generating AI summary...")
                 self.emit_progress(80)
-                
+
                 # Prepare recording data
-                recording_data = {
-                    'filename': self.audio_path.name,
-                    'transcription': transcript,
-                    'diarized_transcription': diarized_transcript,
-                    'file_size': self.audio_path.stat().st_size,
-                    'duration': self._get_audio_duration(),
-                    'created_at': datetime.now().isoformat(),
-                    'category': 'other'
-                }
-                
-                summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
-                summary = summary_result.get('summary')
-                markdown_path = summary_result.get('markdown_path')
+                try:
+                    recording_data = {
+                        'filename': self.audio_path.name,
+                        'transcription': transcript,
+                        'diarized_transcription': diarized_transcript,
+                        'file_size': self.audio_path.stat().st_size,
+                        'duration': self._get_audio_duration(),
+                        'created_at': datetime.now().isoformat(),
+                        'category': 'other'
+                    }
+
+                    summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
+                    summary = summary_result.get('summary')
+                    markdown_path = summary_result.get('markdown_path')
+                    self._emit_stage(STAGE_SUMMARIZATION, STATUS_SUCCESS)
+                except Exception as e:
+                    error_msg = str(e)
+                    self._emit_stage(STAGE_SUMMARIZATION, STATUS_FAILED, error_msg)
+                    logger.warning(f"Summarization failed: {error_msg}")
             elif self.generate_summary and not self.summarizer_service:
+                self._emit_stage(STAGE_SUMMARIZATION, STATUS_SKIPPED)
                 self.emit_status("AI summarization service not available - skipping...")
                 logger.warning("Summarizer service not available - recording saved without summary")
-                
+            elif self.generate_summary and not transcript:
+                self._emit_stage(STAGE_SUMMARIZATION, STATUS_SKIPPED)
+                logger.warning("No transcript available - skipping summarization")
+            else:
+                self._emit_stage(STAGE_SUMMARIZATION, STATUS_SKIPPED)
+
             if self.is_cancelled():
                 return
-                
-            # Save to vault if vault manager is available
+
+            # --- Vault save stage ---
             recording_id = None
             if self.vault_manager:
+                self._emit_stage(STAGE_VAULT_SAVE, STATUS_RUNNING)
                 self.emit_status("Saving to vault...")
                 self.emit_progress(90)
-                
-                recording_id = self.vault_manager.add_recording(
-                    filename=self.audio_path.name,
-                    transcription=transcript,
-                    summary=summary,
-                    file_size=self.audio_path.stat().st_size,
-                    duration=self._get_audio_duration(),
-                    markdown_path=markdown_path
-                )
+                try:
+                    recording_id = self.vault_manager.add_recording(
+                        filename=self.audio_path.name,
+                        transcription=transcript,
+                        summary=summary,
+                        file_size=self.audio_path.stat().st_size,
+                        duration=self._get_audio_duration(),
+                        markdown_path=markdown_path,
+                        pipeline_status=self.pipeline_status.to_dict()
+                    )
+                    self._emit_stage(STAGE_VAULT_SAVE, STATUS_SUCCESS)
+                except Exception as e:
+                    error_msg = str(e)
+                    self._emit_stage(STAGE_VAULT_SAVE, STATUS_FAILED, error_msg)
+                    logger.warning(f"Vault save failed: {error_msg}")
             else:
+                self._emit_stage(STAGE_VAULT_SAVE, STATUS_SKIPPED)
                 self.emit_status("Vault service not available - recording saved locally only")
                 logger.warning("Vault manager not available - recording not saved to database")
-            
+
             self.emit_progress(100)
-            self.emit_status("Processing complete!")
-            
+
+            if self.pipeline_status.has_failures():
+                failed = ", ".join(self.pipeline_status.failed_stages())
+                self.emit_status(f"Processing complete with failures: {failed}")
+            else:
+                self.emit_status("Processing complete!")
+
             # Emit results
             result = {
                 'transcript': transcript,
                 'diarized_transcript': diarized_transcript,
                 'summary': summary,
                 'markdown_path': markdown_path,
-                'recording_id': recording_id
+                'recording_id': recording_id,
+                'pipeline_status': self.pipeline_status.to_dict()
             }
-            
+
             self.finished.emit(result)
-            
+
         except Exception as e:
             logger.error(f"Recording processing failed: {e}")
             self.error.emit(str(e))
-            
+
     def _get_audio_duration(self) -> float:
         """Get audio file duration."""
         try:
@@ -164,9 +225,96 @@ class RecordingWorker(ScribeVaultWorker):
             return 0.0
 
 
+class RetryStageWorker(ScribeVaultWorker):
+    """Worker that retries a single failed pipeline stage."""
+
+    stage_update = Signal(str, str, str)
+
+    def __init__(self, audio_path: Path, services: dict, stage_name: str,
+                 existing_data: Optional[dict] = None):
+        super().__init__()
+        self.audio_path = audio_path
+        self.whisper_service = services['whisper']
+        self.summarizer_service = services['summarizer']
+        self.vault_manager = services['vault']
+        self.generate_summary = services.get('generate_summary', False)
+        self.stage_name = stage_name
+        self.existing_data = existing_data or {}
+
+    def run(self):
+        try:
+            result = {'retried_stage': self.stage_name}
+
+            if self.stage_name == STAGE_TRANSCRIPTION:
+                self._retry_transcription(result)
+            elif self.stage_name == STAGE_SUMMARIZATION:
+                self._retry_summarization(result)
+            elif self.stage_name == STAGE_VAULT_SAVE:
+                self._retry_vault_save(result)
+            else:
+                self.stage_update.emit(self.stage_name, STATUS_FAILED, "Stage cannot be retried")
+                self.error.emit(f"Stage '{self.stage_name}' cannot be retried")
+                return
+
+            self.finished.emit(result)
+
+        except Exception as e:
+            logger.error(f"Retry failed: {e}")
+            self.error.emit(str(e))
+
+    def _retry_transcription(self, result: dict):
+        self.stage_update.emit(STAGE_TRANSCRIPTION, STATUS_RUNNING, "")
+        self.emit_status("Retrying transcription...")
+        try:
+            transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
+            result['transcript'] = transcript
+            self.stage_update.emit(STAGE_TRANSCRIPTION, STATUS_SUCCESS, "")
+        except Exception as e:
+            self.stage_update.emit(STAGE_TRANSCRIPTION, STATUS_FAILED, str(e))
+
+    def _retry_summarization(self, result: dict):
+        self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_RUNNING, "")
+        self.emit_status("Retrying summarization...")
+        transcript = self.existing_data.get('transcription', '')
+        if not transcript:
+            self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_FAILED, "No transcript available")
+            return
+        try:
+            recording_data = {
+                'filename': self.audio_path.name,
+                'transcription': transcript,
+                'file_size': self.audio_path.stat().st_size,
+                'duration': 0,
+                'created_at': datetime.now().isoformat(),
+                'category': 'other'
+            }
+            summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
+            result['summary'] = summary_result.get('summary')
+            result['markdown_path'] = summary_result.get('markdown_path')
+            self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_SUCCESS, "")
+        except Exception as e:
+            self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_FAILED, str(e))
+
+    def _retry_vault_save(self, result: dict):
+        self.stage_update.emit(STAGE_VAULT_SAVE, STATUS_RUNNING, "")
+        self.emit_status("Retrying vault save...")
+        try:
+            recording_id = self.vault_manager.add_recording(
+                filename=self.audio_path.name,
+                transcription=self.existing_data.get('transcription'),
+                summary=self.existing_data.get('summary'),
+                file_size=self.audio_path.stat().st_size,
+                duration=0
+            )
+            result['recording_id'] = recording_id
+            self.stage_update.emit(STAGE_VAULT_SAVE, STATUS_SUCCESS, "")
+        except Exception as e:
+            self.stage_update.emit(STAGE_VAULT_SAVE, STATUS_FAILED, str(e))
+
+
 class AnimatedRecordButton(QPushButton):
     """Custom record button with pulsing animation."""
-    
+
     def __init__(self, text: str = "🎙️ Start Recording", parent=None):
         super().__init__(text, parent)
         
@@ -237,6 +385,7 @@ class ScribeVaultMainWindow(QMainWindow):
         self.current_worker: Optional[RecordingWorker] = None
         self.current_recording_data: Optional[dict] = None
         self.current_markdown_path: Optional[str] = None
+        self._last_pipeline_status: Optional[dict] = None
         
         # Setup UI
         self.setup_window()
@@ -355,7 +504,13 @@ class ScribeVaultMainWindow(QMainWindow):
         
         # Controls
         self.create_controls(main_layout)
-        
+
+        # Pipeline status panel (hidden by default)
+        self.pipeline_panel = PipelineStatusPanel()
+        self.pipeline_panel.setVisible(False)
+        self.pipeline_panel.retry_requested.connect(self.retry_pipeline_stage)
+        main_layout.addWidget(self.pipeline_panel)
+
         # Status bar
         self.create_status_bar()
         
@@ -681,11 +836,13 @@ class ScribeVaultMainWindow(QMainWindow):
         """Process recorded audio file."""
         try:
             self.update_status("Processing recording...")
-            
-            # Show progress
+
+            # Show progress and pipeline panel
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
-            
+            self.pipeline_panel.reset()
+            self.pipeline_panel.setVisible(True)
+
             # Create worker thread
             services = {
                 'whisper': self.whisper_service,
@@ -693,27 +850,31 @@ class ScribeVaultMainWindow(QMainWindow):
                 'vault': self.vault_manager,
                 'generate_summary': self.summary_checkbox.isChecked()
             }
-            
+
             self.current_worker = RecordingWorker(audio_path, services)
-            
+
             # Connect signals
             self.current_worker.finished.connect(self.on_processing_finished)
             self.current_worker.error.connect(self.on_processing_error)
             self.current_worker.progress.connect(self.progress_bar.setValue)
             self.current_worker.status.connect(self.update_status)
-            
+            self.current_worker.stage_update.connect(self.pipeline_panel.update_stage)
+
             # Start processing
             self.current_worker.start()
-            
+
         except Exception as e:
             self.handle_error("Failed to process recording", e)
             
     def on_processing_finished(self, result: dict):
         """Handle successful processing completion."""
         try:
-            # Hide progress
+            # Hide progress bar but keep pipeline panel visible
             self.progress_bar.setVisible(False)
-            
+
+            # Store pipeline status for retry support
+            self._last_pipeline_status = result.get('pipeline_status')
+
             # Store current recording data
             self.current_recording_data = {
                 'filename': self.current_recording_path.name if self.current_recording_path else 'Unknown',
@@ -721,26 +882,32 @@ class ScribeVaultMainWindow(QMainWindow):
                 'diarized_transcription': result.get('diarized_transcript'),
                 'summary': result.get('summary'),
                 'created_at': datetime.now().isoformat(),
-                'duration': 0,  # Will be calculated if needed
+                'duration': 0,
                 'file_size': self.current_recording_path.stat().st_size if self.current_recording_path else 0,
                 'category': 'other'
             }
             self.current_markdown_path = result.get('markdown_path')
-            
-            # Update text areas — prefer diarized transcription for display
+
+            # Update text areas -- prefer diarized transcription for display
             if result.get('diarized_transcript'):
                 self.transcript_text.setPlainText(result['diarized_transcript'])
             elif result.get('transcript'):
                 self.transcript_text.setPlainText(result['transcript'])
-                
+
             if result.get('summary'):
                 summary_text = result['summary']
                 if result.get('markdown_path'):
                     summary_text += f"\n\n📄 Markdown summary saved: {Path(result['markdown_path']).name}"
                     self.markdown_button.setVisible(True)
                 self.summary_text.setPlainText(summary_text)
-                
-            self.update_status("✅ Recording processed successfully!")
+
+            # Show appropriate completion message
+            ps = self._last_pipeline_status or {}
+            failed = [k for k, v in ps.items() if v.get('status') == STATUS_FAILED]
+            if failed:
+                self.update_status(f"Processing complete with failures: {', '.join(failed)}")
+            else:
+                self.update_status("Processing complete!")
             
         except Exception as e:
             logger.error(f"Error handling processing results: {e}")
@@ -749,7 +916,54 @@ class ScribeVaultMainWindow(QMainWindow):
         """Handle processing error."""
         self.progress_bar.setVisible(False)
         self.handle_error("Processing failed", error_message)
-        
+
+    def retry_pipeline_stage(self, stage_name: str):
+        """Retry a single failed pipeline stage."""
+        if not self.current_recording_path or not self.current_recording_path.exists():
+            self.handle_error("Retry failed", "No recording file available for retry")
+            return
+
+        if self.current_worker and self.current_worker.isRunning():
+            self.update_status("Cannot retry - processing is still running")
+            return
+
+        logger.info(f"Retrying stage: {stage_name}")
+        self.pipeline_panel.update_stage(stage_name, STATUS_RUNNING)
+
+        services = {
+            'whisper': self.whisper_service,
+            'summarizer': self.summarizer_service,
+            'vault': self.vault_manager,
+            'generate_summary': self.summary_checkbox.isChecked()
+        }
+
+        self.current_worker = RetryStageWorker(
+            self.current_recording_path, services, stage_name,
+            existing_data=self.current_recording_data
+        )
+        self.current_worker.finished.connect(self._on_retry_finished)
+        self.current_worker.error.connect(self.on_processing_error)
+        self.current_worker.stage_update.connect(self.pipeline_panel.update_stage)
+        self.current_worker.status.connect(self.update_status)
+        self.current_worker.start()
+
+    def _on_retry_finished(self, result: dict):
+        """Handle retry completion."""
+        try:
+            stage = result.get('retried_stage', '')
+            if result.get('transcript') and not self.current_recording_data.get('transcription'):
+                self.current_recording_data['transcription'] = result['transcript']
+                self.transcript_text.setPlainText(result['transcript'])
+            if result.get('summary') and not self.current_recording_data.get('summary'):
+                self.current_recording_data['summary'] = result['summary']
+                self.summary_text.setPlainText(result['summary'])
+                if result.get('markdown_path'):
+                    self.current_markdown_path = result['markdown_path']
+                    self.markdown_button.setVisible(True)
+            self.update_status(f"Retry of {stage} complete!")
+        except Exception as e:
+            logger.error(f"Error handling retry results: {e}")
+
     def update_recording_timer(self):
         """Update recording duration timer."""
         if self.recording_start_time:
