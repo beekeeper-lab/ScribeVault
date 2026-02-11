@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from export.utils import secure_mkdir, secure_file_permissions
+
 logger = logging.getLogger(__name__)
 
 VALID_CATEGORIES = {
@@ -47,10 +49,11 @@ class VaultManager:
         if vault_dir is None:
             vault_dir = Path("vault")
         self.vault_dir = Path(vault_dir)
-        self.vault_dir.mkdir(parents=True, exist_ok=True)
+        secure_mkdir(self.vault_dir)
         self.db_path = self.vault_dir / "scribevault.db"
         self._lock = threading.Lock()
         self._init_database()
+        secure_file_permissions(self.db_path)
 
     def _init_database(self):
         """Initialize or migrate the database schema."""
