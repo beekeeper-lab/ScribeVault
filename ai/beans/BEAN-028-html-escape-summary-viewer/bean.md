@@ -8,10 +8,10 @@
 | Title     | HTML-Escape Dynamic Content in Summary Viewer |
 | Type      | bug-fix      |
 | Priority  | P2           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-10   |
+| Completed | 2026-02-10   |
 | Duration  |              |
 
 ## Problem Statement
@@ -39,26 +39,26 @@ All dynamic text content rendered in `QTextBrowser` is properly HTML-escaped bef
 
 ## Acceptance Criteria
 
-- [ ] `_format_diarized_html()` uses `html.escape()` on both `speaker` and `text` variables before HTML embedding
-- [ ] Transcription text containing `<script>`, `<img onerror=...>`, or `&` characters renders as literal text, not HTML
-- [ ] The `print()` call in `summarizer.py:324` is replaced with `logger.error()`
-- [ ] Unit tests cover: text with HTML entities, text with angle brackets, text with quotes
-- [ ] `pytest tests/` passes, `flake8 src/ tests/` is clean
+- [x] `_format_diarized_html()` uses `html.escape()` on both `speaker` and `text` variables before HTML embedding
+- [x] Transcription text containing `<script>`, `<img onerror=...>`, or `&` characters renders as literal text, not HTML
+- [x] The `print()` call in `summarizer.py:324` is replaced with `logger.error()`
+- [x] Unit tests cover: text with HTML entities, text with angle brackets, text with quotes
+- [x] `pytest tests/` passes, `flake8 src/ tests/` is clean
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Add html.escape() to _format_diarized_html() | Developer | | TODO |
-| 2 | Review and fix markdown_to_html() path | Developer | | TODO |
-| 3 | Replace print() with logger in summarizer.py | Developer | | TODO |
-| 4 | Write unit tests for HTML escaping | Tech QA | 1, 2 | TODO |
+| 1 | Add html.escape() to _format_diarized_html() | Developer | | Done |
+| 2 | Review and fix markdown_to_html() path | Developer | | Done |
+| 3 | Replace print() with logger in summarizer.py | Developer | | Done |
+| 4 | Write unit tests for HTML escaping | Tech QA | 1, 2 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 4     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
