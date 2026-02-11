@@ -8,11 +8,11 @@
 | Title     | Update AI Summary Models & Cost Estimation |
 | Type      | enhancement  |
 | Priority  | P1           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
+| Duration  | ~1 session   |
 
 ## Problem Statement
 
@@ -41,25 +41,25 @@ The AI Summary settings tab offers current model options with accurate cost esti
 
 ## Acceptance Criteria
 
-- [ ] Model dropdown lists current OpenAI models (gpt-4o, gpt-4o-mini, at minimum)
-- [ ] Legacy models (gpt-3.5-turbo, gpt-4, gpt-4-turbo-preview) are removed or clearly marked as legacy
-- [ ] Cost estimation uses a single source of truth — no duplicated pricing constants
-- [ ] "Update" button exists and refreshes model list and pricing data
-- [ ] "Last Updated" date is displayed near the cost estimation section
-- [ ] Single-option "Service" dropdown is removed from the AI Summary tab
-- [ ] Cost comparison dialog reflects current model pricing
-- [ ] Existing tests pass; new tests cover the refactored cost estimation
+- [x] Model dropdown lists current OpenAI models (gpt-4o, gpt-4o-mini, at minimum)
+- [x] Legacy models (gpt-3.5-turbo, gpt-4, gpt-4-turbo-preview) are removed or clearly marked as legacy
+- [x] Cost estimation uses a single source of truth — no duplicated pricing constants
+- [x] "Update" button exists and refreshes model list and pricing data
+- [x] "Last Updated" date is displayed near the cost estimation section
+- [x] Single-option "Service" dropdown is removed from the AI Summary tab
+- [x] Cost comparison dialog reflects current model pricing
+- [x] Existing tests pass; new tests cover the refactored cost estimation
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Define maintainable model/pricing config structure | | | TODO |
-| 2 | Refactor CostEstimator to single source of truth | | 1 | TODO |
-| 3 | Update AI Summary tab UI (models, remove Service dropdown) | | 1 | TODO |
-| 4 | Add Update button and Last Updated display | | 2, 3 | TODO |
-| 5 | Update cost comparison dialog | | 2 | TODO |
-| 6 | Write/update tests | | 2, 3, 4 | TODO |
+| 1 | Define maintainable model/pricing config structure | Developer | | DONE |
+| 2 | Refactor CostEstimator to single source of truth | Developer | 1 | DONE |
+| 3 | Update AI Summary tab UI (models, remove Service dropdown) | Developer | 1 | DONE |
+| 4 | Add Update button and Last Updated display | Developer | 2, 3 | DONE |
+| 5 | Update cost comparison dialog | Developer | 2 | DONE |
+| 6 | Write/update tests | Tech QA | 2, 3, 4 | DONE |
 
 ## Telemetry
 
