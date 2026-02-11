@@ -8,10 +8,10 @@
 | Title     | Pin Dependency Versions |
 | Type      | enhancement  |
 | Priority  | P2           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-10   |
+| Completed | 2026-02-10   |
 | Duration  |              |
 
 ## Problem Statement
@@ -38,25 +38,25 @@ Dependencies are pinned with bounded version ranges to prevent unexpected upgrad
 
 ## Acceptance Criteria
 
-- [ ] Every dependency in `requirements.txt` has an upper bound (e.g., `<N+1.0.0` for each major version)
-- [ ] A `requirements.lock` file exists with exact pinned versions for reproducible installs
-- [ ] `pip install -r requirements.txt` succeeds in a clean virtualenv
-- [ ] `pip install -r requirements.lock` succeeds and produces identical versions across runs
-- [ ] A comment in `requirements.txt` explains the pinning strategy and how to update
+- [x] Every dependency in `requirements.txt` has an upper bound (e.g., `<N+1.0.0` for each major version)
+- [x] A `requirements.lock` file exists with exact pinned versions for reproducible installs
+- [x] `pip install -r requirements.txt` succeeds in a clean virtualenv
+- [x] `pip install -r requirements.lock` succeeds and produces identical versions across runs
+- [x] A comment in `requirements.txt` explains the pinning strategy and how to update
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Add upper bounds to requirements.txt | Developer | | TODO |
-| 2 | Set up pip-compile and generate requirements.lock | Developer | 1 | TODO |
-| 3 | Verify clean install with both files | Tech QA | 2 | TODO |
+| 1 | Add upper bounds to requirements.txt | Developer | | Done |
+| 2 | Set up pip-compile and generate requirements.lock | Developer | 1 | Done |
+| 3 | Verify clean install with both files | Tech QA | 2 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 3     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
