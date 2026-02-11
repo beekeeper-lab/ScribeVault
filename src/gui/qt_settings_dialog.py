@@ -54,7 +54,7 @@ class SettingsDialog(QDialog):
         
     def setup_ui(self):
         """Setup the settings dialog UI."""
-        self.setWindowTitle("ScribeVault Settings")
+        self.setWindowTitle("Settings")
         self.setMinimumSize(600, 500)
         self.resize(700, 600)
         
