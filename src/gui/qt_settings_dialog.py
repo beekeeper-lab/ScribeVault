@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont, QIcon
 
 from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, UISettings, AudioSettings, AppSettings, AUDIO_PRESETS
+from gui.settings_diagnostics import run_all_checks, DiagnosticResult
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,39 @@ class APIKeyValidator(QThread):
             self.validation_complete.emit(False, f"Validation error: {str(e)}")
 
 
+class SettingsTestRunner(QThread):
+    """Background thread to run diagnostic checks."""
+
+    results_ready = Signal(list)  # List[DiagnosticResult]
+
+    def __init__(self, settings_manager, recordings_dir, vault_dir,
+                 device_index, needs_api_key):
+        super().__init__()
+        self.settings_manager = settings_manager
+        self.recordings_dir = recordings_dir
+        self.vault_dir = vault_dir
+        self.device_index = device_index
+        self.needs_api_key = needs_api_key
+
+    def run(self):
+        """Run all diagnostic checks in background."""
+        try:
+            results = run_all_checks(
+                self.settings_manager,
+                self.recordings_dir,
+                self.vault_dir,
+                self.device_index,
+                self.needs_api_key,
+            )
+            self.results_ready.emit(results)
+        except Exception as e:
+            error_result = DiagnosticResult(
+                name="Diagnostics", status="fail",
+                message=f"Unexpected error: {e}",
+            )
+            self.results_ready.emit([error_result])
+
+
 class SettingsDialog(QDialog):
     """Settings dialog for ScribeVault configuration."""
     
@@ -48,7 +82,8 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
         self.settings = settings_manager.settings
         self.validator_thread = None
-        
+        self.test_runner_thread = None
+
         self.setup_ui()
         self.load_current_settings()
         
@@ -983,14 +1018,97 @@ class SettingsDialog(QDialog):
                    "• Good for high-volume usage")
                    
     def test_settings(self):
-        """Test current settings."""
-        # TODO: Implement settings testing
-        QMessageBox.information(
-            self, 
-            "Test Settings", 
-            "Settings testing is not yet implemented.\n"
-            "This feature will validate your configuration."
+        """Run diagnostic checks against current settings."""
+        # Determine if an OpenAI API key is needed
+        uses_openai_transcription = (
+            self.transcription_service.currentText() == "openai"
         )
+        uses_openai_summary = self.summarization_enabled.isChecked()
+        needs_api_key = uses_openai_transcription or uses_openai_summary
+
+        device_index = self.audio_device.currentData()
+
+        # Disable button while checks run
+        self.test_button.setText("Testing...")
+        self.test_button.setEnabled(False)
+
+        self.test_runner_thread = SettingsTestRunner(
+            settings_manager=self.settings_manager,
+            recordings_dir=self.recordings_dir.text(),
+            vault_dir=self.vault_dir.text(),
+            device_index=device_index,
+            needs_api_key=needs_api_key,
+        )
+        self.test_runner_thread.results_ready.connect(
+            self._on_test_results_ready
+        )
+        self.test_runner_thread.start()
+
+    def _on_test_results_ready(self, results):
+        """Display diagnostic results in a dialog."""
+        self.test_button.setText("Test Settings")
+        self.test_button.setEnabled(True)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Test Settings Results")
+        dialog.setMinimumSize(450, 300)
+
+        layout = QVBoxLayout(dialog)
+
+        title = QLabel("Diagnostic Results")
+        title.setStyleSheet(
+            "font-size: 14px; font-weight: bold; margin-bottom: 8px;"
+        )
+        layout.addWidget(title)
+
+        status_icons = {
+            "pass": "\u2705",   # green check
+            "fail": "\u274c",   # red X
+            "skip": "\u2796",   # minus
+            "warning": "\u26a0\ufe0f",  # warning
+        }
+
+        for result in results:
+            row = QHBoxLayout()
+            icon = status_icons.get(result.status, "?")
+            icon_label = QLabel(icon)
+            icon_label.setFixedWidth(30)
+            row.addWidget(icon_label)
+
+            text = QLabel(f"<b>{result.name}</b>: {result.message}")
+            text.setWordWrap(True)
+            row.addWidget(text, 1)
+
+            layout.addLayout(row)
+
+        # Summary line
+        passed = sum(1 for r in results if r.status == "pass")
+        failed = sum(1 for r in results if r.status == "fail")
+        skipped = sum(1 for r in results if r.status == "skip")
+
+        summary_parts = []
+        if passed:
+            summary_parts.append(f"{passed} passed")
+        if failed:
+            summary_parts.append(f"{failed} failed")
+        if skipped:
+            summary_parts.append(f"{skipped} skipped")
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        layout.addWidget(separator)
+
+        summary = QLabel(", ".join(summary_parts))
+        summary.setStyleSheet("font-weight: bold; margin-top: 4px;")
+        layout.addWidget(summary)
+
+        layout.addStretch()
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+
+        dialog.exec()
         
     def reset_to_defaults(self):
         """Reset all settings to defaults."""
