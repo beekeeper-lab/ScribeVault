@@ -8,9 +8,9 @@
 | **Title**     | Main Page Speaker Labeling |
 | **Type**      | enhancement |
 | **Priority**  | P1 |
-| **Status**    | Approved     |
+| **Status**    | In Progress  |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
+| **Started**   | 2026-02-11 00:38            |
 | **Completed** | —            |
 | **Duration**  | —            |
 

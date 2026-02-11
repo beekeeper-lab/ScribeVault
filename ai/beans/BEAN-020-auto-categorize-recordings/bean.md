@@ -8,9 +8,9 @@
 | **Title**     | Auto-Categorize Recordings |
 | **Type**      | enhancement |
 | **Priority**  | P2 |
-| **Status**    | Approved     |
+| **Status**    | In Progress  |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
+| **Started**   | 2026-02-11 00:38            |
 | **Completed** | —            |
 | **Duration**  | —            |
 

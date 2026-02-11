@@ -8,7 +8,7 @@
 | Title     | Update AI Summary Models & Cost Estimation |
 | Type      | enhancement  |
 | Priority  | P1           |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |

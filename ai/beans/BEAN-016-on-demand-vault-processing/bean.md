@@ -8,7 +8,7 @@
 | Title     | On-Demand Vault Processing |
 | Type      | feature      |
 | Priority  | P1           |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
