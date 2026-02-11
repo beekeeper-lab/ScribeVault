@@ -8,7 +8,7 @@
 | Title     | Path Traversal Protection for Database-Sourced Paths |
 | Type      | bug-fix      |
 | Priority  | P1           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
