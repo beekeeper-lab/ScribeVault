@@ -57,7 +57,7 @@ class SummaryViewerDialog(QDialog):
 
     def setup_ui(self):
         """Setup the summary viewer UI."""
-        self.setWindowTitle("ScribeVault - AI Summary Viewer")
+        self.setWindowTitle("AI Summary Viewer")
         self.setMinimumSize(800, 600)
         self.resize(1000, 700)
 
