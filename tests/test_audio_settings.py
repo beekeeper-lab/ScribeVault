@@ -15,6 +15,7 @@ from config.settings import (  # noqa: E402
     AudioSettings,
     AppSettings,
     AUDIO_PRESETS,
+    DiarizationSettings,
     SettingsManager,
     TranscriptionSettings,
     SummarizationSettings,
@@ -148,6 +149,7 @@ class TestAppSettingsWithAudio(unittest.TestCase):
         s = AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
+            diarization=DiarizationSettings(),
             ui=UISettings(),
         )
         self.assertIsInstance(s.audio, AudioSettings)
@@ -160,6 +162,7 @@ class TestAppSettingsWithAudio(unittest.TestCase):
         s = AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
+            diarization=DiarizationSettings(),
             ui=UISettings(),
             audio=audio,
         )

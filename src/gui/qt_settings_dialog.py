@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont, QIcon
 
-from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, UISettings, AudioSettings, AppSettings, AUDIO_PRESETS
+from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, DiarizationSettings, UISettings, AudioSettings, AppSettings, AUDIO_PRESETS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -263,27 +263,90 @@ class SettingsDialog(QDialog):
         ])
         common_layout.addWidget(self.language, 0, 1)
         
+        # Speaker diarization settings
+        diarization_group = QGroupBox("Speaker Diarization")
+        diarization_layout = QGridLayout(diarization_group)
+
+        self.diarization_enabled = QCheckBox("Enable speaker diarization")
+        self.diarization_enabled.setToolTip(
+            "Automatically identify and label different speakers in the recording"
+        )
+        self.diarization_enabled.toggled.connect(self._on_diarization_toggled)
+        diarization_layout.addWidget(self.diarization_enabled, 0, 0, 1, 2)
+
+        diarization_layout.addWidget(QLabel("Speaker count:"), 1, 0)
+        self.diarization_speaker_count = QSpinBox()
+        self.diarization_speaker_count.setRange(0, 6)
+        self.diarization_speaker_count.setSpecialValueText("Auto-detect")
+        self.diarization_speaker_count.setMinimum(0)
+        self.diarization_speaker_count.setToolTip(
+            "0 = auto-detect number of speakers, or specify 2-6"
+        )
+        diarization_layout.addWidget(self.diarization_speaker_count, 1, 1)
+
+        # Wrap value so that spinning up from 0 jumps to 2
+        self.diarization_speaker_count.valueChanged.connect(
+            self._on_speaker_count_changed
+        )
+
+        diarization_layout.addWidget(QLabel("Sensitivity:"), 2, 0)
+        sensitivity_widget = QWidget()
+        sensitivity_layout = QHBoxLayout(sensitivity_widget)
+        sensitivity_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.diarization_sensitivity = QSlider(Qt.Horizontal)
+        self.diarization_sensitivity.setRange(0, 100)
+        self.diarization_sensitivity.setValue(50)
+        self.diarization_sensitivity.setTickPosition(QSlider.TicksBelow)
+        self.diarization_sensitivity.setTickInterval(25)
+        self.diarization_sensitivity.setToolTip(
+            "How aggressively to split speakers. "
+            "Lower = fewer splits, higher = more splits"
+        )
+        self.diarization_sensitivity.valueChanged.connect(
+            self._on_sensitivity_changed
+        )
+        sensitivity_layout.addWidget(self.diarization_sensitivity)
+
+        self.sensitivity_value_label = QLabel("0.50")
+        self.sensitivity_value_label.setMinimumWidth(32)
+        sensitivity_layout.addWidget(self.sensitivity_value_label)
+
+        diarization_layout.addWidget(sensitivity_widget, 2, 1)
+
+        sensitivity_hint = QLabel("Less splitting ← → More splitting")
+        sensitivity_hint.setStyleSheet("color: #888; font-size: 10px;")
+        sensitivity_hint.setAlignment(Qt.AlignCenter)
+        diarization_layout.addWidget(sensitivity_hint, 3, 1)
+
+        # Store references for enable/disable toggling
+        self._diarization_sub_controls = [
+            self.diarization_speaker_count,
+            self.diarization_sensitivity,
+        ]
+
         # Cost estimation for transcription
-        cost_group = QGroupBox("💰 Transcription Cost")
+        cost_group = QGroupBox("Transcription Cost")
         cost_layout = QVBoxLayout(cost_group)
-        
+
         self.transcription_cost_label = QLabel()
         self.transcription_cost_label.setStyleSheet("font-family: 'Courier New', monospace; font-size: 12px;")
         cost_layout.addWidget(self.transcription_cost_label)
-        
+
         cost_info = QLabel(
-            "💡 OpenAI charges $0.006 per minute ($0.36/hour). "
+            "OpenAI charges $0.006 per minute ($0.36/hour). "
             "Local Whisper is free but uses your computer's resources."
         )
         cost_info.setStyleSheet("color: #888; font-size: 10px; font-style: italic;")
         cost_info.setWordWrap(True)
         cost_layout.addWidget(cost_info)
-        
+
         # Add groups to layout
         layout.addWidget(service_group)
         layout.addWidget(self.openai_group)
         layout.addWidget(self.local_group)
         layout.addWidget(common_group)
+        layout.addWidget(diarization_group)
         layout.addWidget(cost_group)
         layout.addStretch()
         
@@ -472,6 +535,20 @@ class SettingsDialog(QDialog):
         self.local_group.setVisible(service == "local")
         self.update_cost_estimation()
         self.update_transcription_cost()
+
+    def _on_diarization_toggled(self, enabled: bool):
+        """Enable or disable diarization sub-controls based on checkbox."""
+        for ctrl in self._diarization_sub_controls:
+            ctrl.setEnabled(enabled)
+
+    def _on_speaker_count_changed(self, value: int):
+        """Ensure speaker count skips 1 (invalid — must be 0 or 2-6)."""
+        if value == 1:
+            self.diarization_speaker_count.setValue(2)
+
+    def _on_sensitivity_changed(self, value: int):
+        """Update the sensitivity value label when the slider moves."""
+        self.sensitivity_value_label.setText(f"{value / 100:.2f}")
         
     def update_transcription_cost(self):
         """Update transcription cost estimation display."""
@@ -744,6 +821,14 @@ class SettingsDialog(QDialog):
                 self.openai_api_key.setText(api_key)
             self._refresh_api_key_status()
                 
+            # Diarization settings
+            self.diarization_enabled.setChecked(settings.diarization.enabled)
+            self.diarization_speaker_count.setValue(settings.diarization.num_speakers)
+            self.diarization_sensitivity.setValue(
+                int(settings.diarization.sensitivity * 100)
+            )
+            self._on_diarization_toggled(settings.diarization.enabled)
+
             # Summarization settings
             self.summarization_enabled.setChecked(settings.summarization.enabled)
             self.summary_service.setCurrentText(settings.summarization.service)
@@ -806,17 +891,24 @@ class SettingsDialog(QDialog):
                 max_tokens=self.max_tokens.value()
             )
             
+            diarization = DiarizationSettings(
+                enabled=self.diarization_enabled.isChecked(),
+                num_speakers=self.diarization_speaker_count.value(),
+                sensitivity=self.diarization_sensitivity.value() / 100.0,
+            )
+
             ui = UISettings(
                 theme=self.theme.currentText(),
                 window_width=self.window_width.value(),
                 window_height=self.window_height.value(),
                 auto_save=self.auto_save.isChecked()
             )
-            
+
             # Update settings manager
             self.settings_manager.settings.audio = audio
             self.settings_manager.settings.transcription = transcription
             self.settings_manager.settings.summarization = summarization
+            self.settings_manager.settings.diarization = diarization
             self.settings_manager.settings.ui = ui
             self.settings_manager.settings.recordings_dir = self.recordings_dir.text()
             self.settings_manager.settings.vault_dir = self.vault_dir.text()
@@ -1008,6 +1100,7 @@ class SettingsDialog(QDialog):
             default_settings = AppSettings(
                 transcription=TranscriptionSettings(),
                 summarization=SummarizationSettings(),
+                diarization=DiarizationSettings(),
                 ui=UISettings(),
                 audio=AudioSettings(),
                 recordings_dir="recordings",
