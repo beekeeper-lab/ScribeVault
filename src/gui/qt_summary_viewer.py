@@ -1155,8 +1155,10 @@ class SummaryViewerDialog(QDialog):
         """Format diarized transcription as styled HTML.
 
         Each speaker gets a distinct color for visual
-        distinction.
+        distinction. All dynamic text is HTML-escaped to prevent
+        injection through transcription content or speaker names.
         """
+        import html
         import re
 
         # Speaker color palette
@@ -1186,8 +1188,8 @@ class SummaryViewerDialog(QDialog):
             # Match "Speaker N:" pattern
             match = re.match(r"^(Speaker\s+\d+):\s*(.*)", line)
             if match:
-                speaker = match.group(1)
-                text = match.group(2)
+                speaker = html.escape(match.group(1))
+                text = html.escape(match.group(2))
 
                 if speaker not in speaker_color_map:
                     speaker_color_map[speaker] = speaker_colors[
@@ -1203,7 +1205,10 @@ class SummaryViewerDialog(QDialog):
                     f"</p>"
                 )
             else:
-                html_parts.append(f'<p style="margin: 6px 0;">' f"{line}</p>")
+                html_parts.append(
+                    f'<p style="margin: 6px 0;">'
+                    f"{html.escape(line)}</p>"
+                )
 
         html_parts.append("</div>")
         return "".join(html_parts)
