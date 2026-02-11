@@ -1102,7 +1102,19 @@ class ScribeVaultMainWindow(QMainWindow):
                 )
                 return
                 
-            vault_dialog = VaultDialog(self.vault_manager, self)
+            vault_dialog = VaultDialog(
+                self.vault_manager,
+                self,
+                summarizer_service=getattr(
+                    self, "summarizer_service", None
+                ),
+                template_manager=getattr(
+                    self, "template_manager", None
+                ),
+                whisper_service=getattr(
+                    self, "whisper_service", None
+                ),
+            )
             vault_dialog.exec()
             
         except Exception as e:

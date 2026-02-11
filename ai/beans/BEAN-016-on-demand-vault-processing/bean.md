@@ -8,10 +8,10 @@
 | Title     | On-Demand Vault Processing |
 | Type      | feature      |
 | Priority  | P1           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
 | Duration  |              |
 
 ## Problem Statement
@@ -66,9 +66,11 @@ Users can trigger transcription and summarization on-demand from the Recording V
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Add WhisperService to VaultDialog | Developer | — | Done |
+| 2 | Add TranscriptionWorker and OnDemandSummarizationWorker | Developer | 1 | Done |
+| 3 | Add Transcribe/Summarize buttons to toolbar and detail panel | Developer | 1 | Done |
+| 4 | Implement on-demand processing logic | Developer | 2, 3 | Done |
+| 5 | Unit tests for on-demand processing | Tech-QA | 4 | Done |
 
 ## Telemetry
 
