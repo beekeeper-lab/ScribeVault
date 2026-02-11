@@ -8,10 +8,10 @@
 | Title     | Vault Header Cleanup |
 | Type      | bug-fix      |
 | Priority  | P3           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
 | Duration  |              |
 
 ## Problem Statement
@@ -41,20 +41,20 @@ The vault header is clean and functional: the refresh button uses readable text 
 
 ## Acceptance Criteria
 
-- [ ] The refresh button displays readable text ("Refresh") instead of the 🔄 emoji
-- [ ] The refresh button still triggers `load_recordings()` when clicked
-- [ ] The custom ✕ close button is removed from the header
-- [ ] The vault can still be closed via the window's native title bar close button
-- [ ] No layout or spacing regressions in the header area
-- [ ] Existing tests continue to pass
+- [x] The refresh button displays readable text ("Refresh") instead of the 🔄 emoji
+- [x] The refresh button still triggers `load_recordings()` when clicked
+- [x] The custom ✕ close button is removed from the header
+- [x] The vault can still be closed via the window's native title bar close button
+- [x] No layout or spacing regressions in the header area
+- [x] Existing tests continue to pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Replace refresh button emoji with "Refresh" text | Developer | — | Done |
+| 2 | Remove custom close button from header | Developer | — | Done |
+| 3 | Run tests and lint verification | Tech-QA | 1, 2 | Done |
 
 ## Telemetry
 

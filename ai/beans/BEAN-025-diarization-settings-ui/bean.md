@@ -8,10 +8,10 @@
 | Title     | Expose Diarization Settings in UI |
 | Type      | enhancement  |
 | Priority  | P2           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
 | Duration  |              |
 
 ## Problem Statement
@@ -54,11 +54,11 @@ Users can configure speaker diarization from the Settings dialog, including togg
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Design diarization section layout in Transcription tab | | | TODO |
-| 2 | Add enable checkbox, speaker count spinner, sensitivity slider | | 1 | TODO |
-| 3 | Wire controls to load/save DiarizationSettings | | 2 | TODO |
-| 4 | Add descriptive labels and help text | | 2 | TODO |
-| 5 | Write tests for settings save/load round-trip | | 3 | TODO |
+| 1 | Design diarization section layout in Transcription tab | Developer | | Done |
+| 2 | Add enable checkbox, speaker count spinner, sensitivity slider | Developer | 1 | Done |
+| 3 | Wire controls to load/save DiarizationSettings | Developer | 2 | Done |
+| 4 | Add descriptive labels and help text | Developer | 2 | Done |
+| 5 | Write tests for settings save/load round-trip | Tech QA | 3 | Done |
 
 ## Telemetry
 

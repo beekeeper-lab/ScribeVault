@@ -62,9 +62,9 @@ class TestVaultManager(unittest.TestCase):
             filename="test.wav",
             category="invalid_category"
         )
-        # Verify it was corrected to 'other'
+        # Verify it was corrected to 'uncategorized'
         recordings = self.vault_manager.get_recordings()
-        self.assertEqual(recordings[0]['category'], "other")
+        self.assertEqual(recordings[0]['category'], "uncategorized")
         
         # Test negative values - should be corrected, not rejected
         recording_id2 = self.vault_manager.add_recording(
@@ -188,15 +188,15 @@ class TestVaultManager(unittest.TestCase):
         
         # Test invalid category - should be corrected, not rejected
         success = self.vault_manager.update_recording(
-            recording_id, 
+            recording_id,
             category="invalid_category"
         )
         self.assertTrue(success)
-        
+
         # Verify category was corrected
         recordings = self.vault_manager.get_recordings()
         updated = next(r for r in recordings if r['id'] == recording_id)
-        self.assertEqual(updated['category'], "other")
+        self.assertEqual(updated['category'], "uncategorized")
     
     def test_delete_recording_success(self):
         """Test successful recording deletion."""
@@ -280,7 +280,7 @@ class TestVaultManager(unittest.TestCase):
                     filename TEXT UNIQUE NOT NULL,
                     title TEXT,
                     description TEXT,
-                    category TEXT CHECK(category IN ('meeting', 'interview', 'lecture', 'note', 'other')) DEFAULT 'other',
+                    category TEXT DEFAULT 'other',
                     duration REAL CHECK(duration >= 0) DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     file_size INTEGER CHECK(file_size >= 0) DEFAULT 0,
@@ -309,6 +309,77 @@ class TestVaultManager(unittest.TestCase):
         recordings = self.vault_manager.get_recordings()
         self.assertEqual(len(recordings), 1)
         self.assertEqual(recordings[0]['filename'], "active.wav")
+
+    def test_expanded_valid_categories(self):
+        """Test that new categories call and presentation are accepted."""
+        self.vault_manager.add_recording(
+            filename="call.wav", category="call"
+        )
+        self.vault_manager.add_recording(
+            filename="pres.wav", category="presentation"
+        )
+        self.vault_manager.add_recording(
+            filename="uncat.wav", category="uncategorized"
+        )
+
+        recordings = self.vault_manager.get_recordings()
+        cats = {r['filename']: r['category'] for r in recordings}
+        self.assertEqual(cats["call.wav"], "call")
+        self.assertEqual(cats["pres.wav"], "presentation")
+        self.assertEqual(cats["uncat.wav"], "uncategorized")
+
+    def test_other_category_rejected_as_invalid(self):
+        """Test that 'other' is no longer a valid category."""
+        self.vault_manager.add_recording(
+            filename="test.wav", category="other"
+        )
+        recordings = self.vault_manager.get_recordings()
+        self.assertEqual(recordings[0]['category'], "uncategorized")
+
+    def test_migrate_other_to_uncategorized(self):
+        """Test migration of 'other' to 'uncategorized'."""
+        # Insert a recording directly with old 'other' category
+        # bypassing the CHECK constraint by recreating old schema
+        with sqlite3.connect(self.vault_manager.db_path) as conn:
+            conn.execute("DROP TABLE recordings")
+            conn.execute("""
+                CREATE TABLE recordings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filename TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    description TEXT,
+                    category TEXT DEFAULT 'other',
+                    duration REAL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    file_size INTEGER DEFAULT 0,
+                    transcription TEXT,
+                    original_transcription TEXT,
+                    summary TEXT,
+                    key_points TEXT,
+                    tags TEXT,
+                    summary_history TEXT,
+                    markdown_path TEXT,
+                    pipeline_status TEXT
+                )
+            """)
+            conn.execute(
+                "INSERT INTO recordings (filename, category) "
+                "VALUES (?, ?)",
+                ("old.wav", "other")
+            )
+            conn.execute(
+                "INSERT INTO recordings (filename, category) "
+                "VALUES (?, ?)",
+                ("meeting.wav", "meeting")
+            )
+
+        # Reinitialize to trigger migration
+        self.vault_manager._init_database()
+
+        recordings = self.vault_manager.get_recordings()
+        cats = {r['filename']: r['category'] for r in recordings}
+        self.assertEqual(cats["old.wav"], "uncategorized")
+        self.assertEqual(cats["meeting.wav"], "meeting")
 
 
 if __name__ == '__main__':
