@@ -8,7 +8,7 @@
 | Title     | HTML-Escape Dynamic Content in Summary Viewer |
 | Type      | bug-fix      |
 | Priority  | P2           |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
