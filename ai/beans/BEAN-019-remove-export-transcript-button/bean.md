@@ -8,10 +8,10 @@
 | **Title**     | Remove Export Transcript Button from Vault |
 | **Type**      | enhancement |
 | **Priority**  | P3 |
-| **Status**    | Approved     |
+| **Status**    | Done         |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
-| **Completed** | —            |
+| **Started**   | 2026-02-11   |
+| **Completed** | 2026-02-11   |
 | **Duration**  | —            |
 
 ## Problem Statement
@@ -39,26 +39,26 @@ Remove the redundant "Export Transcript" button from the vault toolbar and merge
 
 ## Acceptance Criteria
 
-- [ ] The "Export Transcript" button is no longer visible on the vault toolbar
-- [ ] The main "Export" button offers SRT as an additional format option when timestamps are present in the transcription
-- [ ] Exported SRT files are identical to what the old Export Transcript button produced
-- [ ] The toolbar is less cluttered with one fewer button
-- [ ] Existing tests still pass
+- [x] The "Export Transcript" button is no longer visible on the vault toolbar
+- [x] The main "Export" button offers SRT as an additional format option when timestamps are present in the transcription
+- [x] Exported SRT files are identical to what the old Export Transcript button produced
+- [x] The toolbar is less cluttered with one fewer button
+- [x] Existing tests still pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Remove Export Transcript button and wiring from vault dialog UI | Developer | — | TODO |
-| 2 | Add SRT export option to the main `export_recording()` method | Developer | 1 | TODO |
-| 3 | Verify SRT output matches previous Export Transcript behavior | Tech QA | 2 | TODO |
+| 1 | Remove Export Transcript button and wiring from vault dialog UI | Developer | — | Done |
+| 2 | Add SRT export option to the main `export_recording()` method | Developer | 1 | Done |
+| 3 | Verify SRT output matches previous Export Transcript behavior | Tech QA | 2 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
 | **Total Tasks**      | 3     |
-| **Total Duration**   | —     |
+| **Total Duration**   | 0m     |
 | **Total Tokens In**  | —     |
 | **Total Tokens Out** | —     |
 
