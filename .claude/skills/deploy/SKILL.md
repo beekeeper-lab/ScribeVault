@@ -4,7 +4,7 @@
 
 Promotes a source branch into a target branch via a pull request. Creates the PR, runs tests, and merges if they pass. One approval, no extra prompts.
 
-The deployment model is three-tier: **feature branch → test → main**. The `main` branch is never used as a direct source for merging into `test`. If `/deploy test` is invoked while on `main`, a temporary staging branch is created automatically so that commits flow properly through `test` first.
+The deployment model is three-tier: **feature branch → test → main**. The invariant is that `main` is never pushed directly into `test`. If `/deploy test` is invoked while on `main`, a temporary staging branch (`deploy/YYYY-MM-DD`) is created from the current HEAD, the local `main` ref is reset to `origin/main` (via `git branch -f`, not `git reset --hard`), and the staging branch is deployed into `test` instead.
 
 Two modes:
 - `/deploy` — Promotes `test` → `main` (default). Full release with branch cleanup.
