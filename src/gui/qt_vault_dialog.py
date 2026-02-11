@@ -33,6 +33,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, Slot
 from vault.manager import VaultManager, VaultException
 from gui.qt_summary_viewer import SummaryViewerDialog
 from export.transcription_exporter import TranscriptionExporter
+from export.utils import sanitize_title, create_unique_subfolder
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1234,34 +1235,35 @@ class VaultDialog(QDialog):
 
         export_path = Path(export_dir)
         title = recording.get("title") or recording.get("filename", "Untitled")
-        safe_title = (
-            "".join(c for c in title if c.isalnum() or c in (" ", "-", "_"))
-            .strip()
-            .replace(" ", "_")[:50]
-        )
+        safe_title = sanitize_title(title)
+
+        # Create a per-recording subfolder (with dedup)
+        subfolder = create_unique_subfolder(export_path, safe_title)
 
         exported_files = []
         try:
-            # Export audio file
+            # Export audio file (renamed to title-based name)
             filename = recording.get("filename")
             if filename:
                 audio_src = self.vault_manager.vault_dir / filename
                 if audio_src.exists():
-                    audio_dst = export_path / filename
+                    ext = Path(filename).suffix
+                    audio_name = f"{safe_title}{ext}"
+                    audio_dst = subfolder / audio_name
                     shutil.copy2(str(audio_src), str(audio_dst))
-                    exported_files.append(filename)
+                    exported_files.append(audio_name)
 
             # Export transcription as .txt
             transcription = recording.get("transcription")
             if transcription:
                 txt_name = f"{safe_title}_transcription.txt"
-                txt_path = export_path / txt_name
+                txt_path = subfolder / txt_name
                 txt_path.write_text(transcription, encoding="utf-8")
                 exported_files.append(txt_name)
 
             # Export full details as .md
             md_name = f"{safe_title}_summary.md"
-            md_path = export_path / md_name
+            md_path = subfolder / md_name
             rec_title = recording.get("title", "Untitled")
             lines = [f"# {rec_title}\n\n"]
             fname = recording.get("filename", "N/A")
@@ -1307,10 +1309,11 @@ class VaultDialog(QDialog):
                     "Export Complete",
                     f"Exported {len(exported_files)}"
                     f" file(s) to:\n"
-                    f"{export_dir}\n\n{files_list}",
+                    f"{subfolder}\n\n{files_list}",
                 )
                 self.update_status(
-                    f"Exported {len(exported_files)}" f" files to {export_dir}"
+                    f"Exported {len(exported_files)}"
+                    f" files to {subfolder}"
                 )
             else:
                 QMessageBox.information(
@@ -1374,18 +1377,11 @@ class VaultDialog(QDialog):
         if exporter.has_timestamps():
             formats += ";;SRT subtitle files (*.srt)"
 
-        safe_title = (
-            "".join(
-                c
-                for c in exporter.title
-                if c.isalnum() or c in (" ", "-", "_")
-            )
-            .strip()
-            .replace(" ", "_")[:50]
-        )
+        safe_title = sanitize_title(exporter.title)
+        default_name = f"{safe_title}_transcription"
 
         file_path, selected_filter = QFileDialog.getSaveFileName(
-            self, "Export Transcription", safe_title, formats
+            self, "Export Transcription", default_name, formats
         )
 
         if not file_path:
