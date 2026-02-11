@@ -31,4 +31,4 @@
 | BEAN-027 | Path Traversal Protection | P1 | Done | bean/BEAN-027-path-traversal-protection |
 | BEAN-028 | HTML-Escape Summary Viewer Content | P2 | Done | bean/BEAN-028-html-escape-summary-viewer |
 | BEAN-029 | Pin Dependency Versions | P2 | Done | bean/BEAN-029-pin-dependency-versions |
-| BEAN-030 | Secure File & Directory Permissions | P3 | Approved | — |
+| BEAN-030 | Secure File & Directory Permissions | P3 | Done | bean/BEAN-030-secure-file-permissions |

@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import logging
 
-from export.utils import sanitize_title
+from export.utils import sanitize_title, secure_mkdir
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,14 @@ class MarkdownGenerator:
     def __init__(self, export_dir: str = "summaries"):
         """Initialize the markdown generator."""
         self.export_dir = Path(export_dir)
-        self.export_dir.mkdir(exist_ok=True)
-        
+        secure_mkdir(self.export_dir)
+
         # Create subdirectories for organization
         self.daily_dir = self.export_dir / "daily"
         self.by_category_dir = self.export_dir / "by-category"
-        
-        self.daily_dir.mkdir(exist_ok=True)
-        self.by_category_dir.mkdir(exist_ok=True)
+
+        secure_mkdir(self.daily_dir)
+        secure_mkdir(self.by_category_dir)
         
     def _format_diarized_transcription(self, diarized_text: str) -> str:
         """Format diarized transcription with speaker labels as markdown.
@@ -130,7 +130,7 @@ class MarkdownGenerator:
 
             # Save into a per-recording subfolder
             recording_dir = self.export_dir / safe_title
-            recording_dir.mkdir(parents=True, exist_ok=True)
+            secure_mkdir(recording_dir)
 
             primary_path = recording_dir / filename
             primary_path.write_text(markdown_content, encoding='utf-8')
