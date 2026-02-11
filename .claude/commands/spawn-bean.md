@@ -44,6 +44,9 @@ status: running
 message:
 worktree: /tmp/scribevault-worktree-BEAN-018
 updated: 2026-02-07T14:32:01
+tokens_in: 0
+tokens_out: 0
+duration_seconds: 0
 ```
 
 ### Status Values
@@ -115,15 +118,31 @@ status: starting
 message:
 worktree: ${WORKTREE_DIR}
 updated: $(date -Iseconds)
+tokens_in: 0
+tokens_out: 0
+duration_seconds: 0
 EOF
 
 # Create a temp launcher script — cd's to the worktree, NOT the main repo
+# The launcher captures claude output via tee for post-exit token parsing
 LAUNCHER=$(mktemp /tmp/scribevault-bean-XXXXXX.sh)
+LOG_FILE="/tmp/scribevault-worker-${BEAN_LABEL}.log"
 cat > "$LAUNCHER" << SCRIPT_EOF
 #!/bin/bash
 cd "$WORKTREE_DIR"
+START_TIME=\$(date +%s)
 claude --dangerously-skip-permissions --agent team-lead \
-  "$PROMPT"
+  "$PROMPT" 2>&1 | tee "$LOG_FILE"
+DURATION=\$((\$(date +%s) - START_TIME))
+# Parse token usage from claude CLI output (looks for usage summary lines)
+TOKENS_IN=\$(grep -oP 'input[:\s]*\K[0-9,]+' "$LOG_FILE" | tail -1 | tr -d ',')
+TOKENS_OUT=\$(grep -oP 'output[:\s]*\K[0-9,]+' "$LOG_FILE" | tail -1 | tr -d ',')
+TOKENS_IN=\${TOKENS_IN:-0}
+TOKENS_OUT=\${TOKENS_OUT:-0}
+# Update status file with telemetry
+sed -i "s/^tokens_in:.*/tokens_in: \$TOKENS_IN/" "$STATUS_FILE"
+sed -i "s/^tokens_out:.*/tokens_out: \$TOKENS_OUT/" "$STATUS_FILE"
+sed -i "s/^duration_seconds:.*/duration_seconds: \$DURATION/" "$STATUS_FILE"
 SCRIPT_EOF
 chmod +x "$LAUNCHER"
 ```
@@ -186,9 +205,13 @@ STATUS FILE PROTOCOL — You MUST update /tmp/scribevault-worker-BEAN-NNN.status
   message: <empty or explanation for blocked/error>
   worktree: /tmp/scribevault-worktree-BEAN-NNN
   updated: <ISO timestamp>
+  tokens_in: 0
+  tokens_out: 0
+  duration_seconds: 0
   SF_EOF
 - Update after: picking the bean (decomposing), decomposing tasks (running, set tasks_total), completing each task (increment tasks_done), hitting a blocker (blocked + message), errors (error + message), and completion (done).
 - CRITICAL: If you encounter a blocker requiring human input, set status to "blocked" with a clear message explaining what you need, then STOP and wait.
+- NOTE: Token counts (tokens_in, tokens_out) and duration_seconds are populated automatically by the launcher script after claude exits. Do not update these fields yourself.
 
 Bean lifecycle:
 1. Decompose into tasks using /seed-tasks
@@ -219,6 +242,9 @@ STATUS FILE PROTOCOL — You MUST update your status file at every transition:
   status: <starting|decomposing|running|blocked|error|done>
   message: <empty or explanation for blocked/error>
   updated: <ISO timestamp>
+  tokens_in: 0
+  tokens_out: 0
+  duration_seconds: 0
   SF_EOF
 - Update after: picking the bean (decomposing), decomposing tasks (running, set tasks_total), completing each task (increment tasks_done), hitting a blocker (blocked + message), errors (error + message), and completion (done).
 - CRITICAL: If you encounter a blocker requiring human input, set status to "blocked" with a clear message explaining what you need, then STOP and wait.

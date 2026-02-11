@@ -37,8 +37,8 @@ enforces the quality contract that keeps the autonomous team reliable.
    - If the task file's `Started` field is `—` (unset), record it now as the current timestamp (`YYYY-MM-DD HH:MM`). This is a fallback — normally `Started` is set when task execution begins.
    - Record the `Completed` timestamp (`YYYY-MM-DD HH:MM`) in the task file metadata.
    - Compute `Duration` from the task's `Started` and `Completed` timestamps. Format: `Xm` for durations under 1 hour (e.g., `23m`), `Xh Ym` for 1+ hours (e.g., `1h 15m`). Write to the task file's `Duration` field.
-   - Prompt the completing persona to self-report their Claude Code session token counts. Format: `X,XXX in / Y,YYY out` (comma-formatted numbers). Write to the task file's `Tokens` field.
-   - Update the bean's **Telemetry per-task table** (in `bean.md`): find the row matching the task number and fill in Task name, Owner, Duration, Tokens In, and Tokens Out.
+   - Token usage is captured automatically at the bean/process level by the orchestrator's launcher script. Do not attempt to self-report tokens per task. Leave the task file's `Tokens` field as `—`.
+   - Update the bean's **Telemetry per-task table** (in `bean.md`): find the row matching the task number and fill in Task name, Owner, and Duration. Leave Tokens In and Tokens Out as `—` (populated at bean level by the orchestrator).
 9. **If any criteria fail** -- Mark the task as `returned`. Send the verification report back to the producing persona with specific, actionable failure descriptions.
 
 ## Outputs

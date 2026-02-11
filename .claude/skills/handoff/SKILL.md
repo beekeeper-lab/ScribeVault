@@ -35,7 +35,7 @@ between roles in the dependency wave.
 5. **Define what the receiver should do** -- Based on the dependency wave and the work type, list the specific tasks or objectives the receiving persona should tackle. Reference the relevant task specs or seeded tasks.
 6. **Flag risks and open questions** -- List anything unresolved that the receiver should be aware of: known risks, open questions from the BA, untested assumptions, or deferred items.
 7. **Identify key files** -- Create a "start here" section listing the 2-3 most important files the receiver should read first, in order.
-8. **Include telemetry context** -- Add a "Telemetry" section to the handoff packet summarizing effort spent by the handing-off persona: task duration and token usage (from the task file's `Duration` and `Tokens` fields). This gives the receiver context on how much effort the prior phase consumed.
+8. **Include telemetry context** -- Add a "Telemetry" section to the handoff packet summarizing effort spent by the handing-off persona. Include task duration from the task file's `Duration` field. Token usage, if available from the task file, may be included but is typically tracked at the bean level by the orchestrator.
 9. **Write handoff packet** -- Save the structured handoff as `ai/handoffs/{from}-to-{to}-{work_id}.md`.
 
 ## Outputs
