@@ -123,22 +123,10 @@ class VaultDialog(QDialog):
         header_layout.addWidget(QLabel("Category:"))
         header_layout.addWidget(self.category_filter)
 
-        refresh_button = QPushButton("🔄")
+        refresh_button = QPushButton("Refresh")
         refresh_button.setToolTip("Refresh recordings list")
-        refresh_button.setMaximumWidth(35)
         refresh_button.clicked.connect(self.load_recordings)
         header_layout.addWidget(refresh_button)
-
-        # Close button in header
-        close_button = QPushButton("✕")
-        close_button.setToolTip("Close vault")
-        close_button.clicked.connect(self.accept)
-        close_button.setMaximumWidth(30)
-        close_button.setStyleSheet(
-            "QPushButton { background-color: #666;"
-            " color: white; border-radius: 15px; }"
-        )
-        header_layout.addWidget(close_button)
 
         layout.addLayout(header_layout)
 
