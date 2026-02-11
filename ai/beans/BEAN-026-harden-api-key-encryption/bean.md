@@ -8,7 +8,7 @@
 | Title     | Harden API Key Encryption |
 | Type      | enhancement  |
 | Priority  | P1           |
-| Status    | Unapproved   |
+| Status    | Done         |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |

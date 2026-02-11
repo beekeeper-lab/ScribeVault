@@ -27,8 +27,8 @@
 | BEAN-023 | Update AI Summary Models & Cost Estimation | P1 | Done | bean/BEAN-023-update-ai-summary-models-and-costs |
 | BEAN-024 | Implement Test Settings Button | P2 | Done | bean/BEAN-024-implement-test-settings-button |
 | BEAN-025 | Expose Diarization Settings in UI | P2 | Done | bean/BEAN-025-diarization-settings-ui |
-| BEAN-026 | Harden API Key Encryption | P1 | Unapproved | — |
-| BEAN-027 | Path Traversal Protection | P1 | Unapproved | — |
-| BEAN-028 | HTML-Escape Summary Viewer Content | P2 | Unapproved | — |
-| BEAN-029 | Pin Dependency Versions | P2 | Unapproved | — |
-| BEAN-030 | Secure File & Directory Permissions | P3 | Unapproved | — |
+| BEAN-026 | Harden API Key Encryption | P1 | Done | bean/BEAN-026-harden-api-key-encryption |
+| BEAN-027 | Path Traversal Protection | P1 | Done | bean/BEAN-027-path-traversal-protection |
+| BEAN-028 | HTML-Escape Summary Viewer Content | P2 | Done | bean/BEAN-028-html-escape-summary-viewer |
+| BEAN-029 | Pin Dependency Versions | P2 | Done | bean/BEAN-029-pin-dependency-versions |
+| BEAN-030 | Secure File & Directory Permissions | P3 | Done | bean/BEAN-030-secure-file-permissions |

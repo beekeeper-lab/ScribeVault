@@ -8,10 +8,10 @@
 | Title     | Secure File & Directory Permissions |
 | Type      | enhancement  |
 | Priority  | P3           |
-| Status    | Unapproved   |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-10   |
+| Completed | 2026-02-10   |
 | Duration  |              |
 
 ## Problem Statement
@@ -39,28 +39,28 @@ All application-created directories and files containing sensitive data use rest
 
 ## Acceptance Criteria
 
-- [ ] `recordings/` directory is created with `0o700` permissions
-- [ ] `vault/` directory is created with `0o700` permissions
-- [ ] `summaries/` directory is created with `0o700` permissions
-- [ ] Log file is created with `0o600` permissions
-- [ ] New WAV recording files are created with `0o600` permissions
-- [ ] Unit tests verify directory and file permissions on creation (skipped on Windows)
-- [ ] `pytest tests/` passes, `flake8 src/ tests/` is clean
+- [x] `recordings/` directory is created with `0o700` permissions
+- [x] `vault/` directory is created with `0o700` permissions
+- [x] `summaries/` directory is created with `0o700` permissions
+- [x] Log file is created with `0o600` permissions
+- [x] New WAV recording files are created with `0o600` permissions
+- [x] Unit tests verify directory and file permissions on creation (skipped on Windows)
+- [x] `pytest tests/` passes, `flake8 src/ tests/` is clean
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Create secure directory/file creation utility | Developer | | TODO |
-| 2 | Apply to recordings directory and WAV files | Developer | 1 | TODO |
-| 3 | Apply to vault, summaries, and log file | Developer | 1 | TODO |
-| 4 | Write unit tests for permissions | Tech QA | 2, 3 | TODO |
+| 1 | Create secure directory/file creation utility | Developer | | Done |
+| 2 | Apply to recordings directory and WAV files | Developer | 1 | Done |
+| 3 | Apply to vault, summaries, and log file | Developer | 1 | Done |
+| 4 | Write unit tests for permissions | Tech QA | 2, 3 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 4     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

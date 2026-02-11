@@ -321,7 +321,7 @@ class SummarizerService:
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print("Custom prompt summarization " "error: {}".format(e))
+            logger.error("Custom prompt summarization error: %s", e)
             return None
 
     def generate_structured_summary(self, transcription: str) -> Optional[str]:
