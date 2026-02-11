@@ -8,10 +8,10 @@
 | **Title**     | Auto-Categorize Recordings |
 | **Type**      | enhancement |
 | **Priority**  | P2 |
-| **Status**    | Approved     |
+| **Status**    | Done         |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
-| **Completed** | —            |
+| **Started**   | 2026-02-11   |
+| **Completed** | 2026-02-11   |
 | **Duration**  | —            |
 
 ## Problem Statement
@@ -43,33 +43,33 @@ When the AI summarizer is available and a transcription exists, recordings are a
 
 ## Acceptance Criteria
 
-- [ ] When the AI summarizer is available, new recordings are automatically categorized based on transcription content
-- [ ] When the AI summarizer is unavailable, recordings default to "uncategorized" (not "other")
-- [ ] The VALID_CATEGORIES set includes: meeting, interview, lecture, note, call, presentation, uncategorized
-- [ ] The database CHECK constraint accepts all valid categories
-- [ ] Existing recordings with category "other" are migrated to "uncategorized"
-- [ ] The vault filter dropdown shows all valid categories
-- [ ] The edit recording dialog's category combo box shows all valid categories
-- [ ] If `categorize_content()` returns an unrecognized value, it falls back to "uncategorized"
-- [ ] Existing tests still pass
+- [x] When the AI summarizer is available, new recordings are automatically categorized based on transcription content
+- [x] When the AI summarizer is unavailable, recordings default to "uncategorized" (not "other")
+- [x] The VALID_CATEGORIES set includes: meeting, interview, lecture, note, call, presentation, uncategorized
+- [x] The database CHECK constraint accepts all valid categories
+- [x] Existing recordings with category "other" are migrated to "uncategorized"
+- [x] The vault filter dropdown shows all valid categories
+- [x] The edit recording dialog's category combo box shows all valid categories
+- [x] If `categorize_content()` returns an unrecognized value, it falls back to "uncategorized"
+- [x] Existing tests still pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Expand VALID_CATEGORIES and update DB schema/migration in vault manager | Developer | — | TODO |
-| 2 | Rename default category from 'other' to 'uncategorized' across codebase | Developer | 1 | TODO |
-| 3 | Wire categorize_content() into recording pipeline in qt_main_window.py | Developer | 1 | TODO |
-| 4 | Update vault dialog filter dropdown and edit dialog category combo | Developer | 1 | TODO |
-| 5 | Align categorize_content() prompt to match expanded valid category set | Developer | 1 | TODO |
-| 6 | Test auto-categorization with and without summarizer available | Tech QA | 3, 5 | TODO |
+| 1 | Expand VALID_CATEGORIES and update DB schema/migration in vault manager | Developer | — | Done |
+| 2 | Rename default category from 'other' to 'uncategorized' across codebase | Developer | 1 | Done |
+| 3 | Wire categorize_content() into recording pipeline in qt_main_window.py | Developer | 1 | Done |
+| 4 | Update vault dialog filter dropdown and edit dialog category combo | Developer | 1 | Done |
+| 5 | Align categorize_content() prompt to match expanded valid category set | Developer | 1 | Done |
+| 6 | Test auto-categorization with and without summarizer available | Tech QA | 3, 5 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
 | **Total Tasks**      | 6     |
-| **Total Duration**   | —     |
+| **Total Duration**   | 0m     |
 | **Total Tokens In**  | —     |
 | **Total Tokens Out** | —     |
 
