@@ -13,6 +13,8 @@ import logging
 import signal
 import os
 
+from export.utils import secure_mkdir, secure_file_permissions
+
 logger = logging.getLogger(__name__)
 
 class AudioException(Exception):
@@ -83,7 +85,7 @@ class AudioRecorder:
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         recordings_dir = Path("recordings")
-        recordings_dir.mkdir(exist_ok=True)
+        secure_mkdir(recordings_dir)
 
         self.output_path = recordings_dir / f"recording-{timestamp}.wav"
 
@@ -310,6 +312,7 @@ class AudioRecorder:
             wf.setsampwidth(self.audio.get_sample_size(self.format))
             wf.setframerate(self.sample_rate)
             wf.writeframes(b''.join(self.frames))
+        secure_file_permissions(self.output_path)
 
     # --- Checkpoint methods ---
 
@@ -319,7 +322,7 @@ class AudioRecorder:
             return
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         recordings_dir = Path("recordings")
-        recordings_dir.mkdir(exist_ok=True)
+        secure_mkdir(recordings_dir)
         self._checkpoint_path = (
             recordings_dir / f"recording-{timestamp}.checkpoint.wav"
         )
@@ -355,6 +358,7 @@ class AudioRecorder:
                 wf.setsampwidth(sample_width)
                 wf.setframerate(self.sample_rate)
                 wf.writeframes(b''.join(current_frames))
+            secure_file_permissions(self._checkpoint_path)
             self._last_flushed_count = len(current_frames)
             logger.info(
                 "Checkpoint flushed: %d frames to %s",
@@ -392,6 +396,7 @@ class AudioRecorder:
                     wf.setsampwidth(sample_width)
                     wf.setframerate(self.sample_rate)
                     wf.writeframes(b''.join(current_frames))
+                secure_file_permissions(self._checkpoint_path)
             except Exception as e:
                 logger.error("Final checkpoint flush failed: %s", e)
                 return None

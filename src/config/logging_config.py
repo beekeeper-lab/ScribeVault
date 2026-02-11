@@ -9,6 +9,7 @@ before any other imports that use logging. Individual modules should only use:
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -50,5 +51,7 @@ def setup_logging(level: str = "INFO", log_file: str = "scribevault.log"):
         file_handler.setLevel(numeric_level)
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
+        if os.name == "posix":
+            log_path.chmod(0o600)
     except OSError:
         root_logger.warning("Could not create log file at %s", log_file)
