@@ -22,7 +22,9 @@ VALID_CATEGORIES = {
     "interview",
     "lecture",
     "note",
-    "other",
+    "call",
+    "presentation",
+    "uncategorized",
 }
 
 
@@ -93,6 +95,8 @@ class VaultManager:
                         "ALTER TABLE recordings "
                         "ADD COLUMN summary_history TEXT"
                     )
+                # Migrate 'other' category to 'uncategorized'
+                self._migrate_category_other(conn)
             else:
                 self._create_table(conn)
 
@@ -106,8 +110,9 @@ class VaultManager:
                 description TEXT,
                 category TEXT CHECK(category IN (
                     'meeting', 'interview',
-                    'lecture', 'note', 'other'
-                )) DEFAULT 'other',
+                    'lecture', 'note', 'call',
+                    'presentation', 'uncategorized'
+                )) DEFAULT 'uncategorized',
                 duration REAL
                     CHECK(duration >= 0) DEFAULT 0,
                 created_at TIMESTAMP
@@ -142,9 +147,18 @@ class VaultManager:
 
         # Re-apply constraints by recreating properly
         rows = conn.execute("SELECT * FROM recordings").fetchall()
+        col_names = [
+            desc[0]
+            for desc in conn.execute(
+                "SELECT * FROM recordings LIMIT 0"
+            ).description
+        ]
         conn.execute("DROP TABLE recordings")
         self._create_table(conn)
         for row in rows:
+            row_dict = dict(zip(col_names, row))
+            if row_dict.get("category") in (None, "other"):
+                row_dict["category"] = "uncategorized"
             conn.execute(
                 "INSERT INTO recordings "
                 "(id, filename, title, description, "
@@ -153,8 +167,47 @@ class VaultManager:
                 "key_points, tags) "
                 "VALUES "
                 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                row,
+                tuple(row_dict[c] for c in col_names),
             )
+
+    def _migrate_category_other(self, conn: sqlite3.Connection):
+        """Migrate 'other' category to 'uncategorized'."""
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM recordings "
+            "WHERE category = 'other'"
+        )
+        count = cursor.fetchone()[0]
+        if count > 0:
+            logger.info(
+                "Migrating %d recordings from "
+                "'other' to 'uncategorized'",
+                count,
+            )
+            # Recreate table with new CHECK constraint
+            rows = conn.execute(
+                "SELECT * FROM recordings"
+            ).fetchall()
+            col_names = [
+                desc[0]
+                for desc in conn.execute(
+                    "SELECT * FROM recordings LIMIT 0"
+                ).description
+            ]
+            conn.execute("DROP TABLE recordings")
+            self._create_table(conn)
+            for row in rows:
+                row_dict = dict(zip(col_names, row))
+                if row_dict.get("category") == "other":
+                    row_dict["category"] = "uncategorized"
+                placeholders = ", ".join(
+                    ["?"] * len(col_names)
+                )
+                cols = ", ".join(col_names)
+                conn.execute(
+                    f"INSERT INTO recordings ({cols}) "
+                    f"VALUES ({placeholders})",
+                    [row_dict[c] for c in col_names],
+                )
 
     @staticmethod
     def _sanitize_text(
@@ -169,10 +222,10 @@ class VaultManager:
     def _normalize_category(
         category: Optional[str],
     ) -> str:
-        """Normalize category, defaulting to 'other'."""
+        """Normalize category, defaulting to 'uncategorized'."""
         if category and category in VALID_CATEGORIES:
             return category
-        return "other"
+        return "uncategorized"
 
     def add_recording(
         self,
