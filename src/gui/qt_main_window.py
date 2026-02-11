@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QTextEdit, QCheckBox, QFrame, QStatusBar,
     QScrollArea, QProgressBar, QSplitter, QTabWidget, QMenuBar,
-    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog
+    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog,
+    QGroupBox,
 )
 from PySide6.QtCore import (
     Qt, QTimer, QThread, Signal, QSettings, QSize, QRect,
@@ -41,6 +42,8 @@ from gui.pipeline_status_panel import PipelineStatusPanel
 from gui.qt_settings_dialog import SettingsDialog
 from gui.qt_vault_dialog import VaultDialog
 from gui.qt_summary_viewer import SummaryViewerDialog
+from gui.speaker_panel import SpeakerPanel
+from transcription.speaker_service import parse_speakers
 
 logger = logging.getLogger(__name__)
 
@@ -585,7 +588,28 @@ class ScribeVaultMainWindow(QMainWindow):
         self.transcript_text.setFont(QFont("Segoe UI", 12))
         self.transcript_text.setReadOnly(True)
         transcript_layout.addWidget(self.transcript_text)
-        
+
+        # Collapsible speaker labeling section
+        self.speaker_group = QGroupBox("Name Speakers")
+        self.speaker_group.setCheckable(True)
+        self.speaker_group.setChecked(False)
+        self.speaker_group.setVisible(False)
+        speaker_group_layout = QVBoxLayout(self.speaker_group)
+        speaker_group_layout.setContentsMargins(0, 10, 0, 0)
+        self.main_speaker_panel = SpeakerPanel()
+        if self.vault_manager:
+            self.main_speaker_panel.set_vault_manager(self.vault_manager)
+        self.main_speaker_panel.transcription_updated.connect(
+            self._on_speaker_transcription_updated
+        )
+        speaker_group_layout.addWidget(self.main_speaker_panel)
+        self.speaker_group.toggled.connect(
+            self.main_speaker_panel.setVisible
+        )
+        # Start with panel hidden (collapsed)
+        self.main_speaker_panel.setVisible(False)
+        transcript_layout.addWidget(self.speaker_group)
+
         parent_splitter.addWidget(transcript_widget)
         
         # Summary area
@@ -797,6 +821,8 @@ class ScribeVaultMainWindow(QMainWindow):
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
+            self.speaker_group.setVisible(False)
+            self.speaker_group.setChecked(False)
 
             # Clear current recording data
             self.current_recording_data = None
@@ -927,6 +953,18 @@ class ScribeVaultMainWindow(QMainWindow):
                     self.markdown_button.setVisible(True)
                 self.summary_text.setPlainText(summary_text)
 
+            # Update speaker panel visibility
+            display_text = self.transcript_text.toPlainText()
+            speakers = parse_speakers(display_text)
+            if speakers:
+                self.main_speaker_panel.load_recording(
+                    self.current_recording_data
+                )
+                self.speaker_group.setVisible(True)
+                self.speaker_group.setChecked(False)
+            else:
+                self.speaker_group.setVisible(False)
+
             # Show appropriate completion message
             ps = self._last_pipeline_status or {}
             failed = [k for k, v in ps.items() if v.get('status') == STATUS_FAILED]
@@ -990,6 +1028,12 @@ class ScribeVaultMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling retry results: {e}")
 
+    def _on_speaker_transcription_updated(self, new_text: str):
+        """Handle speaker rename/insert updating the transcript display."""
+        self.transcript_text.setPlainText(new_text)
+        if self.current_recording_data:
+            self.current_recording_data['transcription'] = new_text
+
     def update_recording_timer(self):
         """Update recording duration timer."""
         if self.recording_start_time:
@@ -1024,11 +1068,13 @@ class ScribeVaultMainWindow(QMainWindow):
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
-            
+            self.speaker_group.setVisible(False)
+            self.speaker_group.setChecked(False)
+
             # Clear current recording data
             self.current_recording_data = None
             self.current_markdown_path = None
-            
+
             self.start_recording()
             
     def copy_transcript(self):
