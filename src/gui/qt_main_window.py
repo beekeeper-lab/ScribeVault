@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QTextEdit, QCheckBox, QFrame, QStatusBar,
     QScrollArea, QProgressBar, QSplitter, QTabWidget, QMenuBar,
-    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog
+    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog,
+    QGroupBox,
 )
 from PySide6.QtCore import (
     Qt, QTimer, QThread, Signal, QSettings, QSize, QRect,
@@ -29,7 +30,7 @@ from PySide6.QtGui import (
 from audio.recorder import AudioRecorder, AudioException
 from transcription.whisper_service import WhisperService, TranscriptionException
 from ai.summarizer import SummarizerService
-from vault.manager import VaultManager, VaultException
+from vault.manager import VaultManager, VaultException, VALID_CATEGORIES
 from config.settings import SettingsManager
 from gui.qt_app import ScribeVaultWorker
 from gui.pipeline_status import (
@@ -41,6 +42,8 @@ from gui.pipeline_status_panel import PipelineStatusPanel
 from gui.qt_settings_dialog import SettingsDialog
 from gui.qt_vault_dialog import VaultDialog
 from gui.qt_summary_viewer import SummaryViewerDialog
+from gui.speaker_panel import SpeakerPanel
+from transcription.speaker_service import parse_speakers
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,21 @@ class RecordingWorker(ScribeVaultWorker):
 
             self.emit_progress(60)
 
+            # --- Auto-categorization ---
+            category = 'uncategorized'
+            if transcript and self.summarizer_service:
+                try:
+                    detected = self.summarizer_service.categorize_content(
+                        transcript
+                    )
+                    if detected and detected in VALID_CATEGORIES:
+                        category = detected
+                    else:
+                        category = 'uncategorized'
+                except Exception as e:
+                    logger.warning(f"Auto-categorization failed: {e}")
+                    category = 'uncategorized'
+
             # --- Summarization stage ---
             summary = None
             markdown_path = None
@@ -139,7 +157,7 @@ class RecordingWorker(ScribeVaultWorker):
                         'file_size': self.audio_path.stat().st_size,
                         'duration': self._get_audio_duration(),
                         'created_at': datetime.now().isoformat(),
-                        'category': 'other'
+                        'category': category
                     }
 
                     summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
@@ -177,7 +195,8 @@ class RecordingWorker(ScribeVaultWorker):
                         file_size=self.audio_path.stat().st_size,
                         duration=self._get_audio_duration(),
                         markdown_path=markdown_path,
-                        pipeline_status=self.pipeline_status.to_dict()
+                        pipeline_status=self.pipeline_status.to_dict(),
+                        category=category,
                     )
                     self._emit_stage(STAGE_VAULT_SAVE, STATUS_SUCCESS)
                 except Exception as e:
@@ -280,13 +299,23 @@ class RetryStageWorker(ScribeVaultWorker):
             self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_FAILED, "No transcript available")
             return
         try:
+            category = 'uncategorized'
+            if self.summarizer_service:
+                try:
+                    detected = self.summarizer_service.categorize_content(
+                        transcript
+                    )
+                    if detected and detected in VALID_CATEGORIES:
+                        category = detected
+                except Exception:
+                    pass
             recording_data = {
                 'filename': self.audio_path.name,
                 'transcription': transcript,
                 'file_size': self.audio_path.stat().st_size,
                 'duration': 0,
                 'created_at': datetime.now().isoformat(),
-                'category': 'other'
+                'category': category
             }
             summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
             result['summary'] = summary_result.get('summary')
@@ -559,7 +588,28 @@ class ScribeVaultMainWindow(QMainWindow):
         self.transcript_text.setFont(QFont("Segoe UI", 12))
         self.transcript_text.setReadOnly(True)
         transcript_layout.addWidget(self.transcript_text)
-        
+
+        # Collapsible speaker labeling section
+        self.speaker_group = QGroupBox("Name Speakers")
+        self.speaker_group.setCheckable(True)
+        self.speaker_group.setChecked(False)
+        self.speaker_group.setVisible(False)
+        speaker_group_layout = QVBoxLayout(self.speaker_group)
+        speaker_group_layout.setContentsMargins(0, 10, 0, 0)
+        self.main_speaker_panel = SpeakerPanel()
+        if self.vault_manager:
+            self.main_speaker_panel.set_vault_manager(self.vault_manager)
+        self.main_speaker_panel.transcription_updated.connect(
+            self._on_speaker_transcription_updated
+        )
+        speaker_group_layout.addWidget(self.main_speaker_panel)
+        self.speaker_group.toggled.connect(
+            self.main_speaker_panel.setVisible
+        )
+        # Start with panel hidden (collapsed)
+        self.main_speaker_panel.setVisible(False)
+        transcript_layout.addWidget(self.speaker_group)
+
         parent_splitter.addWidget(transcript_widget)
         
         # Summary area
@@ -741,7 +791,7 @@ class ScribeVaultMainWindow(QMainWindow):
             self.restoreState(state)
             
         # Summary checkbox state
-        generate_summary = settings.value("recording/generate_summary", False, type=bool)
+        generate_summary = settings.value("recording/generate_summary", True, type=bool)
         self.summary_checkbox.setChecked(generate_summary)
         
     def save_settings(self):
@@ -771,6 +821,8 @@ class ScribeVaultMainWindow(QMainWindow):
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
+            self.speaker_group.setVisible(False)
+            self.speaker_group.setChecked(False)
 
             # Clear current recording data
             self.current_recording_data = None
@@ -884,7 +936,7 @@ class ScribeVaultMainWindow(QMainWindow):
                 'created_at': datetime.now().isoformat(),
                 'duration': 0,
                 'file_size': self.current_recording_path.stat().st_size if self.current_recording_path else 0,
-                'category': 'other'
+                'category': 'uncategorized'
             }
             self.current_markdown_path = result.get('markdown_path')
 
@@ -900,6 +952,18 @@ class ScribeVaultMainWindow(QMainWindow):
                     summary_text += f"\n\n📄 Markdown summary saved: {Path(result['markdown_path']).name}"
                     self.markdown_button.setVisible(True)
                 self.summary_text.setPlainText(summary_text)
+
+            # Update speaker panel visibility
+            display_text = self.transcript_text.toPlainText()
+            speakers = parse_speakers(display_text)
+            if speakers:
+                self.main_speaker_panel.load_recording(
+                    self.current_recording_data
+                )
+                self.speaker_group.setVisible(True)
+                self.speaker_group.setChecked(False)
+            else:
+                self.speaker_group.setVisible(False)
 
             # Show appropriate completion message
             ps = self._last_pipeline_status or {}
@@ -964,6 +1028,12 @@ class ScribeVaultMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling retry results: {e}")
 
+    def _on_speaker_transcription_updated(self, new_text: str):
+        """Handle speaker rename/insert updating the transcript display."""
+        self.transcript_text.setPlainText(new_text)
+        if self.current_recording_data:
+            self.current_recording_data['transcription'] = new_text
+
     def update_recording_timer(self):
         """Update recording duration timer."""
         if self.recording_start_time:
@@ -998,11 +1068,13 @@ class ScribeVaultMainWindow(QMainWindow):
             self.transcript_text.clear()
             self.summary_text.clear()
             self.markdown_button.setVisible(False)
-            
+            self.speaker_group.setVisible(False)
+            self.speaker_group.setChecked(False)
+
             # Clear current recording data
             self.current_recording_data = None
             self.current_markdown_path = None
-            
+
             self.start_recording()
             
     def copy_transcript(self):
@@ -1030,7 +1102,19 @@ class ScribeVaultMainWindow(QMainWindow):
                 )
                 return
                 
-            vault_dialog = VaultDialog(self.vault_manager, self)
+            vault_dialog = VaultDialog(
+                self.vault_manager,
+                self,
+                summarizer_service=getattr(
+                    self, "summarizer_service", None
+                ),
+                template_manager=getattr(
+                    self, "template_manager", None
+                ),
+                whisper_service=getattr(
+                    self, "whisper_service", None
+                ),
+            )
             vault_dialog.exec()
             
         except Exception as e:

@@ -8,10 +8,10 @@
 | Title     | Improved Export File Organization |
 | Type      | enhancement  |
 | Priority  | P2           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
 | Duration  |              |
 
 ## Problem Statement
@@ -49,31 +49,32 @@ Exports are organized into descriptive per-recording subfolders named after the 
 
 ## Acceptance Criteria
 
-- [ ] Vault export creates a subfolder named `{sanitized_title}/` in the selected export directory
-- [ ] Audio file inside the subfolder is named `{Title}.{ext}` (not `recording_YYYYMMDD_HHMMSS.wav`)
-- [ ] Transcription file is named `{Title}_transcription.txt`
-- [ ] Summary file is named `{Title}_summary.md`
-- [ ] If a subfolder with the same name already exists, a numeric suffix is appended (e.g., `Sprint_Planning_2/`)
-- [ ] MarkdownGenerator output files use `{Title}.md` instead of `{YYYYMMDD_HHMMSS}_{Title}.md`
-- [ ] MarkdownGenerator organizes output into a per-recording subfolder within `summaries/`
-- [ ] Transcription export default filename suggestion uses `{Title}_transcription` pattern
-- [ ] All filenames use the same sanitization logic (alphanumeric, hyphens, underscores, 50-char limit)
-- [ ] Existing tests continue to pass
-- [ ] New tests cover the subfolder creation and naming logic
+- [x] Vault export creates a subfolder named `{sanitized_title}/` in the selected export directory
+- [x] Audio file inside the subfolder is named `{Title}.{ext}` (not `recording_YYYYMMDD_HHMMSS.wav`)
+- [x] Transcription file is named `{Title}_transcription.txt`
+- [x] Summary file is named `{Title}_summary.md`
+- [x] If a subfolder with the same name already exists, a numeric suffix is appended (e.g., `Sprint_Planning_2/`)
+- [x] MarkdownGenerator output files use `{Title}.md` instead of `{YYYYMMDD_HHMMSS}_{Title}.md`
+- [x] MarkdownGenerator organizes output into a per-recording subfolder within `summaries/`
+- [x] Transcription export default filename suggestion uses `{Title}_transcription` pattern
+- [x] All filenames use the same sanitization logic (alphanumeric, hyphens, underscores, 50-char limit)
+- [x] Existing tests continue to pass
+- [x] New tests cover the subfolder creation and naming logic
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Extract shared title sanitization utility | Developer | — | Done |
+| 2 | Update vault export to use subfolders and title-based naming | Developer | 1 | Done |
+| 3 | Update MarkdownGenerator for title-first filenames and subfolders | Developer | 1 | Done |
+| 4 | Write tests for new export organization | Tech-QA | 1,2,3 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 4     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

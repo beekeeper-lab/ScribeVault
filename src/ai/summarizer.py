@@ -193,8 +193,8 @@ class SummarizerService:
                     "Categorize this transcript into one "
                     "of these categories: meeting, "
                     "lecture, interview, note, call, "
-                    "presentation, other. Return only the "
-                    "category name."
+                    "presentation, uncategorized. Return "
+                    "only the category name."
                 ),
                 user_content=text,
                 temperature=0.1,
@@ -206,10 +206,10 @@ class SummarizerService:
 
         except APIRetryError as e:
             logger.error("Categorization failed after retries: " "%s", e)
-            return "other"
+            return "uncategorized"
         except Exception as e:
             logger.error("Categorization error: %s", e)
-            return "other"
+            return "uncategorized"
 
     def generate_summary_with_markdown(
         self,
@@ -242,7 +242,7 @@ class SummarizerService:
                 return result
 
             # Generate summary based on provided parameters
-            category = recording_data.get("category", "other")
+            category = recording_data.get("category", "uncategorized")
 
             meeting_types = ["meeting", "call", "interview"]
             if template_prompt:
