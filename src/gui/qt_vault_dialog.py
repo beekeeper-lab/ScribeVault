@@ -191,14 +191,6 @@ class VaultDialog(QDialog):
         export_button.setMaximumHeight(30)
         table_controls.addWidget(export_button)
 
-        export_transcript_button = QPushButton("📝 Export Transcript")
-        export_transcript_button.setToolTip(
-            "Export transcription as TXT, Markdown, or SRT"
-        )
-        export_transcript_button.clicked.connect(self.export_transcription)
-        export_transcript_button.setMaximumHeight(30)
-        table_controls.addWidget(export_transcript_button)
-
         play_button = QPushButton("🔊 Play Audio")
         play_button.setToolTip("Play audio file with system player")
         play_button.clicked.connect(self.play_audio)
@@ -843,6 +835,14 @@ class VaultDialog(QDialog):
                 txt_path.write_text(transcription, encoding="utf-8")
                 exported_files.append(txt_name)
 
+            # Export SRT subtitle file when timestamps are available
+            exporter = TranscriptionExporter(recording)
+            if exporter.has_timestamps():
+                srt_name = f"{safe_title}.srt"
+                srt_path = export_path / srt_name
+                exporter.export_srt(srt_path)
+                exported_files.append(srt_name)
+
             # Export full details as .md
             md_name = f"{safe_title}_summary.md"
             md_path = export_path / md_name
@@ -907,97 +907,6 @@ class VaultDialog(QDialog):
             logger.error(f"Error exporting recording: {e}")
             QMessageBox.critical(
                 self, "Export Error", f"Failed to export recording: {e}"
-            )
-
-    def export_transcription(self):
-        """Export transcription in a chosen format."""
-        current_row = self.recordings_table.currentRow()
-        if current_row < 0:
-            QMessageBox.information(
-                self,
-                "No Selection",
-                "Please select a recording to export" " its transcription.",
-            )
-            return
-
-        title_item = self.recordings_table.item(current_row, 0)
-        recording = title_item.data(Qt.UserRole)
-        if not recording:
-            QMessageBox.warning(
-                self, "Error", "Could not retrieve recording data."
-            )
-            return
-
-        if not recording.get("transcription"):
-            QMessageBox.information(
-                self,
-                "No Transcription",
-                "This recording has no transcription" " to export.",
-            )
-            return
-
-        exporter = TranscriptionExporter(recording)
-
-        # Size warning
-        if exporter.needs_size_warning():
-            size_kb = exporter.get_transcription_size() / 1024
-            reply = QMessageBox.question(
-                self,
-                "Large Transcription",
-                f"This transcription is {size_kb:.0f}"
-                " KB. Large files may be slow to"
-                " open. Continue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes,
-            )
-            if reply == QMessageBox.No:
-                return
-
-        # Build format filter
-        formats = "Text files (*.txt);;Markdown files (*.md)"
-        if exporter.has_timestamps():
-            formats += ";;SRT subtitle files (*.srt)"
-
-        safe_title = (
-            "".join(
-                c
-                for c in exporter.title
-                if c.isalnum() or c in (" ", "-", "_")
-            )
-            .strip()
-            .replace(" ", "_")[:50]
-        )
-
-        file_path, selected_filter = QFileDialog.getSaveFileName(
-            self, "Export Transcription", safe_title, formats
-        )
-
-        if not file_path:
-            return
-
-        try:
-            path = Path(file_path)
-            if selected_filter.startswith("Text"):
-                if not path.suffix:
-                    path = path.with_suffix(".txt")
-                exporter.export_txt(path)
-            elif selected_filter.startswith("Markdown"):
-                if not path.suffix:
-                    path = path.with_suffix(".md")
-                exporter.export_markdown(path)
-            elif selected_filter.startswith("SRT"):
-                if not path.suffix:
-                    path = path.with_suffix(".srt")
-                exporter.export_srt(path)
-
-            self.update_status(f"Exported to {path.name}")
-            QMessageBox.information(
-                self, "Export Complete", f"Transcription exported to:\n{path}"
-            )
-        except Exception as e:
-            logger.error(f"Export failed: {e}")
-            QMessageBox.warning(
-                self, "Export Error", f"Failed to export transcription: {e}"
             )
 
     def open_vault_folder(self):
