@@ -27,3 +27,8 @@
 | BEAN-023 | Update AI Summary Models & Cost Estimation | P1 | Approved | — |
 | BEAN-024 | Implement Test Settings Button | P2 | Approved | — |
 | BEAN-025 | Expose Diarization Settings in UI | P2 | Approved | — |
+| BEAN-026 | Harden API Key Encryption | P1 | Unapproved | — |
+| BEAN-027 | Path Traversal Protection | P1 | Unapproved | — |
+| BEAN-028 | HTML-Escape Summary Viewer Content | P2 | Unapproved | — |
+| BEAN-029 | Pin Dependency Versions | P2 | Unapproved | — |
+| BEAN-030 | Secure File & Directory Permissions | P3 | Unapproved | — |
