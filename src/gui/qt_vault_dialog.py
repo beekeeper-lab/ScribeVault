@@ -148,7 +148,7 @@ class VaultDialog(QDialog):
 
     def setup_ui(self):
         """Setup the vault dialog UI."""
-        self.setWindowTitle("ScribeVault - Recordings Vault")
+        self.setWindowTitle("Recordings Vault")
         self.setMinimumSize(900, 600)
         self.resize(1100, 700)
 
