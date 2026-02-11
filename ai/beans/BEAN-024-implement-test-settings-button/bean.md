@@ -8,10 +8,10 @@
 | Title     | Implement Test Settings Button |
 | Type      | enhancement  |
 | Priority  | P2           |
-| Status    | Approved     |
+| Status    | Done         |
 | Created   | 2026-02-10   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-11   |
+| Completed | 2026-02-11   |
 | Duration  |              |
 
 ## Problem Statement
@@ -42,24 +42,24 @@ Clicking "Test Settings" runs a suite of quick diagnostic checks against the cur
 
 ## Acceptance Criteria
 
-- [ ] "Test Settings" button triggers actual diagnostic checks (not a placeholder message)
-- [ ] API key connectivity is tested when OpenAI service is selected
-- [ ] Storage directories are checked for existence and write permissions
-- [ ] Microphone device is tested for availability
-- [ ] Results are displayed in a dialog with clear pass/fail indicators per check
-- [ ] Checks that don't apply (e.g., API key when using local transcription) are skipped or shown as "N/A"
-- [ ] A timeout prevents the dialog from hanging on slow responses
-- [ ] Existing tests pass; new tests cover the diagnostic logic
+- [x] "Test Settings" button triggers actual diagnostic checks (not a placeholder message)
+- [x] API key connectivity is tested when OpenAI service is selected
+- [x] Storage directories are checked for existence and write permissions
+- [x] Microphone device is tested for availability
+- [x] Results are displayed in a dialog with clear pass/fail indicators per check
+- [x] Checks that don't apply (e.g., API key when using local transcription) are skipped or shown as "N/A"
+- [x] A timeout prevents the dialog from hanging on slow responses
+- [x] Existing tests pass; new tests cover the diagnostic logic
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Implement diagnostic check functions (API, dirs, mic) | | | TODO |
-| 2 | Create results display dialog | | | TODO |
-| 3 | Wire "Test Settings" button to run checks and show results | | 1, 2 | TODO |
-| 4 | Add timeout handling for API checks | | 1 | TODO |
-| 5 | Write tests for diagnostic logic | | 1 | TODO |
+| 1 | Implement diagnostic check functions (API, dirs, mic) | Developer | | Done |
+| 2 | Create results display dialog | Developer | | Done |
+| 3 | Wire "Test Settings" button to run checks and show results | Developer | 1, 2 | Done |
+| 4 | Add timeout handling for API checks | Developer | 1 | Done |
+| 5 | Write tests for diagnostic logic | Tech-QA | 1 | Done |
 
 ## Telemetry
 
