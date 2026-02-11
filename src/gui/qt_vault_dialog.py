@@ -116,7 +116,8 @@ class VaultDialog(QDialog):
 
         self.category_filter = QComboBox()
         self.category_filter.addItems(
-            ["All", "meeting", "interview", "lecture", "note", "other"]
+            ["All", "meeting", "interview", "lecture",
+             "note", "call", "presentation", "uncategorized"]
         )
         self.category_filter.setMaximumWidth(120)
         self.category_filter.currentTextChanged.connect(self.filter_recordings)
@@ -1122,9 +1123,10 @@ class VaultDialog(QDialog):
         form_layout.addWidget(QLabel("Category:"), 2, 0)
         category_combo = QComboBox()
         category_combo.addItems(
-            ["meeting", "interview", "lecture", "note", "other"]
+            ["meeting", "interview", "lecture", "note",
+             "call", "presentation", "uncategorized"]
         )
-        current_cat = recording.get("category", "other")
+        current_cat = recording.get("category", "uncategorized")
         idx = category_combo.findText(current_cat)
         if idx >= 0:
             category_combo.setCurrentIndex(idx)

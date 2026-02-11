@@ -16,3 +16,14 @@
 | BEAN-012 | Remove CustomTkinter Implementation | P2 | Done | bean/BEAN-012-remove-customtkinter |
 | BEAN-013 | Transcription Export | P2 | Done | bean/BEAN-013-transcription-export |
 | BEAN-014 | Audio Recording Quality Settings | P3 | Done | bean/BEAN-014-audio-quality-settings |
+| BEAN-015 | Default AI Summary Checkbox to Checked | P2 | Approved | |
+| BEAN-016 | On-Demand Vault Processing | P1 | Approved | — |
+| BEAN-017 | Main Page Speaker Labeling | P1 | Approved | — |
+| BEAN-018 | Improved Export File Organization | P2 | Approved | — |
+| BEAN-019 | Remove Export Transcript Button from Vault | P3 | Approved | — |
+| BEAN-020 | Auto-Categorize Recordings | P2 | Approved | — |
+| BEAN-021 | Fix Redundant Dialog Window Titles | P3 | Approved | — |
+| BEAN-022 | Vault Header Cleanup | P3 | Approved | — |
+| BEAN-023 | Update AI Summary Models & Cost Estimation | P1 | Approved | — |
+| BEAN-024 | Implement Test Settings Button | P2 | Approved | — |
+| BEAN-025 | Expose Diarization Settings in UI | P2 | Approved | — |
