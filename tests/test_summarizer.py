@@ -221,6 +221,62 @@ class TestStyleParameterFix(unittest.TestCase):
         self.assertIsNotNone(result["error"])
 
 
+class TestCategorizeContent(unittest.TestCase):
+    """Tests for categorize_content returning updated categories."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def setUp(self, mock_openai_cls):
+        self.mock_client = MagicMock()
+        mock_openai_cls.return_value = self.mock_client
+        self.service = SummarizerService()
+
+    def test_categorize_returns_valid_category(self):
+        """categorize_content returns a valid category."""
+        self.mock_client.chat.completions.create.return_value = (
+            _make_mock_response("meeting")
+        )
+        result = self.service.categorize_content("Let's discuss...")
+        self.assertEqual(result, "meeting")
+
+    def test_categorize_returns_uncategorized_on_error(self):
+        """categorize_content returns 'uncategorized' on error."""
+        self.mock_client.chat.completions.create.side_effect = (
+            Exception("API error")
+        )
+        result = self.service.categorize_content("text")
+        self.assertEqual(result, "uncategorized")
+
+    def test_categorize_prompt_uses_uncategorized(self):
+        """Prompt uses 'uncategorized' instead of 'other'."""
+        self.mock_client.chat.completions.create.return_value = (
+            _make_mock_response("uncategorized")
+        )
+        self.service.categorize_content("some text")
+        call_args = (
+            self.mock_client.chat.completions.create.call_args
+        )
+        system_msg = call_args[1]["messages"][0]["content"]
+        self.assertIn("uncategorized", system_msg)
+        self.assertNotIn("other", system_msg)
+
+    def test_categorize_returns_call_category(self):
+        """categorize_content can return 'call' category."""
+        self.mock_client.chat.completions.create.return_value = (
+            _make_mock_response("call")
+        )
+        result = self.service.categorize_content("Phone call...")
+        self.assertEqual(result, "call")
+
+    def test_categorize_returns_presentation_category(self):
+        """categorize_content can return 'presentation' category."""
+        self.mock_client.chat.completions.create.return_value = (
+            _make_mock_response("presentation")
+        )
+        result = self.service.categorize_content("Slide deck...")
+        self.assertEqual(result, "presentation")
+
+
 class TestSummaryHistoryStorage(unittest.TestCase):
     """Tests for summary history in VaultManager."""
 

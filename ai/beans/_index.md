@@ -16,17 +16,17 @@
 | BEAN-012 | Remove CustomTkinter Implementation | P2 | Done | bean/BEAN-012-remove-customtkinter |
 | BEAN-013 | Transcription Export | P2 | Done | bean/BEAN-013-transcription-export |
 | BEAN-014 | Audio Recording Quality Settings | P3 | Done | bean/BEAN-014-audio-quality-settings |
-| BEAN-015 | Default AI Summary Checkbox to Checked | P2 | Approved | |
-| BEAN-016 | On-Demand Vault Processing | P1 | Approved | — |
-| BEAN-017 | Main Page Speaker Labeling | P1 | Approved | — |
-| BEAN-018 | Improved Export File Organization | P2 | Approved | — |
-| BEAN-019 | Remove Export Transcript Button from Vault | P3 | Approved | — |
-| BEAN-020 | Auto-Categorize Recordings | P2 | Approved | — |
-| BEAN-021 | Fix Redundant Dialog Window Titles | P3 | Approved | — |
-| BEAN-022 | Vault Header Cleanup | P3 | Approved | — |
-| BEAN-023 | Update AI Summary Models & Cost Estimation | P1 | Approved | — |
-| BEAN-024 | Implement Test Settings Button | P2 | Approved | — |
-| BEAN-025 | Expose Diarization Settings in UI | P2 | Approved | — |
+| BEAN-015 | Default AI Summary Checkbox to Checked | P2 | Done | bean/BEAN-015-default-summary-checkbox-checked |
+| BEAN-016 | On-Demand Vault Processing | P1 | Done | bean/BEAN-016-on-demand-vault-processing |
+| BEAN-017 | Main Page Speaker Labeling | P1 | Done | bean/BEAN-017-main-page-speaker-labeling |
+| BEAN-018 | Improved Export File Organization | P2 | Done | bean/BEAN-018-improved-export-file-organization |
+| BEAN-019 | Remove Export Transcript Button from Vault | P3 | Done | bean/BEAN-019-remove-export-transcript-button |
+| BEAN-020 | Auto-Categorize Recordings | P2 | Done | bean/BEAN-020-auto-categorize-recordings |
+| BEAN-021 | Fix Redundant Dialog Window Titles | P3 | Done | bean/BEAN-021-fix-vault-dialog-title |
+| BEAN-022 | Vault Header Cleanup | P3 | Done | bean/BEAN-022-vault-header-cleanup |
+| BEAN-023 | Update AI Summary Models & Cost Estimation | P1 | Done | bean/BEAN-023-update-ai-summary-models-and-costs |
+| BEAN-024 | Implement Test Settings Button | P2 | Done | bean/BEAN-024-implement-test-settings-button |
+| BEAN-025 | Expose Diarization Settings in UI | P2 | Done | bean/BEAN-025-diarization-settings-ui |
 | BEAN-026 | Harden API Key Encryption | P1 | Unapproved | — |
 | BEAN-027 | Path Traversal Protection | P1 | Unapproved | — |
 | BEAN-028 | HTML-Escape Summary Viewer Content | P2 | Unapproved | — |

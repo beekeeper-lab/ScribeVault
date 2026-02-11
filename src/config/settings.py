@@ -53,16 +53,16 @@ class SummarizationSettings:
     """Summarization service configuration."""
     enabled: bool = True
     service: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    model: str = "gpt-4o-mini"
     style: str = "concise"  # concise, detailed, bullet_points
     max_tokens: int = 500
-    
+
     def __post_init__(self):
         """Validate settings after initialization."""
         valid_styles = ["concise", "detailed", "bullet_points"]
         if self.style not in valid_styles:
             raise ValueError(f"Invalid style: {self.style}. Must be one of {valid_styles}")
-            
+
         if self.max_tokens < 1 or self.max_tokens > 4000:
             raise ValueError(f"Invalid max_tokens: {self.max_tokens}. Must be between 1 and 4000")
 
@@ -539,110 +539,128 @@ class SettingsManager:
             return (False, f"Validation error: {str(e)}")
 
 class CostEstimator:
-    """Provides cost estimates for different transcription services."""
-    
-    # OpenAI Whisper API pricing (per minute)
-    OPENAI_WHISPER_COST_PER_MINUTE = 0.006
-    
-    # OpenAI GPT-3.5-turbo pricing (per 1K tokens)
-    # Input: $0.0015/1K tokens, Output: $0.002/1K tokens
-    OPENAI_GPT_INPUT_COST_PER_1K_TOKENS = 0.0015
-    OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS = 0.002
-    
-    # Estimated tokens for typical transcripts and summaries
+    """Provides cost estimates for different transcription and summarization services.
+
+    Pricing is loaded from ``config/model_pricing.json`` (single source of truth).
+    Falls back to sensible defaults if the file is missing or unreadable.
+    """
+
+    # Fallback defaults (used when config file is unavailable)
+    _DEFAULT_PRICING = {
+        "last_updated": "unknown",
+        "transcription": {
+            "whisper-1": {"name": "Whisper", "cost_per_minute": 0.006}
+        },
+        "summarization": {
+            "gpt-4o": {
+                "name": "GPT-4o",
+                "input_cost_per_1k_tokens": 0.0025,
+                "output_cost_per_1k_tokens": 0.01,
+            },
+            "gpt-4o-mini": {
+                "name": "GPT-4o Mini",
+                "input_cost_per_1k_tokens": 0.00015,
+                "output_cost_per_1k_tokens": 0.0006,
+            },
+            "gpt-4-turbo": {
+                "name": "GPT-4 Turbo",
+                "input_cost_per_1k_tokens": 0.01,
+                "output_cost_per_1k_tokens": 0.03,
+            },
+        },
+    }
+
     TOKENS_PER_MINUTE_TRANSCRIPT = 150  # ~150 tokens per minute of speech
     TOKENS_PER_SUMMARY = 200  # Average summary output tokens
-    
-    # Local processing costs (electricity, hardware wear)
-    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0  # Completely free
-    
+    LOCAL_PROCESSING_COST_PER_MINUTE = 0.0
+
+    _pricing: Optional[Dict[str, Any]] = None
+    _config_path: Optional[str] = None
+
     @classmethod
-    def estimate_openai_cost(cls, minutes: float, include_summary: bool = True) -> Dict[str, float]:
-        """Estimate OpenAI API costs.
-        
-        Args:
-            minutes: Duration in minutes
-            include_summary: Whether to include summarization costs
-            
-        Returns:
-            Cost breakdown dictionary
-        """
-        transcription_cost = minutes * cls.OPENAI_WHISPER_COST_PER_MINUTE
-        
-        if include_summary:
-            # Estimate summary costs
-            input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
-            output_tokens = cls.TOKENS_PER_SUMMARY
-            
-            summary_cost = (
-                (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS +
-                (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
-            )
-        else:
-            summary_cost = 0.0
-        
-        total_cost = transcription_cost + summary_cost
-        
-        return {
-            "transcription": transcription_cost,
-            "summary": summary_cost,
-            "total": total_cost,
-            "per_minute": total_cost / minutes if minutes > 0 else 0,
-            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
-        }
-        
+    def _resolve_config_path(cls) -> Path:
+        """Return the path to model_pricing.json."""
+        if cls._config_path:
+            return Path(cls._config_path)
+        return Path(__file__).resolve().parent.parent.parent / "config" / "model_pricing.json"
+
     @classmethod
-    def estimate_local_cost(cls, minutes: float, include_summary: bool = True) -> Dict[str, float]:
-        """Estimate local processing costs.
-        
+    def load_pricing(cls, config_path: Optional[str] = None) -> Dict[str, Any]:
+        """Load pricing data from the JSON config file.
+
         Args:
-            minutes: Duration in minutes
-            include_summary: Whether to include summarization costs (still requires OpenAI for now)
-            
+            config_path: Optional override path (useful for tests).
+
         Returns:
-            Cost breakdown dictionary
+            Pricing dictionary.
         """
-        processing_cost = minutes * cls.LOCAL_PROCESSING_COST_PER_MINUTE
-        
-        if include_summary:
-            # Summary still requires OpenAI API
-            input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
-            output_tokens = cls.TOKENS_PER_SUMMARY
-            
-            summary_cost = (
-                (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS +
-                (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
-            )
-        else:
-            summary_cost = 0.0
-        
-        total_cost = processing_cost + summary_cost
-        
-        return {
-            "transcription": processing_cost,
-            "summary": summary_cost,
-            "total": total_cost,
-            "per_minute": total_cost / minutes if minutes > 0 else 0,
-            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
-        }
-        
+        if config_path:
+            cls._config_path = config_path
+        path = cls._resolve_config_path()
+        try:
+            with open(path, "r") as f:
+                cls._pricing = json.load(f)
+        except Exception as e:
+            logger.warning("Could not load model pricing config (%s): %s", path, e)
+            cls._pricing = dict(cls._DEFAULT_PRICING)
+        return cls._pricing
+
     @classmethod
-    def estimate_summary_cost(cls, minutes: float) -> Dict[str, float]:
-        """Estimate just the summarization costs.
-        
-        Args:
-            minutes: Duration in minutes of audio/transcript
-            
-        Returns:
-            Summary cost breakdown dictionary
+    def get_pricing(cls) -> Dict[str, Any]:
+        """Return cached pricing data, loading on first access."""
+        if cls._pricing is None:
+            cls.load_pricing()
+        return cls._pricing  # type: ignore[return-value]
+
+    @classmethod
+    def get_last_updated(cls) -> str:
+        """Return the ``last_updated`` string from the pricing config."""
+        return cls.get_pricing().get("last_updated", "unknown")
+
+    @classmethod
+    def get_summary_models(cls) -> list:
+        """Return list of available summarization model IDs."""
+        return list(cls.get_pricing().get("summarization", {}).keys())
+
+    @classmethod
+    def get_whisper_cost_per_minute(cls) -> float:
+        """Return the Whisper API cost per minute."""
+        trans = cls.get_pricing().get("transcription", {})
+        whisper = trans.get("whisper-1", {})
+        return whisper.get("cost_per_minute", 0.006)
+
+    @classmethod
+    def get_model_pricing(cls, model: str) -> Tuple[float, float]:
+        """Return (input_cost_per_1k, output_cost_per_1k) for a model.
+
+        Falls back to gpt-4o-mini pricing if the model is unknown.
         """
+        models = cls.get_pricing().get("summarization", {})
+        info = models.get(model, models.get("gpt-4o-mini", {}))
+        return (
+            info.get("input_cost_per_1k_tokens", 0.00015),
+            info.get("output_cost_per_1k_tokens", 0.0006),
+        )
+
+    @classmethod
+    def estimate_summary_cost(cls, minutes: float, model: str = "gpt-4o-mini") -> Dict[str, float]:
+        """Estimate summarization costs for a given model.
+
+        Args:
+            minutes: Duration in minutes of audio/transcript.
+            model: The summarization model ID.
+
+        Returns:
+            Summary cost breakdown dictionary.
+        """
+        input_per_1k, output_per_1k = cls.get_model_pricing(model)
         input_tokens = minutes * cls.TOKENS_PER_MINUTE_TRANSCRIPT
         output_tokens = cls.TOKENS_PER_SUMMARY
-        
-        input_cost = (input_tokens / 1000) * cls.OPENAI_GPT_INPUT_COST_PER_1K_TOKENS
-        output_cost = (output_tokens / 1000) * cls.OPENAI_GPT_OUTPUT_COST_PER_1K_TOKENS
+
+        input_cost = (input_tokens / 1000) * input_per_1k
+        output_cost = (output_tokens / 1000) * output_per_1k
         total_cost = input_cost + output_cost
-        
+
         return {
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
@@ -650,37 +668,96 @@ class CostEstimator:
             "output_cost": output_cost,
             "total": total_cost,
             "per_minute": total_cost / minutes if minutes > 0 else 0,
-            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0,
         }
-        
+
+    @classmethod
+    def estimate_openai_cost(cls, minutes: float, include_summary: bool = True,
+                             model: str = "gpt-4o-mini") -> Dict[str, float]:
+        """Estimate OpenAI API costs.
+
+        Args:
+            minutes: Duration in minutes.
+            include_summary: Whether to include summarization costs.
+            model: The summarization model ID.
+
+        Returns:
+            Cost breakdown dictionary.
+        """
+        transcription_cost = minutes * cls.get_whisper_cost_per_minute()
+
+        if include_summary:
+            summary_breakdown = cls.estimate_summary_cost(minutes, model)
+            summary_cost = summary_breakdown["total"]
+        else:
+            summary_cost = 0.0
+
+        total_cost = transcription_cost + summary_cost
+
+        return {
+            "transcription": transcription_cost,
+            "summary": summary_cost,
+            "total": total_cost,
+            "per_minute": total_cost / minutes if minutes > 0 else 0,
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0,
+        }
+
+    @classmethod
+    def estimate_local_cost(cls, minutes: float, include_summary: bool = True,
+                            model: str = "gpt-4o-mini") -> Dict[str, float]:
+        """Estimate local processing costs.
+
+        Args:
+            minutes: Duration in minutes.
+            include_summary: Whether to include summarization costs.
+            model: The summarization model ID.
+
+        Returns:
+            Cost breakdown dictionary.
+        """
+        processing_cost = minutes * cls.LOCAL_PROCESSING_COST_PER_MINUTE
+
+        if include_summary:
+            summary_breakdown = cls.estimate_summary_cost(minutes, model)
+            summary_cost = summary_breakdown["total"]
+        else:
+            summary_cost = 0.0
+
+        total_cost = processing_cost + summary_cost
+
+        return {
+            "transcription": processing_cost,
+            "summary": summary_cost,
+            "total": total_cost,
+            "per_minute": total_cost / minutes if minutes > 0 else 0,
+            "per_hour": total_cost * 60 / minutes if minutes > 0 else 0,
+        }
+
     @classmethod
     def get_service_comparison(cls) -> Dict[str, Any]:
-        """Get comparison between transcription services.
-        
-        Returns:
-            Comparison data for UI display
-        """
+        """Get comparison between transcription services."""
+        whisper_cpm = cls.get_whisper_cost_per_minute()
         return {
             "openai": {
                 "name": "OpenAI Whisper API",
-                "cost_per_minute": cls.OPENAI_WHISPER_COST_PER_MINUTE,
-                "cost_per_hour": cls.OPENAI_WHISPER_COST_PER_MINUTE * 60,
+                "cost_per_minute": whisper_cpm,
+                "cost_per_hour": whisper_cpm * 60,
                 "pros": [
                     "High accuracy",
                     "Fast processing",
                     "No local setup required",
                     "Supports many languages",
-                    "Automatic language detection"
+                    "Automatic language detection",
                 ],
                 "cons": [
                     "Requires internet connection",
                     "Usage costs apply",
                     "Requires API key",
-                    "Audio data sent to OpenAI"
+                    "Audio data sent to OpenAI",
                 ],
                 "setup_difficulty": "Easy",
                 "processing_speed": "Fast",
-                "accuracy": "Excellent"
+                "accuracy": "Excellent",
             },
             "local": {
                 "name": "Local Whisper",
@@ -691,44 +768,45 @@ class CostEstimator:
                     "Complete privacy (offline)",
                     "No internet required",
                     "No API key needed",
-                    "Multiple model sizes available"
+                    "Multiple model sizes available",
                 ],
                 "cons": [
                     "Requires local setup",
                     "Uses computer resources",
                     "Slower on older hardware",
                     "Large model downloads",
-                    "Requires Python packages"
+                    "Requires Python packages",
                 ],
                 "setup_difficulty": "Medium",
                 "processing_speed": "Variable (depends on hardware)",
-                "accuracy": "Excellent (same models as API)"
-            }
+                "accuracy": "Excellent (same models as API)",
+            },
         }
-        
+
     @classmethod
-    def get_cost_comparison(cls, minutes: float, include_summary: bool = True) -> Dict[str, Dict[str, float]]:
+    def get_cost_comparison(cls, minutes: float, include_summary: bool = True,
+                            model: str = "gpt-4o-mini") -> Dict[str, Dict[str, float]]:
         """Get dynamic cost comparison between OpenAI API and local processing.
-        
+
         Args:
-            minutes: Duration in minutes
-            include_summary: Whether to include summarization costs
-            
+            minutes: Duration in minutes.
+            include_summary: Whether to include summarization costs.
+            model: The summarization model ID.
+
         Returns:
-            Dictionary with 'openai' and 'local' cost breakdowns
+            Dictionary with 'openai' and 'local' cost breakdowns.
         """
-        openai_costs = cls.estimate_openai_cost(minutes, include_summary)
-        local_costs = cls.estimate_local_cost(minutes, include_summary)
-        
-        # Calculate savings
+        openai_costs = cls.estimate_openai_cost(minutes, include_summary, model)
+        local_costs = cls.estimate_local_cost(minutes, include_summary, model)
+
         total_savings = openai_costs["total"] - local_costs["total"]
         percent_savings = (total_savings / openai_costs["total"] * 100) if openai_costs["total"] > 0 else 0
-        
+
         return {
             "openai": openai_costs,
             "local": local_costs,
             "savings": {
                 "amount": total_savings,
-                "percentage": percent_savings
-            }
+                "percentage": percent_savings,
+            },
         }
