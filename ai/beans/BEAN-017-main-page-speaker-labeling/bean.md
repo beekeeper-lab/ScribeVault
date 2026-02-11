@@ -8,11 +8,11 @@
 | **Title**     | Main Page Speaker Labeling |
 | **Type**      | enhancement |
 | **Priority**  | P1 |
-| **Status**    | Approved     |
+| **Status**    | Done         |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
-| **Completed** | —            |
-| **Duration**  | —            |
+| **Started**   | 2026-02-11 00:45            |
+| **Completed** | 2026-02-11 00:45            |
+| **Duration**  | 0m            |
 
 ## Problem Statement
 
@@ -42,31 +42,31 @@ A collapsible "Name Speakers" section appears below the transcription on the mai
 
 ## Acceptance Criteria
 
-- [ ] A collapsible "Name Speakers" section appears below the transcription on the main page
-- [ ] The section is hidden when no speakers are detected in the transcription
-- [ ] The section auto-appears (collapsed) when speakers are detected after transcription completes
-- [ ] Expanding the section shows the existing `SpeakerPanel` UI (speaker list, rename, insert, preview)
-- [ ] Renaming a speaker updates the transcription text displayed on the main page in real time
-- [ ] Speaker changes can be saved to the vault from the main page
-- [ ] Existing Speaker Labels tab in Summary Viewer continues to work independently
-- [ ] Existing tests still pass
+- [x] A collapsible "Name Speakers" section appears below the transcription on the main page
+- [x] The section is hidden when no speakers are detected in the transcription
+- [x] The section auto-appears (collapsed) when speakers are detected after transcription completes
+- [x] Expanding the section shows the existing `SpeakerPanel` UI (speaker list, rename, insert, preview)
+- [x] Renaming a speaker updates the transcription text displayed on the main page in real time
+- [x] Speaker changes can be saved to the vault from the main page
+- [x] Existing Speaker Labels tab in Summary Viewer continues to work independently
+- [x] Existing tests still pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Add collapsible QGroupBox with SpeakerPanel to main page layout below transcription | Developer | — | TODO |
-| 2 | Wire transcription data into SpeakerPanel after diarization completes | Developer | 1 | TODO |
-| 3 | Connect SpeakerPanel.transcription_updated signal to update main page transcript display | Developer | 1 | TODO |
-| 4 | Add visibility logic: show section only when speakers detected, hide otherwise | Developer | 2 | TODO |
-| 5 | Test speaker rename flow end-to-end on main page | Tech QA | 3, 4 | TODO |
+| 1 | Add collapsible QGroupBox with SpeakerPanel to main page layout below transcription | Developer | — | Done |
+| 2 | Wire transcription data into SpeakerPanel after diarization completes | Developer | 1 | Done |
+| 3 | Connect SpeakerPanel.transcription_updated signal to update main page transcript display | Developer | 1 | Done |
+| 4 | Add visibility logic: show section only when speakers detected, hide otherwise | Developer | 2 | Done |
+| 5 | Test speaker rename flow end-to-end on main page | Tech QA | 3, 4 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
 | **Total Tasks**      | 5     |
-| **Total Duration**   | —     |
+| **Total Duration**   | 0m     |
 | **Total Tokens In**  | —     |
 | **Total Tokens Out** | —     |
 
