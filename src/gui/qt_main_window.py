@@ -29,7 +29,7 @@ from PySide6.QtGui import (
 from audio.recorder import AudioRecorder, AudioException
 from transcription.whisper_service import WhisperService, TranscriptionException
 from ai.summarizer import SummarizerService
-from vault.manager import VaultManager, VaultException
+from vault.manager import VaultManager, VaultException, VALID_CATEGORIES
 from config.settings import SettingsManager
 from gui.qt_app import ScribeVaultWorker
 from gui.pipeline_status import (
@@ -121,6 +121,21 @@ class RecordingWorker(ScribeVaultWorker):
 
             self.emit_progress(60)
 
+            # --- Auto-categorization ---
+            category = 'uncategorized'
+            if transcript and self.summarizer_service:
+                try:
+                    detected = self.summarizer_service.categorize_content(
+                        transcript
+                    )
+                    if detected and detected in VALID_CATEGORIES:
+                        category = detected
+                    else:
+                        category = 'uncategorized'
+                except Exception as e:
+                    logger.warning(f"Auto-categorization failed: {e}")
+                    category = 'uncategorized'
+
             # --- Summarization stage ---
             summary = None
             markdown_path = None
@@ -139,7 +154,7 @@ class RecordingWorker(ScribeVaultWorker):
                         'file_size': self.audio_path.stat().st_size,
                         'duration': self._get_audio_duration(),
                         'created_at': datetime.now().isoformat(),
-                        'category': 'other'
+                        'category': category
                     }
 
                     summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
@@ -177,7 +192,8 @@ class RecordingWorker(ScribeVaultWorker):
                         file_size=self.audio_path.stat().st_size,
                         duration=self._get_audio_duration(),
                         markdown_path=markdown_path,
-                        pipeline_status=self.pipeline_status.to_dict()
+                        pipeline_status=self.pipeline_status.to_dict(),
+                        category=category,
                     )
                     self._emit_stage(STAGE_VAULT_SAVE, STATUS_SUCCESS)
                 except Exception as e:
@@ -280,13 +296,23 @@ class RetryStageWorker(ScribeVaultWorker):
             self.stage_update.emit(STAGE_SUMMARIZATION, STATUS_FAILED, "No transcript available")
             return
         try:
+            category = 'uncategorized'
+            if self.summarizer_service:
+                try:
+                    detected = self.summarizer_service.categorize_content(
+                        transcript
+                    )
+                    if detected and detected in VALID_CATEGORIES:
+                        category = detected
+                except Exception:
+                    pass
             recording_data = {
                 'filename': self.audio_path.name,
                 'transcription': transcript,
                 'file_size': self.audio_path.stat().st_size,
                 'duration': 0,
                 'created_at': datetime.now().isoformat(),
-                'category': 'other'
+                'category': category
             }
             summary_result = self.summarizer_service.generate_summary_with_markdown(recording_data)
             result['summary'] = summary_result.get('summary')
@@ -884,7 +910,7 @@ class ScribeVaultMainWindow(QMainWindow):
                 'created_at': datetime.now().isoformat(),
                 'duration': 0,
                 'file_size': self.current_recording_path.stat().st_size if self.current_recording_path else 0,
-                'category': 'other'
+                'category': 'uncategorized'
             }
             self.current_markdown_path = result.get('markdown_path')
 
