@@ -52,9 +52,8 @@ If a `deploy/YYYY-MM-DD` branch already exists, append `-2`, `-3`, etc. to avoid
    - If target is `test` and ON `main`:
      1. Compute staging branch name: `deploy/YYYY-MM-DD`. If that already exists, append `-2`, `-3`, etc.
      2. Check `git log origin/main..main --oneline`. If non-empty (commits ahead of origin):
-        - `git branch <staging>` — create the staging branch at current HEAD.
-        - `git reset --hard origin/main` — reset local main back to match remote (commits are safe on the staging branch).
-        - `git checkout <staging>` — switch to the staging branch.
+        - `git checkout -b <staging>` — create and switch to the staging branch at current HEAD.
+        - `git branch -f main origin/main` — update the main ref to match remote (safe because we're now on the staging branch, no working tree changes).
         - source = `<staging>`.
      3. If main matches origin/main (nothing ahead): report "Nothing to deploy — main is up-to-date with origin. Switch to a feature branch first.", restore stash, return to original branch, exit.
 
