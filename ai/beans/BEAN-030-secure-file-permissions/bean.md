@@ -8,7 +8,7 @@
 | Title     | Secure File & Directory Permissions |
 | Type      | enhancement  |
 | Priority  | P3           |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-10   |
 | Started   |              |
 | Completed |              |
