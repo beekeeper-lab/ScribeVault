@@ -65,8 +65,9 @@ Puts the Team Lead into autonomous backlog processing mode. The Team Lead reads 
     - Record the `Started` timestamp (`YYYY-MM-DD HH:MM`) in the task file metadata when beginning execution.
     - Read the task file and all referenced inputs.
     - Perform the work as the assigned persona.
-    - On completion, run the `/close-loop` telemetry recording: record `Completed` timestamp, compute `Duration`, prompt for token self-report, and update the bean's Telemetry per-task table row.
+    - On completion, run the `/close-loop` telemetry recording: record `Completed` timestamp, compute `Duration`, and update the bean's Telemetry per-task table row (duration only — token counts are captured at the bean/process level by the orchestrator).
     - Update the task status to `Done` in the task file and the bean's task table.
+    - **Note:** In sequential mode, per-bean token tracking is not available (single claude session processes all beans). Use parallel mode (`--fast N`) for accurate per-bean token telemetry.
     - Reprint the **Header Block + Task Progress Table** after each status change.
 13. **Skip inapplicable roles** — If a role has no meaningful contribution for a bean (e.g., Architect for a documentation-only bean), skip it. Document the skip reason in the bean's Notes section.
 
@@ -128,9 +129,12 @@ When `fast N` is provided, the Team Lead orchestrates N parallel workers instead
    fi
 
    LAUNCHER=$(mktemp /tmp/scribevault-bean-XXXXXX.sh)
+   LOG_FILE="/tmp/scribevault-worker-BEAN-NNN.log"
+   STATUS_FILE="/tmp/scribevault-worker-BEAN-NNN.status"
    cat > "$LAUNCHER" << 'SCRIPT_EOF'
    #!/bin/bash
    cd /tmp/scribevault-worktree-BEAN-NNN
+   START_TIME=$(date +%s)
    claude --dangerously-skip-permissions --agent team-lead \
      "Process BEAN-NNN-slug through the full team wave.
 
@@ -146,7 +150,17 @@ When `fast N` is provided, the Team Lead orchestrates N parallel workers instead
    5. Update bean status to Done
 
    STATUS FILE PROTOCOL — You MUST update /tmp/scribevault-worker-BEAN-NNN.status at every transition.
-   See /spawn-bean command for full status file format and update rules."
+   See /spawn-bean command for full status file format and update rules.
+   NOTE: tokens_in, tokens_out, and duration_seconds are populated by the launcher — do not update them yourself." 2>&1 | tee /tmp/scribevault-worker-BEAN-NNN.log
+   DURATION=$(($(date +%s) - START_TIME))
+   # Parse token usage from claude CLI output
+   TOKENS_IN=$(grep -oP 'input[:\s]*\K[0-9,]+' /tmp/scribevault-worker-BEAN-NNN.log | tail -1 | tr -d ',')
+   TOKENS_OUT=$(grep -oP 'output[:\s]*\K[0-9,]+' /tmp/scribevault-worker-BEAN-NNN.log | tail -1 | tr -d ',')
+   TOKENS_IN=${TOKENS_IN:-0}
+   TOKENS_OUT=${TOKENS_OUT:-0}
+   sed -i "s/^tokens_in:.*/tokens_in: $TOKENS_IN/" /tmp/scribevault-worker-BEAN-NNN.status
+   sed -i "s/^tokens_out:.*/tokens_out: $TOKENS_OUT/" /tmp/scribevault-worker-BEAN-NNN.status
+   sed -i "s/^duration_seconds:.*/duration_seconds: $DURATION/" /tmp/scribevault-worker-BEAN-NNN.status
    SCRIPT_EOF
    chmod +x "$LAUNCHER"
    tmux new-window -n "bean-NNN" "bash $LAUNCHER; rm -f $LAUNCHER"
@@ -163,8 +177,9 @@ When `fast N` is provided, the Team Lead orchestrates N parallel workers instead
     - Cross-reference with `tmux list-windows` to detect closed windows (worker exited).
 11. **Report completions** — As each worker finishes (status file shows `done` or window disappears), report in the dashboard.
 12. **Merge and assign next bean** — When a worker completes:
+    - The worker's status file now contains `tokens_in`, `tokens_out`, and `duration_seconds` (populated by the launcher script after claude exits). These are consumed by `/merge-bean` during telemetry aggregation.
     - Remove the worktree: `git worktree remove --force /tmp/scribevault-worktree-BEAN-NNN`
-    - Merge the bean: run `/merge-bean NNN` from the main repo (merges feature branch into `test`).
+    - Merge the bean: run `/merge-bean NNN` from the main repo (merges feature branch into `test`). Merge-bean reads token data from the status file.
     - Re-read the backlog for newly unblocked beans.
     - If an independent actionable bean exists, create a new worktree, write its status file, and spawn a new worker window using the same launcher script pattern.
     - If no more beans, do not spawn.
