@@ -32,6 +32,7 @@ from PySide6.QtCore import Qt, QSettings, Signal
 from PySide6.QtGui import QFont
 
 from gui.speaker_panel import SpeakerPanel
+from export.utils import validate_path_within
 
 import logging
 
@@ -852,6 +853,9 @@ class SummaryViewerDialog(QDialog):
         # Load markdown if available
         if markdown_path and Path(markdown_path).exists():
             try:
+                validate_path_within(
+                    Path(markdown_path), Path("summaries")
+                )
                 with open(markdown_path, "r", encoding="utf-8") as f:
                     markdown_content = f.read()
 
