@@ -4,6 +4,8 @@
 
 Promotes a source branch into a target branch via a pull request. Creates the PR, runs tests, and merges if they pass. One approval, no extra prompts.
 
+The deployment model is three-tier: **feature branch → test → main**. The `main` branch is never used as a direct source for merging into `test`. If `/deploy test` is invoked while on `main`, a temporary staging branch is created automatically so that commits flow properly through `test` first.
+
 Two modes:
 - `/deploy` — Promotes `test` → `main` (default). Full release with branch cleanup.
 - `/deploy test` — Promotes current branch → `test`. Integration deploy for feature branches.
@@ -22,12 +24,16 @@ Two modes:
 
 ## Branch Resolution
 
-| Target | Source | Use Case |
-|--------|--------|----------|
-| `main` (default) | `test` | Release: promote integration branch to production |
-| `test` | current branch | Integration: merge feature branch into test |
+| Target | Source | Condition | Use Case |
+|--------|--------|-----------|----------|
+| `main` | `test` | Always | Release: promote test to production |
+| `test` | current branch | Not on `main` | Integration: merge feature branch into test |
+| `test` | `deploy/YYYY-MM-DD` (auto-created) | On `main`, commits ahead of `origin/main` | Staging: unpushed commits deployed via temp branch |
+| `test` | *(abort)* | On `main`, clean and up-to-date | Nothing to deploy |
 
-When target is `test`, the source is whatever branch you are on when you invoke `/deploy test`. This is typically a `bean/BEAN-NNN-<slug>` feature branch.
+When target is `test` and you are not on `main`, the source is whatever branch you are on. This is typically a `bean/BEAN-NNN-<slug>` feature branch.
+
+If a `deploy/YYYY-MM-DD` branch already exists, append `-2`, `-3`, etc. to avoid collisions.
 
 ## Process
 
@@ -42,7 +48,17 @@ When target is `test`, the source is whatever branch you are on when you invoke 
      - **Abort** — Stop the deploy. The user should handle uncommitted changes manually.
 3. **Determine source and target:**
    - If target is `main`: source = `test`. Checkout `test`.
-   - If target is `test`: source = the saved current branch. Stay on that branch.
+   - If target is `test` and NOT on `main`: source = the saved current branch. Stay on that branch.
+   - If target is `test` and ON `main`:
+     1. Compute staging branch name: `deploy/YYYY-MM-DD`. If that already exists, append `-2`, `-3`, etc.
+     2. Check `git log origin/main..main --oneline`. If non-empty (commits ahead of origin):
+        - `git branch <staging>` — create the staging branch at current HEAD.
+        - `git reset --hard origin/main` — reset local main back to match remote (commits are safe on the staging branch).
+        - `git checkout <staging>` — switch to the staging branch.
+        - source = `<staging>`.
+     3. If main matches origin/main (nothing ahead): report "Nothing to deploy — main is up-to-date with origin. Switch to a feature branch first.", restore stash, return to original branch, exit.
+
+   **Note on stash interaction:** Step 2 resolves dirty working tree state before step 3 runs. If the user chose "Commit", changes are now committed on main and fall into case 3.2 above (commits ahead). If the user chose "Stash", changes are held separately and not deployed — stash is restored at exit.
 4. **Push source** — `git push origin <source>` to ensure remote is up to date.
 5. **Verify ahead of target** — `git log <target>..<source> --oneline`. If empty, report "Nothing to deploy", restore stash, return to original branch, exit.
 
@@ -107,13 +123,17 @@ When target is `test`, the source is whatever branch you are on when you invoke 
 
 16. **Delete remote feature branches (target=`main` only)** — Any `remotes/origin/bean/*`: `git push origin --delete`.
 
-17. **Sync local target** — `git checkout <target> && git pull origin <target>`.
+17. **Delete staging branch (if created)** — If a `deploy/*` staging branch was created in step 3:
+    - Delete local: `git branch -D <staging>`
+    - Delete remote: `git push origin --delete <staging>`
 
-18. **Return to original branch** — `git checkout <original-branch>`.
+18. **Sync local target** — `git checkout <target> && git pull origin <target>`.
 
-19. **Restore stash** — If the user chose "Stash" in step 2: `git stash pop`. On conflict, prefer HEAD. (No action needed if the user chose "Commit".)
+19. **Return to original branch** — `git checkout <original-branch>`. If a staging branch was created (original was `main`), return to `main`.
 
-20. **Report success** — PR URL, merge commit, beans deployed, branches deleted (if applicable).
+20. **Restore stash** — If the user chose "Stash" in step 2: `git stash pop`. On conflict, prefer HEAD. (No action needed if the user chose "Commit".)
+
+21. **Report success** — PR URL, merge commit, beans deployed, branches deleted (if applicable).
 
 ## Key Rules
 
@@ -133,3 +153,5 @@ When target is `test`, the source is whatever branch you are on when you invoke 
 | PR merge fails | Report error. Check branch protection / conflicts. |
 | User aborts | Restore stash, return to original branch |
 | Command blocked | Print command for manual execution, continue |
+| On main with nothing to deploy | Report and exit. Suggest switching to a feature branch. |
+| Staging branch reset fails | Report error. Staging branch still holds commits for recovery. |
