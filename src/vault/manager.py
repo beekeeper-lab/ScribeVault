@@ -554,6 +554,23 @@ class VaultManager:
                 )
         return True
 
+    def get_audio_path(self, recording: Dict[str, Any]) -> Optional[Path]:
+        """Get the audio file path for a recording.
+
+        Args:
+            recording: Recording dictionary.
+
+        Returns:
+            Path to the audio file, or None if not found.
+        """
+        filename = recording.get("filename")
+        if not filename:
+            return None
+        audio_path = self.vault_dir / filename
+        if audio_path.exists():
+            return audio_path
+        return None
+
     def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
         """Convert a database row to a dictionary."""
         d = dict(row)

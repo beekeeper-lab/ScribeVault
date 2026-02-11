@@ -66,6 +66,59 @@ class RegenerationWorker(QThread):
             self.error.emit(str(e))
 
 
+class TranscriptionWorker(QThread):
+    """Worker thread for on-demand transcription."""
+
+    finished = Signal(str)  # transcription text
+    error = Signal(str)
+
+    def __init__(self, whisper_service, audio_path):
+        super().__init__()
+        self.whisper_service = whisper_service
+        self.audio_path = audio_path
+
+    def run(self):
+        try:
+            result = self.whisper_service.transcribe_with_diarization(
+                self.audio_path
+            )
+            transcript = (
+                result.get("diarized_transcription")
+                or result.get("transcription")
+            )
+            if transcript:
+                self.finished.emit(transcript)
+            else:
+                self.error.emit("Transcription returned no result")
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class OnDemandSummarizationWorker(QThread):
+    """Worker thread for on-demand summarization."""
+
+    finished = Signal(dict)  # result dict with summary, markdown_path
+    error = Signal(str)
+
+    def __init__(self, summarizer_service, recording_data):
+        super().__init__()
+        self.summarizer_service = summarizer_service
+        self.recording_data = recording_data
+
+    def run(self):
+        try:
+            result = self.summarizer_service.generate_summary_with_markdown(
+                self.recording_data
+            )
+            if result.get("summary"):
+                self.finished.emit(result)
+            else:
+                error_msg = result.get("error", "Summarization failed")
+                self.error.emit(error_msg)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class VaultDialog(QDialog):
     """Vault dialog for managing recordings."""
 
@@ -75,13 +128,18 @@ class VaultDialog(QDialog):
         parent=None,
         summarizer_service=None,
         template_manager=None,
+        whisper_service=None,
     ):
         super().__init__(parent)
         self.vault_manager = vault_manager
         self.summarizer_service = summarizer_service
         self.template_manager = template_manager
+        self.whisper_service = whisper_service
         self.current_recordings = []
         self._regen_worker = None
+        self._transcription_worker = None
+        self._summarization_worker = None
+        self._processing = False
 
         self.setup_ui()
         self.show_empty_details()  # Initialize with empty state
@@ -164,6 +222,32 @@ class VaultDialog(QDialog):
         # Compact table controls
         table_controls = QHBoxLayout()
         table_controls.setContentsMargins(0, 5, 0, 5)
+
+        self.transcribe_button = QPushButton("🎤 Transcribe")
+        self.transcribe_button.setToolTip(
+            "Transcribe audio for selected recording"
+        )
+        self.transcribe_button.clicked.connect(self.transcribe_selected)
+        self.transcribe_button.setStyleSheet(
+            "QPushButton { background-color: #7B1FA2;"
+            " color: white; }"
+        )
+        self.transcribe_button.setMaximumHeight(30)
+        self.transcribe_button.setEnabled(False)
+        table_controls.addWidget(self.transcribe_button)
+
+        self.summarize_button = QPushButton("🤖 Summarize")
+        self.summarize_button.setToolTip(
+            "Generate AI summary for selected recording"
+        )
+        self.summarize_button.clicked.connect(self.summarize_selected)
+        self.summarize_button.setStyleSheet(
+            "QPushButton { background-color: #1565C0;"
+            " color: white; }"
+        )
+        self.summarize_button.setMaximumHeight(30)
+        self.summarize_button.setEnabled(False)
+        table_controls.addWidget(self.summarize_button)
 
         view_summary_button = QPushButton("🤖 View Summary")
         view_summary_button.setToolTip(
@@ -429,6 +513,7 @@ class VaultDialog(QDialog):
 
         if current_row < 0:
             logger.debug("No row selected, showing empty state")
+            self._update_processing_buttons(None)
             self.show_empty_details()
             return
 
@@ -436,12 +521,14 @@ class VaultDialog(QDialog):
         title_item = self.recordings_table.item(current_row, 0)
         if not title_item:
             logger.debug("No title item found, showing empty state")
+            self._update_processing_buttons(None)
             self.show_empty_details()
             return
 
         recording = title_item.data(Qt.UserRole)
         if not recording:
             logger.debug("No recording data found," " showing empty state")
+            self._update_processing_buttons(None)
             self.show_empty_details()
             return
 
@@ -449,6 +536,9 @@ class VaultDialog(QDialog):
             "Showing details for recording: %s",
             recording.get("filename", "Unknown"),
         )
+
+        # Update toolbar button states
+        self._update_processing_buttons(recording)
 
         # Create details widgets
         info_items = [
@@ -486,6 +576,49 @@ class VaultDialog(QDialog):
             "QPushButton { background-color: #0078d4;" " color: white; }"
         )
         actions_layout.addWidget(summary_btn)
+
+        # Detail panel Transcribe button
+        has_audio = bool(
+            self.vault_manager.get_audio_path(recording)
+        )
+        has_transcript = bool(
+            recording.get("transcription", "").strip()
+            if recording.get("transcription")
+            else False
+        )
+        has_summary = bool(
+            recording.get("summary", "").strip()
+            if recording.get("summary")
+            else False
+        )
+
+        detail_transcribe_btn = QPushButton("🎤 Transcribe")
+        detail_transcribe_btn.clicked.connect(
+            self.transcribe_selected
+        )
+        detail_transcribe_btn.setStyleSheet(
+            "QPushButton { background-color: #7B1FA2;"
+            " color: white; }"
+        )
+        detail_transcribe_btn.setEnabled(
+            has_audio and not has_transcript
+            and not self._processing
+        )
+        actions_layout.addWidget(detail_transcribe_btn)
+
+        detail_summarize_btn = QPushButton("🤖 Summarize")
+        detail_summarize_btn.clicked.connect(
+            self.summarize_selected
+        )
+        detail_summarize_btn.setStyleSheet(
+            "QPushButton { background-color: #1565C0;"
+            " color: white; }"
+        )
+        detail_summarize_btn.setEnabled(
+            has_audio and not has_summary
+            and not self._processing
+        )
+        actions_layout.addWidget(detail_summarize_btn)
 
         self.details_layout.addWidget(actions_group)
 
@@ -685,6 +818,288 @@ class VaultDialog(QDialog):
         if viewer:
             viewer.on_regeneration_error(error_msg)
         self.update_status("Summary re-generation failed")
+
+    def _get_selected_recording(self):
+        """Get the currently selected recording dict."""
+        current_row = self.recordings_table.currentRow()
+        if current_row < 0:
+            return None
+        title_item = self.recordings_table.item(current_row, 0)
+        if not title_item:
+            return None
+        return title_item.data(Qt.UserRole)
+
+    def _update_processing_buttons(self, recording):
+        """Enable/disable Transcribe and Summarize toolbar buttons."""
+        if recording is None or self._processing:
+            self.transcribe_button.setEnabled(False)
+            self.summarize_button.setEnabled(False)
+            return
+
+        has_audio = bool(
+            self.vault_manager.get_audio_path(recording)
+        )
+        has_transcript = bool(
+            recording.get("transcription", "").strip()
+            if recording.get("transcription")
+            else False
+        )
+        has_summary = bool(
+            recording.get("summary", "").strip()
+            if recording.get("summary")
+            else False
+        )
+
+        # Transcribe: enabled if audio exists and no transcript
+        self.transcribe_button.setEnabled(
+            has_audio and not has_transcript
+        )
+        # Summarize: enabled if audio exists and no summary
+        # (will auto-chain transcription if needed)
+        self.summarize_button.setEnabled(
+            has_audio and not has_summary
+        )
+
+    def _set_processing(self, active):
+        """Set processing state and update buttons."""
+        self._processing = active
+        recording = self._get_selected_recording()
+        self._update_processing_buttons(recording)
+
+    def transcribe_selected(self):
+        """Transcribe the selected recording on-demand."""
+        recording = self._get_selected_recording()
+        if not recording:
+            QMessageBox.information(
+                self,
+                "No Selection",
+                "Please select a recording to transcribe.",
+            )
+            return
+
+        if not self.whisper_service:
+            QMessageBox.warning(
+                self,
+                "Service Unavailable",
+                "Transcription service is not available."
+                " Check your configuration.",
+            )
+            return
+
+        audio_path = self.vault_manager.get_audio_path(recording)
+        if not audio_path:
+            QMessageBox.warning(
+                self,
+                "Audio Not Found",
+                "Audio file not found on disk for"
+                f" '{recording.get('title', 'Untitled')}'.",
+            )
+            return
+
+        self._set_processing(True)
+        self.update_status("Transcribing...")
+
+        self._transcription_worker = TranscriptionWorker(
+            self.whisper_service, audio_path
+        )
+        self._transcription_worker.finished.connect(
+            self._on_transcription_finished
+        )
+        self._transcription_worker.error.connect(
+            self._on_transcription_error
+        )
+        self._transcription_worker.start()
+
+    @Slot(str)
+    def _on_transcription_finished(self, transcript):
+        """Handle successful transcription."""
+        recording = self._get_selected_recording()
+        if recording and recording.get("id"):
+            try:
+                self.vault_manager.update_recording(
+                    recording["id"],
+                    transcription=transcript,
+                )
+                recording["transcription"] = transcript
+            except Exception as e:
+                logger.error(
+                    "Failed to store transcription: %s", e
+                )
+
+        self._set_processing(False)
+        self.update_status("Transcription complete")
+        self.show_recording_details()
+
+    @Slot(str)
+    def _on_transcription_error(self, error_msg):
+        """Handle transcription error."""
+        self._set_processing(False)
+        self.update_status("Transcription failed")
+        QMessageBox.critical(
+            self,
+            "Transcription Error",
+            f"Failed to transcribe recording: {error_msg}",
+        )
+
+    def summarize_selected(self):
+        """Summarize the selected recording on-demand."""
+        recording = self._get_selected_recording()
+        if not recording:
+            QMessageBox.information(
+                self,
+                "No Selection",
+                "Please select a recording to summarize.",
+            )
+            return
+
+        if not self.summarizer_service:
+            QMessageBox.warning(
+                self,
+                "Service Unavailable",
+                "Summarization service is not available."
+                " Check your API key configuration.",
+            )
+            return
+
+        audio_path = self.vault_manager.get_audio_path(recording)
+        if not audio_path:
+            QMessageBox.warning(
+                self,
+                "Audio Not Found",
+                "Audio file not found on disk for"
+                f" '{recording.get('title', 'Untitled')}'.",
+            )
+            return
+
+        has_transcript = bool(
+            recording.get("transcription", "").strip()
+            if recording.get("transcription")
+            else False
+        )
+
+        if not has_transcript:
+            # Auto-chain: transcribe first, then summarize
+            if not self.whisper_service:
+                QMessageBox.warning(
+                    self,
+                    "Service Unavailable",
+                    "Transcription service is not available."
+                    " A transcript is required before"
+                    " summarization.",
+                )
+                return
+
+            self._set_processing(True)
+            self.update_status(
+                "Transcribing before summarization..."
+            )
+
+            self._transcription_worker = TranscriptionWorker(
+                self.whisper_service, audio_path
+            )
+            self._transcription_worker.finished.connect(
+                self._on_chain_transcription_finished
+            )
+            self._transcription_worker.error.connect(
+                self._on_transcription_error
+            )
+            self._transcription_worker.start()
+        else:
+            self._start_summarization(recording)
+
+    @Slot(str)
+    def _on_chain_transcription_finished(self, transcript):
+        """Handle transcription in auto-chain, then summarize."""
+        recording = self._get_selected_recording()
+        if recording and recording.get("id"):
+            try:
+                self.vault_manager.update_recording(
+                    recording["id"],
+                    transcription=transcript,
+                )
+                recording["transcription"] = transcript
+            except Exception as e:
+                logger.error(
+                    "Failed to store transcription: %s", e
+                )
+
+        self.update_status("Transcription complete. Summarizing...")
+        self._start_summarization(recording)
+
+    def _start_summarization(self, recording):
+        """Start the summarization worker."""
+        self._set_processing(True)
+        self.update_status("Summarizing...")
+
+        self._summarization_worker = OnDemandSummarizationWorker(
+            self.summarizer_service, recording
+        )
+        self._summarization_worker.finished.connect(
+            self._on_summarization_finished
+        )
+        self._summarization_worker.error.connect(
+            self._on_summarization_error
+        )
+        self._summarization_worker.start()
+
+    @Slot(dict)
+    def _on_summarization_finished(self, result):
+        """Handle successful summarization."""
+        recording = self._get_selected_recording()
+        summary = result.get("summary", "")
+        markdown_path = result.get("markdown_path")
+
+        if recording and recording.get("id"):
+            try:
+                self.vault_manager.update_recording(
+                    recording["id"],
+                    summary=summary,
+                    markdown_path=markdown_path,
+                )
+                recording["summary"] = summary
+                if markdown_path:
+                    recording["markdown_path"] = markdown_path
+            except Exception as e:
+                logger.error(
+                    "Failed to store summary: %s", e
+                )
+
+        self._set_processing(False)
+        self.update_status("Summarization complete")
+        self.show_recording_details()
+
+        # Open SummaryViewerDialog
+        if recording:
+            try:
+                summary_viewer = SummaryViewerDialog(
+                    self,
+                    vault_manager=self.vault_manager,
+                    template_manager=self.template_manager,
+                )
+                summary_viewer.load_recording_data(
+                    recording, recording.get("markdown_path")
+                )
+                self._current_viewer = summary_viewer
+                self._current_recording = recording
+                summary_viewer.regenerate_requested.connect(
+                    self._handle_regeneration_request
+                )
+                summary_viewer.exec()
+            except Exception as e:
+                logger.error(
+                    "Error opening summary viewer: %s", e
+                )
+
+    @Slot(str)
+    def _on_summarization_error(self, error_msg):
+        """Handle summarization error."""
+        self._set_processing(False)
+        self.update_status("Summarization failed")
+        QMessageBox.critical(
+            self,
+            "Summarization Error",
+            f"Failed to summarize recording: {error_msg}",
+        )
 
     def delete_recording(self):
         """Delete the selected recording."""
