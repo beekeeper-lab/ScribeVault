@@ -377,11 +377,23 @@ class SettingsManager:
         """Get the path to the encrypted API key config file."""
         return self.config_file.parent / ".api_keys.enc"
 
-    def _get_encryption_key(self) -> bytes:
-        """Derive an encryption key from machine-specific data.
+    def _get_encryption_key(self, salt: bytes) -> bytes:
+        """Derive an encryption key from machine-specific data with salt.
 
-        Uses a combination of username and machine identifier to create
-        a deterministic key that's tied to this machine/user.
+        Uses PBKDF2-HMAC-SHA256 with a random salt for strong key derivation.
+        The salt must be stored alongside the encrypted data.
+        """
+        import getpass
+        import platform
+        machine_id = f"ScribeVault-{getpass.getuser()}-{platform.node()}"
+        return hashlib.pbkdf2_hmac(
+            'sha256', machine_id.encode(), salt, 100_000
+        )
+
+    def _get_legacy_encryption_key(self) -> bytes:
+        """Derive encryption key using the legacy (unsalted) method.
+
+        Only used for reading/migrating version 2 encrypted configs.
         """
         import getpass
         import platform
@@ -391,34 +403,24 @@ class SettingsManager:
     def _write_encrypted_key(self, api_key: str):
         """Write an API key to encrypted config file.
 
-        Uses Fernet symmetric encryption (AES-128-CBC) if cryptography
-        is available, otherwise uses base64 obfuscation with XOR.
+        Uses Fernet symmetric encryption with a random salt and
+        PBKDF2 key derivation. The cryptography package is required.
         """
+        from cryptography.fernet import Fernet
+
         enc_path = self._get_encrypted_config_path()
         enc_path.parent.mkdir(exist_ok=True)
 
-        try:
-            from cryptography.fernet import Fernet
-            key = base64.urlsafe_b64encode(self._get_encryption_key())
-            fernet = Fernet(key)
-            encrypted = fernet.encrypt(api_key.encode())
-            data = {"version": 2, "data": encrypted.decode(), "method": "fernet"}
-        except ImportError:
-            # Fallback: XOR-based obfuscation (not as secure, but better than plaintext)
-            logger.warning(
-                "cryptography package not installed. Using basic obfuscation. "
-                "Install 'cryptography' for stronger encryption."
-            )
-            enc_key = self._get_encryption_key()
-            xor_bytes = bytes(
-                b ^ enc_key[i % len(enc_key)]
-                for i, b in enumerate(api_key.encode())
-            )
-            data = {
-                "version": 2,
-                "data": base64.urlsafe_b64encode(xor_bytes).decode(),
-                "method": "xor",
-            }
+        salt = os.urandom(16)
+        key = self._get_encryption_key(salt)
+        fernet = Fernet(base64.urlsafe_b64encode(key))
+        encrypted = fernet.encrypt(api_key.encode())
+        data = {
+            "version": 3,
+            "data": encrypted.decode(),
+            "method": "fernet",
+            "salt": base64.urlsafe_b64encode(salt).decode(),
+        }
 
         try:
             enc_path.touch(mode=0o600, exist_ok=True)
@@ -430,7 +432,11 @@ class SettingsManager:
             raise
 
     def _read_encrypted_key(self) -> Optional[str]:
-        """Read an API key from encrypted config file."""
+        """Read an API key from encrypted config file.
+
+        Handles version 3 (salted Fernet) and version 2 (legacy) formats.
+        Legacy formats are automatically migrated to version 3 on read.
+        """
         enc_path = self._get_encrypted_config_path()
         if not enc_path.exists():
             return None
@@ -439,34 +445,67 @@ class SettingsManager:
             with open(enc_path, "r") as f:
                 data = json.load(f)
 
-            if data.get("version") != 2:
-                logger.warning("Unsupported encrypted config version")
-                return None
-
+            version = data.get("version")
             method = data.get("method", "")
             encrypted = data.get("data", "")
 
-            if method == "fernet":
+            if version == 3 and method == "fernet":
                 from cryptography.fernet import Fernet
-                key = base64.urlsafe_b64encode(self._get_encryption_key())
-                fernet = Fernet(key)
+                salt = base64.urlsafe_b64decode(data["salt"])
+                key = self._get_encryption_key(salt)
+                fernet = Fernet(base64.urlsafe_b64encode(key))
                 return fernet.decrypt(encrypted.encode()).decode()
-            elif method == "xor":
-                enc_key = self._get_encryption_key()
-                xor_bytes = base64.urlsafe_b64decode(encrypted)
-                return bytes(
-                    b ^ enc_key[i % len(enc_key)]
-                    for i, b in enumerate(xor_bytes)
-                ).decode()
+
+            elif version == 2:
+                api_key = self._read_legacy_encrypted_key(
+                    method, encrypted
+                )
+                if api_key:
+                    logger.info(
+                        "Migrating API key from legacy encryption "
+                        "to salted Fernet"
+                    )
+                    self._write_encrypted_key(api_key)
+                return api_key
+
             else:
-                logger.warning(f"Unknown encryption method: {method}")
+                logger.warning(
+                    f"Unsupported encrypted config version: {version}"
+                )
                 return None
 
         except ImportError:
-            logger.warning("cryptography package needed to decrypt API key stored with Fernet")
+            logger.warning(
+                "cryptography package needed to decrypt API key"
+            )
             return None
         except Exception as e:
             logger.warning(f"Could not read encrypted config: {e}")
+            return None
+
+    def _read_legacy_encrypted_key(
+        self, method: str, encrypted: str
+    ) -> Optional[str]:
+        """Read API key from legacy version 2 format.
+
+        Supports both unsalted Fernet and XOR methods for migration.
+        """
+        legacy_key = self._get_legacy_encryption_key()
+
+        if method == "fernet":
+            from cryptography.fernet import Fernet
+            fernet = Fernet(base64.urlsafe_b64encode(legacy_key))
+            return fernet.decrypt(encrypted.encode()).decode()
+        elif method == "xor":
+            xor_bytes = base64.urlsafe_b64decode(encrypted)
+            return bytes(
+                b ^ legacy_key[i % len(legacy_key)]
+                for i, b in enumerate(xor_bytes)
+            ).decode()
+        else:
+            logger.warning(
+                f"Unknown legacy encryption method: {method}"
+            )
             return None
 
     def _delete_encrypted_key(self):
