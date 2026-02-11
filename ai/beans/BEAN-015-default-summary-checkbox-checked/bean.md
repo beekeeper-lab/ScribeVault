@@ -8,11 +8,11 @@
 | **Title**     | Default AI Summary Checkbox to Checked |
 | **Type**      | enhancement |
 | **Priority**  | P2 |
-| **Status**    | Approved     |
+| **Status**    | Done         |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
-| **Completed** | —            |
-| **Duration**  | —            |
+| **Started**   | 2026-02-11 00:41            |
+| **Completed** | 2026-02-11 00:41            |
+| **Duration**  | 0m            |
 
 ## Problem Statement
 
@@ -46,16 +46,16 @@ The "Generate AI Summary" checkbox is checked by default on first launch and for
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 |      |       |            | TODO   |
-| 2 |      |       |            | TODO   |
-| 3 |      |       |            | TODO   |
+| 1 | Change QSettings default from False to True | Developer | — | DONE |
+| 2 | Run tests and verify no regressions | Tech QA | 1 | DONE |
+| 3 | Run lint and verify code quality | Tech QA | 1 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| **Total Tasks**      | —     |
-| **Total Duration**   | —     |
+| **Total Tasks**      | 3     |
+| **Total Duration**   | 0m     |
 | **Total Tokens In**  | —     |
 | **Total Tokens Out** | —     |
 
