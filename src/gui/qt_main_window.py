@@ -791,7 +791,7 @@ class ScribeVaultMainWindow(QMainWindow):
             self.restoreState(state)
             
         # Summary checkbox state
-        generate_summary = settings.value("recording/generate_summary", False, type=bool)
+        generate_summary = settings.value("recording/generate_summary", True, type=bool)
         self.summary_checkbox.setChecked(generate_summary)
         
     def save_settings(self):
