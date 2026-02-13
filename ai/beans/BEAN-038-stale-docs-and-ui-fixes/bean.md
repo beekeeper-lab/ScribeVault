@@ -8,7 +8,7 @@
 | Title     | Stale Documentation & UI Fixes |
 | Type      | enhancement |
 | Priority  | P3 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |
@@ -26,7 +26,6 @@ A comprehensive markdown audit found extensive stale documentation and several U
 **Outdated Files (need updating):**
 - `SECURITY.md` — recommends `.env` approach replaced by keyring in BEAN-004; missing BEAN-026 through BEAN-030 security features
 - `CONTRIBUTING.md` — references `.env.example` to `.env` setup, removed in BEAN-004
-- `README.md` — references `.env` for API key config, outdated project structure tree, references `test_config.py` and `run_tests.py`
 - `docs/CONFIGURATION.md` — references `src/gui/settings_window.py` (removed), shows `gpt-3.5-turbo` as default
 - `.github/copilot-instructions.md` — states "GUI Framework: CustomTkinter" (should be PySide6)
 - `CLAUDE.md` — references `ai/context/bean-workflow.md` and `ai/context/decisions.md` which don't exist
@@ -54,7 +53,6 @@ Documentation accurately reflects the current codebase. Bean statuses are intern
 - Delete obsolete files: `PYSIDE6_MIGRATION.md`, `PYSIDE6_README.md`, `FEATURE_SUMMARY.md`
 - Update `SECURITY.md` to reflect keyring/encrypted storage and BEAN-026 through BEAN-030
 - Update `CONTRIBUTING.md` to fix API key setup instructions
-- Update `README.md` to fix .env references, project structure, and test instructions
 - Update `docs/CONFIGURATION.md` to fix file references and model names
 - Update `.github/copilot-instructions.md` to reference PySide6
 - Fix `CLAUDE.md` references to non-existent `ai/context/` files
@@ -76,7 +74,7 @@ Documentation accurately reflects the current codebase. Bean statuses are intern
 
 - [ ] `PYSIDE6_MIGRATION.md`, `PYSIDE6_README.md`, `FEATURE_SUMMARY.md` are deleted
 - [ ] `SECURITY.md` reflects current security architecture (keyring, encryption, path validation, HTML escaping, permissions)
-- [ ] `README.md`, `CONTRIBUTING.md` no longer reference `.env` for API key setup
+- [ ] `CONTRIBUTING.md` no longer references `.env` for API key setup
 - [ ] `docs/CONFIGURATION.md` references correct files and models
 - [ ] `.github/copilot-instructions.md` references PySide6 (not CustomTkinter)
 - [ ] All Done beans have checked acceptance criteria and consistent status
@@ -93,7 +91,7 @@ Documentation accurately reflects the current codebase. Bean statuses are intern
 |---|------|-------|------------|--------|
 | 1 | Delete 3 obsolete markdown files | developer | | TODO |
 | 2 | Update SECURITY.md with current security features | developer | | TODO |
-| 3 | Update README.md, CONTRIBUTING.md, docs/CONFIGURATION.md | developer | | TODO |
+| 3 | Update CONTRIBUTING.md, docs/CONFIGURATION.md | developer | | TODO |
 | 4 | Update .github/copilot-instructions.md | developer | | TODO |
 | 5 | Fix CLAUDE.md ai/context references | developer | | TODO |
 | 6 | Fix bean status inconsistencies (8 beans) | developer | | TODO |
@@ -126,5 +124,7 @@ Bean status inconsistencies found:
 - BEAN-021: Index=Done, Bean=Approved, all tasks TODO — needs investigation
 - BEAN-003, BEAN-007, BEAN-015, BEAN-016, BEAN-025: Criteria unchecked but tasks Done
 - BEAN-026, BEAN-027: All criteria unchecked AND all tasks still marked TODO despite Done in index
+
+README.md updates removed from this bean's scope during backlog consolidation — handled by BEAN-043 (Comprehensive README Rewrite).
 
 This is a large bean with 11 tasks. Consider splitting documentation fixes from UI fixes if the scope feels too broad.

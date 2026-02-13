@@ -8,7 +8,7 @@
 | Title     | Fix Broken Test Suite |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

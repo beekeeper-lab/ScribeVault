@@ -8,7 +8,7 @@
 | Title     | Add MIT License |
 | Type      | enhancement |
 | Priority  | P1 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

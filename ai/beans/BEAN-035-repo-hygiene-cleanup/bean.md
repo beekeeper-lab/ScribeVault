@@ -7,8 +7,8 @@
 | ID        | BEAN-035     |
 | Title     | Root-Level Test Files & Repo Hygiene |
 | Type      | enhancement |
-| Priority  | P1 |
-| Status    | Unapproved   |
+| Priority  | P0 |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

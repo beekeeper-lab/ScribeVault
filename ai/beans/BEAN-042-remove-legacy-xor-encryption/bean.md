@@ -8,7 +8,7 @@
 | Title     | Remove Legacy XOR Encryption |
 | Type      | bug-fix |
 | Priority  | P2 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

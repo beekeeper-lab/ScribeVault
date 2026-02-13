@@ -8,7 +8,7 @@
 | Title     | Comprehensive README Rewrite |
 | Type      | enhancement |
 | Priority  | P1 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |
@@ -129,3 +129,5 @@ The architecture section should cover:
 - **Security layers:** Path validation, HTML escaping, file permissions, parameterized SQL
 
 Key classes to document: `ScribeVaultMainWindow`, `AudioRecorder`, `WhisperService`, `Summarizer`, `VaultManager`, `SettingsManager`, `VaultDialog`, `SummaryViewer`, `SpeakerService`, `TranscriptionExporter`, `MarkdownGenerator`, `CostEstimator`, `PromptTemplateManager`.
+
+Depends on BEAN-040 (Add MIT License) — needs the LICENSE file to exist for the license badge.

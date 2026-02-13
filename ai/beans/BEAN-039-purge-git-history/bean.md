@@ -8,7 +8,7 @@
 | Title     | Purge Git History for Publication |
 | Type      | enhancement |
 | Priority  | P0 |
-| Status    | Unapproved   |
+| Status    | Approved     |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |
@@ -94,4 +94,4 @@ Gregg Reed <reed@example.com> Gregg <gregg@beekeeper-lab.com>
 
 After running `git filter-repo`, all local clones and remotes will need to be force-updated. Any existing forks would retain the old history.
 
-This bean depends on BEAN-035 completing first (to add `summaries/` to `.gitignore` so it doesn't get re-committed), but can also be done independently since `git filter-repo` handles the removal.
+Depends on BEAN-035 (Root-Level Test Files & Repo Hygiene) — to add `summaries/` to `.gitignore` so it doesn't get re-committed after the history rewrite.
