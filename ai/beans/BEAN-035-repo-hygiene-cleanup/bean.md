@@ -8,7 +8,7 @@
 | Title     | Root-Level Test Files & Repo Hygiene |
 | Type      | enhancement |
 | Priority  | P0 |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

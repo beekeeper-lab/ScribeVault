@@ -8,7 +8,7 @@
 | Title     | Dead Code & Unused Import Cleanup |
 | Type      | enhancement |
 | Priority  | P1 |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |
