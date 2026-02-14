@@ -41,5 +41,5 @@
 | BEAN-038 | Stale Documentation & UI Fixes | P3 | Approved | bean/BEAN-038-stale-docs-and-ui-fixes |
 | BEAN-039 | Purge Git History for Publication | P0 | Approved | bean/BEAN-039-purge-git-history |
 | BEAN-040 | Add MIT License | P1 | In Progress | bean/BEAN-040-add-mit-license |
-| BEAN-042 | Remove Legacy XOR Encryption | P2 | Approved | bean/BEAN-042-remove-legacy-xor-encryption |
+| BEAN-042 | Remove Legacy XOR Encryption | P2 | Done | bean/BEAN-042-remove-legacy-xor-encryption |
 | BEAN-043 | Comprehensive README Rewrite | P1 | Approved | bean/BEAN-043-comprehensive-readme-rewrite |
