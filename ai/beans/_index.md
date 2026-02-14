@@ -37,7 +37,7 @@
 | BEAN-034 | Dead Code & Unused Import Cleanup | P1 | In Progress | bean/BEAN-034-dead-code-unused-import-cleanup |
 | BEAN-035 | Root-Level Test Files & Repo Hygiene | P0 | In Progress | bean/BEAN-035-repo-hygiene-cleanup |
 | BEAN-036 | Extract Shared Utility Functions | P2 | Approved | bean/BEAN-036-extract-shared-utilities |
-| BEAN-037 | Requirements Cleanup & Security Bounds | P2 | Approved | bean/BEAN-037-unused-dependencies-cleanup |
+| BEAN-037 | Requirements Cleanup & Security Bounds | P2 | Done | bean/BEAN-037-unused-dependencies-cleanup |
 | BEAN-038 | Stale Documentation & UI Fixes | P3 | Approved | bean/BEAN-038-stale-docs-and-ui-fixes |
 | BEAN-039 | Purge Git History for Publication | P0 | Approved | bean/BEAN-039-purge-git-history |
 | BEAN-040 | Add MIT License | P1 | In Progress | bean/BEAN-040-add-mit-license |
