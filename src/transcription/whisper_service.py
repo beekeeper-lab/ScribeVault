@@ -387,39 +387,3 @@ class WhisperService:
                 "api_key_configured": bool(os.getenv("OPENAI_API_KEY")),
                 "available": True
             }
-
-def check_local_whisper_availability() -> dict:
-    """Check if local Whisper is available and get system info.
-    
-    Returns:
-        Dictionary with availability information
-    """
-    info = {
-        "available": LOCAL_WHISPER_AVAILABLE,
-        "error": None,
-        "models": [],
-        "device_info": {}
-    }
-    
-    if LOCAL_WHISPER_AVAILABLE:
-        try:
-            # Available model sizes
-            info["models"] = ["tiny", "base", "small", "medium", "large"]
-            
-            # Check for CUDA availability
-            try:
-                import torch
-                info["device_info"] = {
-                    "cuda_available": torch.cuda.is_available(),
-                    "cuda_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
-                    "cpu_cores": os.cpu_count()
-                }
-            except ImportError:
-                info["device_info"] = {"cpu_cores": os.cpu_count()}
-                
-        except Exception as e:
-            info["error"] = str(e)
-    else:
-        info["error"] = "Whisper package not installed"
-        
-    return info

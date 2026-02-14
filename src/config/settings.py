@@ -773,56 +773,6 @@ class CostEstimator:
         }
 
     @classmethod
-    def get_service_comparison(cls) -> Dict[str, Any]:
-        """Get comparison between transcription services."""
-        whisper_cpm = cls.get_whisper_cost_per_minute()
-        return {
-            "openai": {
-                "name": "OpenAI Whisper API",
-                "cost_per_minute": whisper_cpm,
-                "cost_per_hour": whisper_cpm * 60,
-                "pros": [
-                    "High accuracy",
-                    "Fast processing",
-                    "No local setup required",
-                    "Supports many languages",
-                    "Automatic language detection",
-                ],
-                "cons": [
-                    "Requires internet connection",
-                    "Usage costs apply",
-                    "Requires API key",
-                    "Audio data sent to OpenAI",
-                ],
-                "setup_difficulty": "Easy",
-                "processing_speed": "Fast",
-                "accuracy": "Excellent",
-            },
-            "local": {
-                "name": "Local Whisper",
-                "cost_per_minute": cls.LOCAL_PROCESSING_COST_PER_MINUTE,
-                "cost_per_hour": cls.LOCAL_PROCESSING_COST_PER_MINUTE * 60,
-                "pros": [
-                    "No usage costs",
-                    "Complete privacy (offline)",
-                    "No internet required",
-                    "No API key needed",
-                    "Multiple model sizes available",
-                ],
-                "cons": [
-                    "Requires local setup",
-                    "Uses computer resources",
-                    "Slower on older hardware",
-                    "Large model downloads",
-                    "Requires Python packages",
-                ],
-                "setup_difficulty": "Medium",
-                "processing_speed": "Variable (depends on hardware)",
-                "accuracy": "Excellent (same models as API)",
-            },
-        }
-
-    @classmethod
     def get_cost_comparison(cls, minutes: float, include_summary: bool = True,
                             model: str = "gpt-4o-mini") -> Dict[str, Dict[str, float]]:
         """Get dynamic cost comparison between OpenAI API and local processing.

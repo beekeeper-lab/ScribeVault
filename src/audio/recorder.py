@@ -282,22 +282,6 @@ class AudioRecorder:
 
         return None
         
-    def _record_loop(self):
-        """Recording loop that runs in a separate thread."""
-        while True:
-            with self._lock:
-                if not self.is_recording:
-                    break
-            if not self.stream:
-                break
-            try:
-                data = self.stream.read(self.chunk_size, exception_on_overflow=False)
-                with self._lock:
-                    self.frames.append(data)
-            except Exception as e:
-                logger.error("Recording error: %s", e)
-                break
-        
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """Callback function for audio stream."""
         with self._lock:
@@ -590,52 +574,6 @@ class AudioRecorder:
                 self.is_recording = False
             raise RecordingException(f"Could not create test recording: {e}")
     
-    def _create_dummy_recording(self):
-        """Create a dummy recording file for testing when audio fails."""
-        import struct
-        import math
-        import random
-        
-        # Generate 3 seconds of varied tones that might be interpreted as speech
-        duration = 3.0
-        sample_rate = 44100
-        
-        frames = []
-        for i in range(int(duration * sample_rate)):
-            # Create a more complex waveform with multiple frequencies
-            # to simulate speech patterns
-            time = i / sample_rate
-            
-            # Base frequency that varies over time (simulating speech)
-            base_freq = 200 + 100 * math.sin(2 * math.pi * 2 * time)  # 200-300Hz range
-            
-            # Add harmonics and noise to make it more speech-like
-            signal = (
-                0.6 * math.sin(2 * math.pi * base_freq * time) +  # Fundamental
-                0.3 * math.sin(2 * math.pi * base_freq * 2 * time) +  # Second harmonic
-                0.1 * math.sin(2 * math.pi * base_freq * 3 * time) +  # Third harmonic
-                0.05 * (random.random() - 0.5)  # Add some noise
-            )
-            
-            # Apply envelope to create word-like segments
-            envelope = 1.0
-            segment_time = time % 1.0  # 1-second segments
-            if segment_time < 0.1 or segment_time > 0.8:  # Quiet periods between "words"
-                envelope = 0.2
-            
-            sample = int(16000 * signal * envelope)  # Reduced amplitude
-            sample = max(-32767, min(32767, sample))  # Clamp to 16-bit range
-            frames.append(struct.pack('<h', sample))
-        
-        # Save as WAV file
-        with wave.open(str(self.output_path), 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(sample_rate)
-            wf.writeframes(b''.join(frames))
-            
-        logger.info("Created dummy recording with speech-like patterns: %s", self.output_path)
-            
     def cleanup(self):
         """Explicitly release all resources held by the recorder.
 
