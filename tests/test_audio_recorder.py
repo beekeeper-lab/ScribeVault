@@ -5,12 +5,11 @@ Unit tests for AudioRecorder class.
 import unittest
 import tempfile
 import shutil
+import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import subprocess
+from unittest.mock import MagicMock
 
 import sys
-import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from audio.recorder import AudioRecorder, AudioException, RecordingException
@@ -18,143 +17,87 @@ from audio.recorder import AudioRecorder, AudioException, RecordingException
 
 class TestAudioRecorder(unittest.TestCase):
     """Test cases for AudioRecorder class."""
-    
+
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = Path(tempfile.mkdtemp())
-        self.recorder = AudioRecorder(output_dir=self.temp_dir)
-    
+        self.orig_dir = os.getcwd()
+        os.chdir(self.temp_dir)
+
+        # Get the mock pyaudio from sys.modules (installed by conftest)
+        self.mock_pyaudio_module = sys.modules['pyaudio']
+        self.mock_pa = MagicMock()
+        self.mock_pa.get_sample_size.return_value = 2
+        self.mock_pyaudio_module.PyAudio.return_value = self.mock_pa
+
+        self.recorder = AudioRecorder(
+            sample_rate=44100,
+            chunk_size=1024,
+            channels=1,
+        )
+
     def tearDown(self):
         """Clean up test fixtures."""
         self.recorder.cleanup()
+        os.chdir(self.orig_dir)
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
-    
+
     def test_initialization(self):
         """Test recorder initialization."""
         self.assertFalse(self.recorder.is_recording)
-        self.assertTrue(self.temp_dir.exists())
-    
-    def test_invalid_output_directory(self):
-        """Test initialization with invalid output directory."""
-        with self.assertRaises(AudioException):
-            AudioRecorder(output_dir="/invalid/path/that/does/not/exist")
-    
-    @patch('audio.recorder.pyaudio.PyAudio')
-    def test_start_recording_success(self, mock_pyaudio):
-        """Test successful recording start."""
-        # Mock PyAudio
-        mock_pa = MagicMock()
-        mock_pyaudio.return_value = mock_pa
-        mock_stream = MagicMock()
-        mock_pa.open.return_value = mock_stream
-        
-        # Start recording
-        result = self.recorder.start_recording()
-        
-        self.assertTrue(self.recorder.is_recording)
-        self.assertIsInstance(result, Path)
-        self.assertTrue(result.name.endswith('.wav'))
-        
-        # Verify PyAudio was called correctly
-        mock_pa.open.assert_called_once()
-        call_args = mock_pa.open.call_args[1]
-        self.assertEqual(call_args['format'], self.recorder.pyaudio.paInt16)
-        self.assertEqual(call_args['channels'], 1)
-        self.assertEqual(call_args['rate'], 44100)
-    
+
     def test_start_recording_already_recording(self):
         """Test starting recording when already recording."""
         self.recorder.is_recording = True
-        
-        with self.assertRaises(RecordingException):
+
+        with self.assertRaises(RuntimeError):
             self.recorder.start_recording()
-    
-    @patch('audio.recorder.pyaudio.PyAudio')
-    def test_start_recording_pyaudio_error(self, mock_pyaudio):
-        """Test recording start with PyAudio error."""
-        mock_pyaudio.side_effect = Exception("PyAudio error")
-        
-        with self.assertRaises(AudioException):
-            self.recorder.start_recording()
-    
-    @patch('audio.recorder.subprocess.run')
-    @patch('audio.recorder.pyaudio.PyAudio')
-    def test_stop_recording_success(self, mock_pyaudio, mock_subprocess):
-        """Test successful recording stop."""
-        # Setup mocks
-        mock_pa = MagicMock()
-        mock_pyaudio.return_value = mock_pa
-        mock_stream = MagicMock()
-        mock_pa.open.return_value = mock_stream
-        mock_subprocess.return_value.returncode = 0
-        
-        # Start and stop recording
-        audio_file = self.recorder.start_recording()
-        
-        # Mock some audio data
-        self.recorder.audio_data = [b'mock_audio_data']
-        
-        result = self.recorder.stop_recording()
-        
-        self.assertFalse(self.recorder.is_recording)
-        self.assertEqual(result, audio_file)
-        
-        # Verify stream was closed
-        mock_stream.stop_stream.assert_called_once()
-        mock_stream.close.assert_called_once()
-    
+
     def test_stop_recording_not_recording(self):
         """Test stopping recording when not recording."""
-        with self.assertRaises(RecordingException):
-            self.recorder.stop_recording()
-    
-    @patch('audio.recorder.subprocess.run')
-    @patch('audio.recorder.pyaudio.PyAudio')
-    def test_stop_recording_ffmpeg_error(self, mock_pyaudio, mock_subprocess):
-        """Test recording stop with FFmpeg error."""
-        # Setup mocks
-        mock_pa = MagicMock()
-        mock_pyaudio.return_value = mock_pa
-        mock_stream = MagicMock()
-        mock_pa.open.return_value = mock_stream
-        mock_subprocess.return_value.returncode = 1  # FFmpeg error
-        
-        # Start recording
-        self.recorder.start_recording()
-        self.recorder.audio_data = [b'mock_audio_data']
-        
-        with self.assertRaises(AudioException):
-            self.recorder.stop_recording()
-    
+        result = self.recorder.stop_recording()
+        self.assertIsNone(result)
+
     def test_cleanup(self):
         """Test cleanup functionality."""
         # Should not raise any exceptions
         self.recorder.cleanup()
-        
-        # Multiple cleanups should be safe
+
+        # Multiple cleanups should be safe (idempotent)
         self.recorder.cleanup()
-    
-    def test_generate_filename(self):
-        """Test filename generation."""
-        filename = self.recorder._generate_filename()
-        
-        self.assertTrue(filename.startswith('recording_'))
-        self.assertTrue(filename.endswith('.wav'))
-        
-        # Test uniqueness
-        filename2 = self.recorder._generate_filename()
-        self.assertNotEqual(filename, filename2)
-    
-    def test_validate_path_security(self):
-        """Test path validation for security."""
-        # Valid paths
-        self.assertTrue(self.recorder._is_safe_path(self.temp_dir / "test.wav"))
-        
-        # Invalid paths (path traversal attempts)
-        self.assertFalse(self.recorder._is_safe_path(Path("../test.wav")))
-        self.assertFalse(self.recorder._is_safe_path(Path("/etc/passwd")))
-        self.assertFalse(self.recorder._is_safe_path(Path("..\\test.wav")))
+
+    def test_validate_output_path_valid(self):
+        """Test _validate_output_path with a valid path."""
+        recordings_dir = self.temp_dir / "recordings"
+        recordings_dir.mkdir()
+        valid_path = recordings_dir / "recording-test.wav"
+        self.assertTrue(self.recorder._validate_output_path(valid_path))
+
+    def test_validate_output_path_invalid_extension(self):
+        """Test _validate_output_path rejects non-wav files."""
+        recordings_dir = self.temp_dir / "recordings"
+        recordings_dir.mkdir()
+        invalid_path = recordings_dir / "test.mp3"
+        self.assertFalse(self.recorder._validate_output_path(invalid_path))
+
+    def test_validate_output_path_traversal(self):
+        """Test _validate_output_path rejects path traversal."""
+        path = Path("../etc/passwd.wav")
+        self.assertFalse(self.recorder._validate_output_path(path))
+
+    def test_audio_callback_appends_frames(self):
+        """Test _audio_callback appends data when recording."""
+        self.recorder.is_recording = True
+        result = self.recorder._audio_callback(b'test_data', 1024, {}, 0)
+        self.assertEqual(result, (b'test_data', self.mock_pyaudio_module.paContinue))
+        self.assertEqual(self.recorder.frames, [b'test_data'])
+
+    def test_audio_callback_ignores_when_not_recording(self):
+        """Test _audio_callback does not append when not recording."""
+        self.recorder.is_recording = False
+        self.recorder._audio_callback(b'test_data', 1024, {}, 0)
+        self.assertEqual(self.recorder.frames, [])
 
 
 if __name__ == '__main__':

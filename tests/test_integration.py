@@ -104,15 +104,15 @@ class TestScribeVaultIntegration(unittest.TestCase):
             recording_id = vault.add_recording(
                 filename="settings_test.wav",
                 title="Settings Integration Test",
-                category="other"  # Default category
+                category="uncategorized"  # Default category
             )
-            
+
             self.assertGreater(recording_id, 0)
-            
+
             # Test retrieval with filtering
-            recordings = vault.get_recordings(category="other")
+            recordings = vault.get_recordings(category="uncategorized")
             self.assertEqual(len(recordings), 1)
-            self.assertEqual(recordings[0]['category'], "other")
+            self.assertEqual(recordings[0]['category'], "uncategorized")
             
         except ImportError as e:
             self.skipTest(f"Cannot import required modules: {e}")
@@ -128,14 +128,14 @@ class TestScribeVaultIntegration(unittest.TestCase):
             with self.assertRaises(VaultException):
                 vault.add_recording(filename="")  # Empty filename
             
-            # Invalid category should be auto-corrected to 'other'
+            # Invalid category should be auto-corrected to 'uncategorized'
             corrected_id = vault.add_recording(
                 filename="test.wav",
                 category="invalid_category"
             )
             self.assertGreater(corrected_id, 0)
             corrected = vault.get_recordings()
-            self.assertEqual(corrected[0]['category'], "other")
+            self.assertEqual(corrected[0]['category'], "uncategorized")
 
             # Test that valid operations still work after errors
             recording_id = vault.add_recording(filename="valid.wav")
@@ -260,7 +260,7 @@ class TestComponentInteractions(unittest.TestCase):
             vault = VaultManager(vault_dir=self.temp_dir)
             
             # Test that valid categories from settings work with vault
-            valid_categories = ["meeting", "interview", "lecture", "note", "other"]
+            valid_categories = ["meeting", "interview", "lecture", "note", "uncategorized"]
             
             for category in valid_categories:
                 recording_id = vault.add_recording(

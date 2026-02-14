@@ -217,33 +217,30 @@ class TestSettingsManagerAudioPersistence(unittest.TestCase):
 class TestAudioRecorderDeviceParam(unittest.TestCase):
     """Test that AudioRecorder accepts input_device_index."""
 
-    def test_init_with_device_index(self):
-        mock_pa = MagicMock()
-        with patch.dict('sys.modules', {'pyaudio': MagicMock()}):
-            import importlib
-            import audio.recorder as rec_mod
-            importlib.reload(rec_mod)
-            rec_mod.pyaudio.PyAudio = MagicMock(return_value=mock_pa)
+    def setUp(self):
+        """Set up pyaudio mock for AudioRecorder tests."""
+        self.mock_pa = MagicMock()
+        self.mock_pa.get_sample_size.return_value = 2
+        mock_pyaudio = sys.modules['pyaudio']
+        mock_pyaudio.PyAudio.return_value = self.mock_pa
 
-            rec = rec_mod.AudioRecorder(
-                sample_rate=16000,
-                channels=1,
-                input_device_index=2,
-            )
-            self.assertEqual(rec.sample_rate, 16000)
-            self.assertEqual(rec.channels, 1)
-            self.assertEqual(rec.input_device_index, 2)
+    def test_init_with_device_index(self):
+        from audio.recorder import AudioRecorder
+        rec = AudioRecorder(
+            sample_rate=16000,
+            channels=1,
+            input_device_index=2,
+        )
+        self.assertEqual(rec.sample_rate, 16000)
+        self.assertEqual(rec.channels, 1)
+        self.assertEqual(rec.input_device_index, 2)
+        rec.cleanup()
 
     def test_init_without_device_index(self):
-        mock_pa = MagicMock()
-        with patch.dict('sys.modules', {'pyaudio': MagicMock()}):
-            import importlib
-            import audio.recorder as rec_mod
-            importlib.reload(rec_mod)
-            rec_mod.pyaudio.PyAudio = MagicMock(return_value=mock_pa)
-
-            rec = rec_mod.AudioRecorder()
-            self.assertIsNone(rec.input_device_index)
+        from audio.recorder import AudioRecorder
+        rec = AudioRecorder()
+        self.assertIsNone(rec.input_device_index)
+        rec.cleanup()
 
 
 if __name__ == '__main__':
