@@ -488,23 +488,19 @@ class SettingsManager:
     ) -> Optional[str]:
         """Read API key from legacy version 2 format.
 
-        Supports both unsalted Fernet and XOR methods for migration.
+        Only supports unsalted Fernet for migration to v3.
+        XOR encryption (removed in BEAN-042) is no longer accepted.
         """
-        legacy_key = self._get_legacy_encryption_key()
-
         if method == "fernet":
+            legacy_key = self._get_legacy_encryption_key()
             from cryptography.fernet import Fernet
             fernet = Fernet(base64.urlsafe_b64encode(legacy_key))
             return fernet.decrypt(encrypted.encode()).decode()
-        elif method == "xor":
-            xor_bytes = base64.urlsafe_b64decode(encrypted)
-            return bytes(
-                b ^ legacy_key[i % len(legacy_key)]
-                for i, b in enumerate(xor_bytes)
-            ).decode()
         else:
             logger.warning(
-                f"Unknown legacy encryption method: {method}"
+                "Unsupported legacy encryption method '%s'. "
+                "Only Fernet is supported for v2 migration.",
+                method,
             )
             return None
 
@@ -770,56 +766,6 @@ class CostEstimator:
             "total": total_cost,
             "per_minute": total_cost / minutes if minutes > 0 else 0,
             "per_hour": total_cost * 60 / minutes if minutes > 0 else 0,
-        }
-
-    @classmethod
-    def get_service_comparison(cls) -> Dict[str, Any]:
-        """Get comparison between transcription services."""
-        whisper_cpm = cls.get_whisper_cost_per_minute()
-        return {
-            "openai": {
-                "name": "OpenAI Whisper API",
-                "cost_per_minute": whisper_cpm,
-                "cost_per_hour": whisper_cpm * 60,
-                "pros": [
-                    "High accuracy",
-                    "Fast processing",
-                    "No local setup required",
-                    "Supports many languages",
-                    "Automatic language detection",
-                ],
-                "cons": [
-                    "Requires internet connection",
-                    "Usage costs apply",
-                    "Requires API key",
-                    "Audio data sent to OpenAI",
-                ],
-                "setup_difficulty": "Easy",
-                "processing_speed": "Fast",
-                "accuracy": "Excellent",
-            },
-            "local": {
-                "name": "Local Whisper",
-                "cost_per_minute": cls.LOCAL_PROCESSING_COST_PER_MINUTE,
-                "cost_per_hour": cls.LOCAL_PROCESSING_COST_PER_MINUTE * 60,
-                "pros": [
-                    "No usage costs",
-                    "Complete privacy (offline)",
-                    "No internet required",
-                    "No API key needed",
-                    "Multiple model sizes available",
-                ],
-                "cons": [
-                    "Requires local setup",
-                    "Uses computer resources",
-                    "Slower on older hardware",
-                    "Large model downloads",
-                    "Requires Python packages",
-                ],
-                "setup_difficulty": "Medium",
-                "processing_speed": "Variable (depends on hardware)",
-                "accuracy": "Excellent (same models as API)",
-            },
         }
 
     @classmethod

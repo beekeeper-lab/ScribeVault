@@ -18,7 +18,7 @@ ScribeVault now supports configurable transcription services with comprehensive 
 - **Device Detection**: Automatic CPU/CUDA detection for optimal performance
 - **Model Selection**: Support for all Whisper model sizes (tiny to large)
 
-### 3. Settings UI (`src/gui/settings_window.py`)
+### 3. Settings UI (`src/gui/qt_settings_dialog.py`)
 - **Cost Comparison**: Side-by-side service comparison with detailed metrics
 - **Visual Cost Breakdown**: Per-minute and per-hour cost estimates
 - **System Information**: Hardware detection and availability status
@@ -148,7 +148,7 @@ Expected output:
   },
   "summarization": {
     "service": "openai",
-    "model": "gpt-3.5-turbo",
+    "model": "gpt-4o-mini",
     "max_tokens": 150
   },
   "ui": {

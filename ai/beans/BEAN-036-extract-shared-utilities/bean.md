@@ -8,10 +8,10 @@
 | Title     | Extract Shared Utility Functions |
 | Type      | enhancement |
 | Priority  | P2 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
 | Duration  |              |
 
 ## Problem Statement
@@ -51,9 +51,9 @@ Create a shared utility module and a version constant to eliminate all duplicate
 
 ### In Scope
 
-- Create `src/utils.py` (or `src/common/formatting.py`) with shared functions: `format_duration()`, `format_file_size()`, `parse_datetime()`, `open_with_system_app()`
-- Create a `__version__` constant in `src/__init__.py` or a dedicated `src/version.py`
-- Define a `FONT_FAMILY` constant (with cross-platform fallback stack)
+- Create `src/utils/formatting.py` with shared functions: `format_duration()`, `format_file_size()`, `parse_datetime()`, `open_with_system_app()`
+- Create a `__version__` constant in a dedicated `src/version.py`
+- Define a `FONT_FAMILY` constant (with cross-platform fallback stack) in `src/gui/constants.py`
 - Update all call sites to use the shared functions
 - Remove the duplicated implementations
 - Add tests for the shared utility functions
@@ -66,35 +66,35 @@ Create a shared utility module and a version constant to eliminate all duplicate
 
 ## Acceptance Criteria
 
-- [ ] `format_duration` exists in exactly 1 location, called from all 4 original sites
-- [ ] `format_file_size` exists in exactly 1 location, called from both original sites
-- [ ] `parse_datetime` exists in exactly 1 location, called from all 3 original sites
-- [ ] `open_with_system_app` exists in exactly 1 location, called from all 3 original sites
-- [ ] Version string defined in 1 constant, referenced everywhere
-- [ ] Font family defined in 1 constant with cross-platform fallback
-- [ ] Tests exist for all shared utility functions
-- [ ] All existing tests pass
+- [x] `format_duration` exists in exactly 1 location, called from all 4 original sites
+- [x] `format_file_size` exists in exactly 1 location, called from both original sites
+- [x] `parse_datetime` exists in exactly 1 location, called from all 3 original sites
+- [x] `open_with_system_app` exists in exactly 1 location, called from all 3 original sites
+- [x] Version string defined in 1 constant, referenced everywhere
+- [x] Font family defined in 1 constant with cross-platform fallback
+- [x] Tests exist for all shared utility functions
+- [x] All existing tests pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Create src/utils.py with shared formatting functions | developer | | TODO |
-| 2 | Create version constant | developer | | TODO |
-| 3 | Create font family constant | developer | | TODO |
-| 4 | Update all call sites to use shared functions | developer | 1-3 | TODO |
-| 5 | Write tests for shared utilities | tech-qa | 1 | TODO |
-| 6 | Verify no regressions | tech-qa | 4-5 | TODO |
+| 1 | Create src/utils/formatting.py with shared formatting functions | developer | | Done |
+| 2 | Create version constant (src/version.py) | developer | | Done |
+| 3 | Create font family constant (src/gui/constants.py) | developer | | Done |
+| 4 | Update all call sites to use shared functions | developer | 1-3 | Done |
+| 5 | Write tests for shared utilities (37 tests) | tech-qa | 1 | Done |
+| 6 | Verify no regressions | tech-qa | 4-5 | Done |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 6     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
 
 ## Notes
 
-The 4 implementations of `format_duration` produce slightly different output formats (some use `Xh Xm Xs`, others use `X:XX`). The consolidation should pick the most common format or the one used in the most user-visible context, and update all call sites consistently.
+The 4 implementations of `format_duration` produce slightly different output formats (some use `Xh Xm Xs`, others use `X:XX`). The consolidation uses a `style` parameter: `"compact"` (M:SS) for GUI tables and `"descriptive"` (Xh Xm Xs) for export files, preserving existing behavior at all call sites.

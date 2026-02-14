@@ -8,10 +8,10 @@
 | Title     | Comprehensive README Rewrite |
 | Type      | enhancement |
 | Priority  | P1 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
 | Duration  |              |
 
 ## Problem Statement
@@ -78,38 +78,38 @@ A publication-ready README that accurately reflects every feature, provides corr
 
 ## Acceptance Criteria
 
-- [ ] README.md contains zero references to `.env` for API key configuration
-- [ ] Installation instructions correctly describe keyring-based API key setup via Settings UI
-- [ ] Project structure tree matches actual `src/` directory layout
-- [ ] Architecture section describes all modules, their responsibilities, and the data flow pipeline
-- [ ] All features implemented since initial release are documented (diarization, prompt templates, auto-categorization, exports, checkpointing)
-- [ ] Testing section uses `pytest tests/` as the primary command (not `run_tests.py` or `test_config.py`)
-- [ ] No references to deleted files (`test_config.py`, `diagnose_audio.py`, `settings_window.py`)
-- [ ] Developer setup section includes lint, format, type check, and test commands
-- [ ] Security section accurately reflects current architecture (keyring, Fernet encryption, path validation)
-- [ ] Troubleshooting section provides actionable guidance without referencing deleted scripts
-- [ ] README renders correctly in GitHub markdown preview
+- [x] README.md contains zero references to `.env` for API key configuration
+- [x] Installation instructions correctly describe keyring-based API key setup via Settings UI
+- [x] Project structure tree matches actual `src/` directory layout
+- [x] Architecture section describes all modules, their responsibilities, and the data flow pipeline
+- [x] All features implemented since initial release are documented (diarization, prompt templates, auto-categorization, exports, checkpointing)
+- [x] Testing section uses `pytest tests/` as the primary command (not `run_tests.py` or `test_config.py`)
+- [x] No references to deleted files (`test_config.py`, `diagnose_audio.py`, `settings_window.py`)
+- [x] Developer setup section includes lint, format, type check, and test commands
+- [x] Security section accurately reflects current architecture (keyring, Fernet encryption, path validation)
+- [x] Troubleshooting section provides actionable guidance without referencing deleted scripts
+- [x] README renders correctly in GitHub markdown preview
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Audit current src/ to catalog all modules and key classes | developer | | TODO |
-| 2 | Draft features section covering all implemented capabilities | developer | 1 | TODO |
-| 3 | Write architecture section with module diagram and data flow | developer | 1 | TODO |
-| 4 | Write correct installation instructions (API + local modes) | developer | | TODO |
-| 5 | Write developer setup section (tests, lint, format, mypy) | developer | | TODO |
-| 6 | Update project structure tree | developer | 1 | TODO |
-| 7 | Write security overview section | developer | | TODO |
-| 8 | Write configuration and troubleshooting sections | developer | | TODO |
-| 9 | Assemble final README.md and verify markdown rendering | developer | 2-8 | TODO |
-| 10 | Review for accuracy against actual codebase | tech-qa | 9 | TODO |
+| 1 | Audit current src/ to catalog all modules and key classes | developer | | DONE |
+| 2 | Draft features section covering all implemented capabilities | developer | 1 | DONE |
+| 3 | Write architecture section with module diagram and data flow | developer | 1 | DONE |
+| 4 | Write correct installation instructions (API + local modes) | developer | | DONE |
+| 5 | Write developer setup section (tests, lint, format, mypy) | developer | | DONE |
+| 6 | Update project structure tree | developer | 1 | DONE |
+| 7 | Write security overview section | developer | | DONE |
+| 8 | Write configuration and troubleshooting sections | developer | | DONE |
+| 9 | Assemble final README.md and verify markdown rendering | developer | 2-8 | DONE |
+| 10 | Review for accuracy against actual codebase | tech-qa | 9 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 10    |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |

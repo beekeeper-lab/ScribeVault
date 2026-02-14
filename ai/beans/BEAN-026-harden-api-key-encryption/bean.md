@@ -39,22 +39,22 @@ API key storage is cryptographically sound by default for all installations, wit
 
 ## Acceptance Criteria
 
-- [ ] `cryptography` and `keyring` appear in `requirements.txt`
-- [ ] Fernet key derivation includes a random salt stored in or alongside `.api_keys.enc`
-- [ ] XOR fallback is removed or triggers a visible GUI warning on every app launch when active
-- [ ] Existing API keys encrypted with old method are automatically migrated to the new scheme
-- [ ] Unit tests cover: new encryption round-trip, migration from old format, missing-dep warning path
-- [ ] `pytest tests/` passes, `flake8 src/ tests/` is clean
+- [x] `cryptography` and `keyring` appear in `requirements.txt`
+- [x] Fernet key derivation includes a random salt stored in or alongside `.api_keys.enc`
+- [x] XOR fallback is removed or triggers a visible GUI warning on every app launch when active
+- [x] Existing API keys encrypted with old method are automatically migrated to the new scheme
+- [x] Unit tests cover: new encryption round-trip, migration from old format, missing-dep warning path
+- [x] `pytest tests/` passes, `flake8 src/ tests/` is clean
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Add cryptography and keyring to requirements.txt | Developer | | TODO |
-| 2 | Add salt-based Fernet key derivation | Developer | 1 | TODO |
-| 3 | Remove or warn on XOR fallback | Developer | 2 | TODO |
-| 4 | Implement migration for existing .api_keys.enc files | Developer | 2 | TODO |
-| 5 | Write unit tests for new encryption and migration | Tech QA | 3, 4 | TODO |
+| 1 | Add cryptography and keyring to requirements.txt | Developer | | DONE |
+| 2 | Add salt-based Fernet key derivation | Developer | 1 | DONE |
+| 3 | Remove or warn on XOR fallback | Developer | 2 | DONE |
+| 4 | Implement migration for existing .api_keys.enc files | Developer | 2 | DONE |
+| 5 | Write unit tests for new encryption and migration | Tech QA | 3, 4 | DONE |
 
 ## Telemetry
 

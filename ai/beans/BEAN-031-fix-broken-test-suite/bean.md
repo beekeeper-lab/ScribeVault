@@ -8,10 +8,10 @@
 | Title     | Fix Broken Test Suite |
 | Type      | bug-fix |
 | Priority  | P0 |
-| Status    | In Progress  |
+| Status    | Done  |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
 | Duration  |              |
 
 ## Problem Statement
@@ -42,30 +42,30 @@ All tests pass when run via `pytest tests/` with zero failures and no segfaults.
 
 ## Acceptance Criteria
 
-- [ ] `pytest tests/` runs with 0 failures and 0 errors
-- [ ] No segfaults from GUI tests (either guarded with skip or offscreen platform)
-- [ ] Tests that pass individually also pass when run in the full suite (isolation fixed)
-- [ ] `tests/run_tests.py` is removed
-- [ ] All mock specs align with current class interfaces
+- [x] `pytest tests/` runs with 0 failures and 0 errors
+- [x] No segfaults from GUI tests (either guarded with skip or offscreen platform)
+- [x] Tests that pass individually also pass when run in the full suite (isolation fixed)
+- [x] `tests/run_tests.py` is removed
+- [x] All mock specs align with current class interfaces
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Fix test_audio_recorder.py mocks and constructor calls | developer | | TODO |
-| 2 | Fix test_whisper_service.py mock API (get_api_key → get_openai_api_key) | developer | | TODO |
-| 3 | Fix test_integration.py category constants | developer | | TODO |
-| 4 | Fix test_logging_config.py missing diarization arg | developer | | TODO |
-| 5 | Fix pyaudio sys.modules test isolation | developer | | TODO |
-| 6 | Add GUI test guards for headless environments | developer | | TODO |
-| 7 | Remove redundant run_tests.py | developer | | TODO |
-| 8 | Verify full suite passes | tech-qa | 1-7 | TODO |
+| 1 | Fix test_audio_recorder.py mocks and constructor calls | developer | | DONE |
+| 2 | Fix test_whisper_service.py mock API (get_api_key → get_openai_api_key) | developer | | DONE |
+| 3 | Fix test_integration.py category constants | developer | | DONE |
+| 4 | Fix test_logging_config.py missing diarization arg | developer | | DONE |
+| 5 | Fix pyaudio sys.modules test isolation | developer | | DONE |
+| 6 | Add GUI test guards for headless environments | developer | | DONE |
+| 7 | Remove redundant run_tests.py | developer | | DONE |
+| 8 | Verify full suite passes | tech-qa | 1-7 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 8     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
@@ -78,3 +78,16 @@ Failing test breakdown by root cause:
 - Missing constructor arg: 2 tests (test_logging_config)
 - Test isolation (sys.modules): ~17 tests (test_checkpoint + test_thread_safety fail only in full suite)
 - GUI segfaults: 12+ tests (test_on_demand_processing, test_main_page_speaker, test_pipeline_status)
+
+### Resolution Summary
+
+1. **conftest.py created** — centralizes pyaudio mock installation and QT_QPA_PLATFORM=offscreen
+2. **test_audio_recorder.py rewritten** — removed stale `output_dir` param, `_generate_filename`, `_is_safe_path` references; aligned with current `AudioRecorder` constructor
+3. **test_whisper_service.py rewritten** — replaced `get_api_key` with `get_openai_api_key`, added `settings.transcription` mock with proper fields, removed references to non-existent methods
+4. **test_integration.py** — changed `"other"` → `"uncategorized"` in 3 locations
+5. **test_logging_config.py** — added `DiarizationSettings()` to `AppSettings` construction
+6. **test_checkpoint.py / test_thread_safety.py** — removed module-level `sys.modules['pyaudio']` injection; now uses shared conftest mock
+7. **test_audio_settings.py** — fixed `TestAudioRecorderDeviceParam` which used `importlib.reload()` that corrupted the shared pyaudio mock for all subsequent tests
+8. **tests/run_tests.py removed** — redundant with pytest
+
+Final result: 449 passed, 27 skipped, 0 failures, 0 errors.

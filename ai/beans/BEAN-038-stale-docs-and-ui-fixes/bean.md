@@ -8,10 +8,10 @@
 | Title     | Stale Documentation & UI Fixes |
 | Type      | enhancement |
 | Priority  | P3 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
 | Duration  |              |
 
 ## Problem Statement
@@ -72,35 +72,35 @@ Documentation accurately reflects the current codebase. Bean statuses are intern
 
 ## Acceptance Criteria
 
-- [ ] `PYSIDE6_MIGRATION.md`, `PYSIDE6_README.md`, `FEATURE_SUMMARY.md` are deleted
-- [ ] `SECURITY.md` reflects current security architecture (keyring, encryption, path validation, HTML escaping, permissions)
-- [ ] `CONTRIBUTING.md` no longer references `.env` for API key setup
-- [ ] `docs/CONFIGURATION.md` references correct files and models
-- [ ] `.github/copilot-instructions.md` references PySide6 (not CustomTkinter)
-- [ ] All Done beans have checked acceptance criteria and consistent status
-- [ ] No keyboard shortcut conflicts with OS conventions (Ctrl+S, Ctrl+V, Space)
-- [ ] Record button animation works (opacity effect applied correctly)
-- [ ] `play_audio` opens the correct audio file from the vault directory
-- [ ] SRT export goes to the same subfolder as other export files
-- [ ] `open_markdown_file()` validates path with `validate_path_within()` before invoking system opener
-- [ ] All existing tests pass
+- [x] `PYSIDE6_MIGRATION.md`, `PYSIDE6_README.md`, `FEATURE_SUMMARY.md` are deleted
+- [x] `SECURITY.md` reflects current security architecture (keyring, encryption, path validation, HTML escaping, permissions)
+- [x] `CONTRIBUTING.md` no longer references `.env` for API key setup
+- [x] `docs/CONFIGURATION.md` references correct files and models
+- [x] `.github/copilot-instructions.md` references PySide6 (not CustomTkinter)
+- [x] All Done beans have checked acceptance criteria and consistent status
+- [x] No keyboard shortcut conflicts with OS conventions (Ctrl+S, Ctrl+V, Space)
+- [x] Record button animation works (opacity effect applied correctly)
+- [x] `play_audio` opens the correct audio file from the vault directory
+- [x] SRT export goes to the same subfolder as other export files
+- [x] `open_markdown_file()` validates path with `validate_path_within()` before invoking system opener
+- [x] All existing tests pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Delete 3 obsolete markdown files | developer | | TODO |
-| 2 | Update SECURITY.md with current security features | developer | | TODO |
-| 3 | Update CONTRIBUTING.md, docs/CONFIGURATION.md | developer | | TODO |
-| 4 | Update .github/copilot-instructions.md | developer | | TODO |
-| 5 | Fix CLAUDE.md ai/context references | developer | | TODO |
-| 6 | Fix bean status inconsistencies (8 beans) | developer | | TODO |
-| 7 | Fix keyboard shortcut conflicts | developer | | TODO |
-| 8 | Fix AnimatedRecordButton opacity animation | developer | | TODO |
-| 9 | Fix play_audio directory path | developer | | TODO |
-| 10 | Fix SRT export path | developer | | TODO |
-| 11 | Add path validation to open_markdown_file() | developer | | TODO |
-| 12 | Verify all fixes and run tests | tech-qa | 1-11 | TODO |
+| 1 | Delete 3 obsolete markdown files | developer | | DONE |
+| 2 | Update SECURITY.md with current security features | developer | | DONE |
+| 3 | Update CONTRIBUTING.md, docs/CONFIGURATION.md | developer | | DONE |
+| 4 | Update .github/copilot-instructions.md | developer | | DONE |
+| 5 | Fix CLAUDE.md ai/context references | developer | | DONE |
+| 6 | Fix bean status inconsistencies (8 beans) | developer | | DONE |
+| 7 | Fix keyboard shortcut conflicts | developer | | DONE |
+| 8 | Fix AnimatedRecordButton opacity animation | developer | | DONE |
+| 9 | Fix play_audio directory path | developer | | DONE |
+| 10 | Fix SRT export path | developer | | DONE |
+| 11 | Add path validation to open_markdown_file() | developer | | DONE |
+| 12 | Verify all fixes and run tests | tech-qa | 1-11 | DONE |
 
 ## Telemetry
 

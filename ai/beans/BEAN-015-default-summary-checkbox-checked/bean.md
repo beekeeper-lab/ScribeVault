@@ -37,10 +37,10 @@ The "Generate AI Summary" checkbox is checked by default on first launch and for
 
 ## Acceptance Criteria
 
-- [ ] On first launch (no saved settings), the "Generate AI Summary" checkbox is checked
-- [ ] If a user unchecks the box and restarts, it remains unchecked (saved preference respected)
-- [ ] If summarizer service is unavailable, the pipeline gracefully skips summarization (existing behavior, no regression)
-- [ ] Existing tests still pass
+- [x] On first launch (no saved settings), the "Generate AI Summary" checkbox is checked
+- [x] If a user unchecks the box and restarts, it remains unchecked (saved preference respected)
+- [x] If summarizer service is unavailable, the pipeline gracefully skips summarization (existing behavior, no regression)
+- [x] Existing tests still pass
 
 ## Tasks
 

@@ -33,6 +33,8 @@ from PySide6.QtGui import QFont
 
 from gui.speaker_panel import SpeakerPanel
 from export.utils import validate_path_within
+from utils import format_duration, format_file_size, open_with_system_app
+from gui.constants import FONT_FAMILY, FONT_FAMILY_CSS
 
 import logging
 
@@ -152,7 +154,7 @@ class SummaryViewerDialog(QDialog):
         # Summary content
         self.summary_text = QTextEdit()
         self.summary_text.setReadOnly(True)
-        self.summary_text.setFont(QFont("Segoe UI", 12))
+        self.summary_text.setFont(QFont(FONT_FAMILY, 12))
         self.summary_text.setStyleSheet("""
             QTextEdit {
                 background-color: #1e1e1e;
@@ -293,7 +295,7 @@ class SummaryViewerDialog(QDialog):
         # Markdown display browser
         self.markdown_browser = QTextBrowser()
         self.markdown_browser.setReadOnly(True)
-        self.markdown_browser.setFont(QFont("Segoe UI", 12))
+        self.markdown_browser.setFont(QFont(FONT_FAMILY, 12))
         self.markdown_browser.setStyleSheet("""
             QTextBrowser {
                 background-color: #1e1e1e;
@@ -538,7 +540,9 @@ class SummaryViewerDialog(QDialog):
         }
         </style>
         """
-        self.markdown_css = css_style
+        self.markdown_css = css_style.replace(
+            "'Segoe UI', Arial, sans-serif", FONT_FAMILY_CSS
+        )
 
     def increase_display_font(self):
         """Increase the font size in the markdown display."""
@@ -940,11 +944,11 @@ class SummaryViewerDialog(QDialog):
             ),
             (
                 "Duration",
-                self.format_duration(recording.get("duration", 0)),
+                format_duration(recording.get("duration", 0)),
             ),
             (
                 "File Size",
-                self.format_file_size(recording.get("file_size", 0)),
+                format_file_size(recording.get("file_size", 0)),
             ),
             ("Created", recording.get("created_at", "Unknown")),
         ]
@@ -1109,22 +1113,23 @@ class SummaryViewerDialog(QDialog):
             return
 
         try:
-            import platform
-            import subprocess
+            validate_path_within(
+                Path(self.current_markdown_path), Path("summaries")
+            )
+        except ValueError:
+            logger.warning(
+                "Path traversal blocked in open_markdown_file: %s",
+                self.current_markdown_path,
+            )
+            QMessageBox.warning(
+                self,
+                "Invalid Path",
+                "The markdown file path is invalid.",
+            )
+            return
 
-            system = platform.system()
-            if system == "Windows":
-                os.startfile(self.current_markdown_path)
-            elif system == "Darwin":  # macOS
-                subprocess.run(
-                    ["open", self.current_markdown_path],
-                    check=True,
-                )
-            else:  # Linux and others
-                subprocess.run(
-                    ["xdg-open", self.current_markdown_path],
-                    check=True,
-                )
+        try:
+            open_with_system_app(self.current_markdown_path)
 
         except Exception as e:
             md_path = self.current_markdown_path
@@ -1134,26 +1139,6 @@ class SummaryViewerDialog(QDialog):
                 f"Could not open markdown file:\n{e}"
                 f"\n\nFile location: {md_path}",
             )
-
-    def format_duration(self, seconds: float) -> str:
-        """Format duration in seconds to MM:SS format."""
-        if not seconds or seconds <= 0:
-            return "0:00"
-
-        minutes = int(seconds // 60)
-        seconds = int(seconds % 60)
-        return f"{minutes}:{seconds:02d}"
-
-    def format_file_size(self, bytes_size: int) -> str:
-        """Format file size in bytes to human readable format."""
-        if not bytes_size or bytes_size <= 0:
-            return "0 B"
-
-        for unit in ["B", "KB", "MB", "GB"]:
-            if bytes_size < 1024:
-                return f"{bytes_size:.1f} {unit}"
-            bytes_size /= 1024
-        return f"{bytes_size:.1f} TB"
 
     def _format_diarized_html(self, diarized_text: str) -> str:
         """Format diarized transcription as styled HTML.
@@ -1179,8 +1164,8 @@ class SummaryViewerDialog(QDialog):
 
         lines = diarized_text.strip().split("\n")
         html_parts = [
-            '<div style="font-family: Segoe UI, Arial,'
-            " sans-serif; font-size: 13px;"
+            f'<div style="font-family: {FONT_FAMILY_CSS};'
+            " font-size: 13px;"
             ' line-height: 1.6; color: #ffffff;">'
         ]
 

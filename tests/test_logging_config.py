@@ -155,22 +155,24 @@ class TestAppSettingsLogLevel(unittest.TestCase):
 
     def test_app_settings_has_log_level(self):
         """AppSettings dataclass has a log_level field defaulting to INFO."""
-        from config.settings import AppSettings, TranscriptionSettings, SummarizationSettings, UISettings
+        from config.settings import AppSettings, TranscriptionSettings, SummarizationSettings, DiarizationSettings, UISettings
 
         settings = AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
+            diarization=DiarizationSettings(),
             ui=UISettings(),
         )
         self.assertEqual(settings.log_level, "INFO")
 
     def test_app_settings_custom_log_level(self):
         """AppSettings accepts a custom log_level."""
-        from config.settings import AppSettings, TranscriptionSettings, SummarizationSettings, UISettings
+        from config.settings import AppSettings, TranscriptionSettings, SummarizationSettings, DiarizationSettings, UISettings
 
         settings = AppSettings(
             transcription=TranscriptionSettings(),
             summarization=SummarizationSettings(),
+            diarization=DiarizationSettings(),
             ui=UISettings(),
             log_level="DEBUG",
         )

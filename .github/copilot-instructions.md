@@ -5,7 +5,7 @@
 This is a Python GUI application for audio recording, transcription, and AI summarization.
 
 ## Key Technologies
-- **GUI Framework**: CustomTkinter for modern UI
+- **GUI Framework**: PySide6 for native desktop UI
 - **Audio**: PyAudio for recording, FFmpeg for processing
 - **AI**: OpenAI Whisper for transcription, GPT for summarization
 - **Storage**: SQLite for metadata, filesystem for audio files
@@ -25,7 +25,7 @@ This is a Python GUI application for audio recording, transcription, and AI summ
 
 ## GUI Guidelines
 - Responsive design that works on different screen sizes
-- Consistent styling with CustomTkinter themes
+- Consistent styling with PySide6 QSS themes
 - Proper loading states and progress indicators
 - Keyboard shortcuts for common actions
 - Accessibility considerations

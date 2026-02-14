@@ -7,7 +7,9 @@ Supports plain text (.txt), markdown (.md), and SRT subtitle (.srt) formats.
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
+
+from utils import format_duration, parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -49,32 +51,6 @@ class TranscriptionExporter:
         """Return transcription size in bytes."""
         return len(self.transcription.encode('utf-8'))
 
-    def _format_duration(self, seconds: float) -> str:
-        """Format duration in seconds to human-readable string."""
-        if not seconds or seconds <= 0:
-            return "Unknown"
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        if hours > 0:
-            return f"{hours}h {minutes}m {secs}s"
-        elif minutes > 0:
-            return f"{minutes}m {secs}s"
-        return f"{secs}s"
-
-    def _parse_date(self) -> Optional[datetime]:
-        """Parse created_at field into a datetime."""
-        if not self.created_at:
-            return None
-        try:
-            if isinstance(self.created_at, str):
-                return datetime.fromisoformat(
-                    self.created_at.replace('Z', '+00:00')
-                )
-            return self.created_at
-        except (ValueError, TypeError):
-            return None
-
     def _extract_speakers(self) -> List[str]:
         """Extract unique speaker labels from transcription text.
 
@@ -98,12 +74,12 @@ class TranscriptionExporter:
         lines = []
         lines.append(f"Title: {self.title}")
 
-        dt = self._parse_date()
+        dt = parse_datetime(self.created_at)
         if dt:
             lines.append(f"Date: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if self.duration and self.duration > 0:
-            lines.append(f"Duration: {self._format_duration(self.duration)}")
+            lines.append(f"Duration: {format_duration(self.duration, style="descriptive")}")
 
         if self.category and self.category != 'other':
             lines.append(f"Category: {self.category.title()}")
@@ -120,7 +96,7 @@ class TranscriptionExporter:
         lines.append(f"# {self.title}")
         lines.append("")
 
-        dt = self._parse_date()
+        dt = parse_datetime(self.created_at)
         if dt:
             lines.append(
                 f"**Date**: {dt.strftime('%Y-%m-%d %H:%M:%S')}  "
@@ -128,7 +104,7 @@ class TranscriptionExporter:
 
         if self.duration and self.duration > 0:
             lines.append(
-                f"**Duration**: {self._format_duration(self.duration)}  "
+                f"**Duration**: {format_duration(self.duration, style="descriptive")}  "
             )
 
         if self.category and self.category != 'other':

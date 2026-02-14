@@ -21,11 +21,8 @@ import os
 # Add src/ to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-# Mock pyaudio before importing anything that depends on it
-mock_pyaudio = MagicMock()
-mock_pyaudio.paInt16 = 8
-mock_pyaudio.paContinue = 0
-sys.modules['pyaudio'] = mock_pyaudio
+# pyaudio mock is installed by conftest.py
+mock_pyaudio = sys.modules['pyaudio']
 
 from audio.recorder import AudioRecorder  # noqa: E402
 

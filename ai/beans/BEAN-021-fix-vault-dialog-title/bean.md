@@ -8,11 +8,11 @@
 | **Title**     | Fix Redundant Dialog Window Titles |
 | **Type**      | bug-fix |
 | **Priority**  | P3 |
-| **Status**    | Approved     |
+| **Status**    | Done         |
 | **Created**   | 2026-02-10   |
-| **Started**   | —            |
-| **Completed** | —            |
-| **Duration**  | —            |
+| **Started**   | 2026-02-14 00:13            |
+| **Completed** | 2026-02-14 00:13            |
+| **Duration**  | 0m            |
 
 ## Problem Statement
 
@@ -39,26 +39,26 @@ All dialog window titles show just their purpose (e.g., "Recordings Vault", "Set
 
 ## Acceptance Criteria
 
-- [ ] Vault dialog window title shows "Recordings Vault"
-- [ ] Settings dialog window title shows "Settings"
-- [ ] Summary Viewer dialog window title shows "AI Summary Viewer"
-- [ ] Main window title remains "ScribeVault"
-- [ ] No visual duplication of the app name in any dialog title bar
-- [ ] Existing tests still pass
+- [x] Vault dialog window title shows "Recordings Vault"
+- [x] Settings dialog window title shows "Settings"
+- [x] Summary Viewer dialog window title shows "AI Summary Viewer"
+- [x] Main window title remains "ScribeVault"
+- [x] No visual duplication of the app name in any dialog title bar
+- [x] Existing tests still pass
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Update setWindowTitle in qt_vault_dialog.py, qt_settings_dialog.py, and qt_summary_viewer.py | Developer | — | TODO |
-| 2 | Verify all dialog titles are clean and no regressions | Tech QA | 1 | TODO |
+| 1 | Update setWindowTitle in qt_vault_dialog.py, qt_settings_dialog.py, and qt_summary_viewer.py | Developer | — | DONE |
+| 2 | Verify all dialog titles are clean and no regressions | Tech QA | 1 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
 | **Total Tasks**      | 2     |
-| **Total Duration**   | —     |
+| **Total Duration**   | 0m     |
 | **Total Tokens In**  | —     |
 | **Total Tokens Out** | —     |
 
