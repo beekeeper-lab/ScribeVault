@@ -1,5 +1,7 @@
 # ScribeVault
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A modern GUI application for audio recording, transcription, and intelligent summarization with configurable cost-optimized processing.
 
 ## 🌟 Key Features
