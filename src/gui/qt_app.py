@@ -2,20 +2,13 @@
 Base PySide6 application class for ScribeVault.
 """
 
-import sys
 from typing import Optional
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
-from PySide6.QtCore import QSettings, QTimer, Signal, QThread
-from PySide6.QtGui import QIcon, QFont, QPalette, QAction
+from PySide6.QtCore import QSettings, Signal, QThread
+from PySide6.QtGui import QIcon, QFont, QAction
 import qdarkstyle
-
-from config.settings import SettingsManager
-from audio.recorder import AudioRecorder
-from transcription.whisper_service import WhisperService
-from ai.summarizer import SummarizerService
-from vault.manager import VaultManager
 
 
 class ScribeVaultQtApp(QApplication):

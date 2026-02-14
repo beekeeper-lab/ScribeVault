@@ -2,18 +2,15 @@
 Settings dialog for ScribeVault PySide6 application.
 """
 
-import os
 from pathlib import Path
-from typing import Optional
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QTabWidget, QWidget,
     QLabel, QPushButton, QLineEdit, QComboBox, QSpinBox, QCheckBox,
-    QGroupBox, QTextEdit, QMessageBox, QFileDialog, QProgressBar,
+    QGroupBox, QTextEdit, QMessageBox, QFileDialog,
     QSlider, QDoubleSpinBox, QFrame
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QFont, QIcon
 
 from config.settings import SettingsManager, TranscriptionSettings, SummarizationSettings, DiarizationSettings, UISettings, AudioSettings, AppSettings, AUDIO_PRESETS, CostEstimator
 from gui.settings_diagnostics import run_all_checks, DiagnosticResult

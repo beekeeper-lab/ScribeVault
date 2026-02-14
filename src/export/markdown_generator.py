@@ -2,7 +2,6 @@
 Markdown file generation and management for ScribeVault summaries.
 """
 
-import os
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -70,7 +69,7 @@ class MarkdownGenerator:
                     dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                 else:
                     dt = created_at
-            except:
+            except (ValueError, TypeError):
                 dt = datetime.now()
             
             # Format duration

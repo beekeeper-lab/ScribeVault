@@ -2,35 +2,32 @@
 Main application window for ScribeVault using PySide6.
 """
 
-import sys
-import os
 import threading
 from pathlib import Path
 from typing import Optional
 import logging
-import traceback
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTextEdit, QCheckBox, QFrame, QStatusBar,
-    QScrollArea, QProgressBar, QSplitter, QTabWidget, QMenuBar,
-    QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog,
+    QProgressBar, QSplitter,
+    QApplication, QMessageBox, QDialog,
     QGroupBox,
 )
 from PySide6.QtCore import (
-    Qt, QTimer, QThread, Signal, QSettings, QSize, QRect,
+    Qt, QTimer, Signal, QSettings,
     QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup
 )
 from PySide6.QtGui import (
-    QIcon, QFont, QPixmap, QAction, QPalette, QColor,
-    QKeySequence, QShortcut, QPainter, QBrush
+    QIcon, QFont, QAction,
+    QKeySequence, QShortcut,
 )
 
-from audio.recorder import AudioRecorder, AudioException
-from transcription.whisper_service import WhisperService, TranscriptionException
+from audio.recorder import AudioRecorder
+from transcription.whisper_service import WhisperService
 from ai.summarizer import SummarizerService
-from vault.manager import VaultManager, VaultException, VALID_CATEGORIES
+from vault.manager import VaultManager, VALID_CATEGORIES
 from config.settings import SettingsManager
 from gui.qt_app import ScribeVaultWorker
 from gui.pipeline_status import (
@@ -105,7 +102,7 @@ class RecordingWorker(ScribeVaultWorker):
                     if diarized_transcript:
                         self.emit_status("Transcription with speaker diarization complete")
                     self._emit_stage(STAGE_TRANSCRIPTION, STATUS_SUCCESS)
-                except Exception as e:
+                except Exception:
                     # Fallback to plain transcription
                     try:
                         transcript = self.whisper_service.transcribe_audio(str(self.audio_path))
