@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QTextEdit, QCheckBox, QFrame, QStatusBar,
     QScrollArea, QProgressBar, QSplitter, QTabWidget, QMenuBar,
     QToolBar, QSystemTrayIcon, QApplication, QMessageBox, QDialog,
-    QGroupBox,
+    QGroupBox, QGraphicsOpacityEffect,
 )
 from PySide6.QtCore import (
     Qt, QTimer, QThread, Signal, QSettings, QSize, QRect,
@@ -359,39 +359,45 @@ class AnimatedRecordButton(QPushButton):
         
     def setup_animation(self):
         """Setup pulsing animation for recording state."""
-        self.animation = QPropertyAnimation(self, b"opacity")
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.opacity_effect.setOpacity(1.0)
+
+        self.animation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.animation.setDuration(1000)
         self.animation.setStartValue(1.0)
         self.animation.setEndValue(0.6)
         self.animation.setEasingCurve(QEasingCurve.InOutQuad)
-        
+
         # Create looping animation
         self.animation_group = QSequentialAnimationGroup()
         self.animation_group.addAnimation(self.animation)
-        
+
         # Reverse animation
-        reverse_animation = QPropertyAnimation(self, b"opacity")
+        reverse_animation = QPropertyAnimation(
+            self.opacity_effect, b"opacity"
+        )
         reverse_animation.setDuration(1000)
         reverse_animation.setStartValue(0.6)
         reverse_animation.setEndValue(1.0)
         reverse_animation.setEasingCurve(QEasingCurve.InOutQuad)
-        
+
         self.animation_group.addAnimation(reverse_animation)
         self.animation_group.setLoopCount(-1)  # Infinite loop
         
     def set_recording_state(self, recording: bool):
         """Set recording state and update appearance."""
         self.is_recording = recording
-        
+
         if recording:
             self.setText("⏹️ Stop Recording")
             self.setProperty("recording", "true")
+            self.setGraphicsEffect(self.opacity_effect)
             self.animation_group.start()
         else:
             self.setText("🎙️ Start Recording")
             self.setProperty("recording", "false")
             self.animation_group.stop()
-            self.setGraphicsEffect(None)  # Remove any effects
+            self.setGraphicsEffect(None)
             
         # Force style update
         self.style().unpolish(self)
@@ -741,7 +747,7 @@ class ScribeVaultMainWindow(QMainWindow):
         edit_menu.addAction(copy_transcript_action)
         
         copy_summary_action = QAction("Copy &Summary", self)
-        copy_summary_action.setShortcut(QKeySequence("Ctrl+S"))
+        copy_summary_action.setShortcut(QKeySequence("Ctrl+Shift+C"))
         copy_summary_action.triggered.connect(self.copy_summary)
         edit_menu.addAction(copy_summary_action)
         
@@ -749,7 +755,7 @@ class ScribeVaultMainWindow(QMainWindow):
         view_menu = menubar.addMenu("&View")
         
         vault_action = QAction("&Vault", self)
-        vault_action.setShortcut(QKeySequence("Ctrl+V"))
+        vault_action.setShortcut(QKeySequence("Ctrl+Shift+V"))
         vault_action.triggered.connect(self.show_vault)
         view_menu.addAction(vault_action)
         
@@ -763,7 +769,7 @@ class ScribeVaultMainWindow(QMainWindow):
     def setup_shortcuts(self):
         """Setup keyboard shortcuts."""
         # Global shortcuts
-        record_shortcut = QShortcut(QKeySequence("Space"), self)
+        record_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
         record_shortcut.activated.connect(self.toggle_recording)
         
         # Escape to stop recording

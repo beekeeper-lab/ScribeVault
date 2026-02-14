@@ -38,22 +38,22 @@ All file operations that use database-sourced paths validate that the resolved p
 
 ## Acceptance Criteria
 
-- [ ] A shared `validate_path_within(path, base_dir)` utility exists and is used for all DB-sourced file operations
-- [ ] Audio playback (`qt_vault_dialog.py`) validates the filename resolves within `recordings/`
-- [ ] Export operations (`qt_vault_dialog.py`) validate source and destination paths
-- [ ] Markdown reading (`qt_summary_viewer.py`) validates the path resolves within `summaries/`
-- [ ] Each validation failure shows a user-facing error and logs a warning
-- [ ] Unit tests cover: valid paths pass, `..` traversal blocked, symlink traversal blocked, absolute path injection blocked
-- [ ] `pytest tests/` passes, `flake8 src/ tests/` is clean
+- [x] A shared `validate_path_within(path, base_dir)` utility exists and is used for all DB-sourced file operations
+- [x] Audio playback (`qt_vault_dialog.py`) validates the filename resolves within `recordings/`
+- [x] Export operations (`qt_vault_dialog.py`) validate source and destination paths
+- [x] Markdown reading (`qt_summary_viewer.py`) validates the path resolves within `summaries/`
+- [x] Each validation failure shows a user-facing error and logs a warning
+- [x] Unit tests cover: valid paths pass, `..` traversal blocked, symlink traversal blocked, absolute path injection blocked
+- [x] `pytest tests/` passes, `flake8 src/ tests/` is clean
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Create path validation utility | Developer | | TODO |
-| 2 | Apply validation to vault dialog file operations | Developer | 1 | TODO |
-| 3 | Apply validation to summary viewer file operations | Developer | 1 | TODO |
-| 4 | Write unit tests for path validation | Tech QA | 2, 3 | TODO |
+| 1 | Create path validation utility | Developer | | DONE |
+| 2 | Apply validation to vault dialog file operations | Developer | 1 | DONE |
+| 3 | Apply validation to summary viewer file operations | Developer | 1 | DONE |
+| 4 | Write unit tests for path validation | Tech QA | 2, 3 | DONE |
 
 ## Telemetry
 

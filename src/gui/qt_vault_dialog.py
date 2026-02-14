@@ -1252,7 +1252,7 @@ class VaultDialog(QDialog):
             exporter = TranscriptionExporter(recording)
             if exporter.has_timestamps():
                 srt_name = f"{safe_title}.srt"
-                srt_path = export_path / srt_name
+                srt_path = subfolder / srt_name
                 exporter.export_srt(srt_path)
                 exported_files.append(srt_name)
 
@@ -1381,9 +1381,10 @@ class VaultDialog(QDialog):
             return
 
         filename = recording.get("filename", "")
-        audio_file = Path("recordings") / filename
+        vault_dir = self.vault_manager.vault_dir
+        audio_file = vault_dir / filename
         try:
-            validate_path_within(audio_file, Path("recordings"))
+            validate_path_within(audio_file, vault_dir)
         except ValueError:
             logger.warning(f"Path traversal blocked in play_audio: {filename}")
             QMessageBox.warning(

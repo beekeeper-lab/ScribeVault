@@ -39,13 +39,13 @@ Users can delete recordings (with confirmation dialog) and export recordings (au
 
 ## Acceptance Criteria
 
-- [ ] Delete button shows confirmation dialog before deleting
-- [ ] Delete removes audio file, transcription, summary, and database entry
-- [ ] Vault list refreshes after deletion
-- [ ] Export opens a directory picker dialog
-- [ ] Export copies audio file, transcription (.txt), and summary (.md) to chosen directory
-- [ ] Error dialog shown if export/delete fails (e.g., file locked, permission denied)
-- [ ] New tests cover delete and export functionality
+- [x] Delete button shows confirmation dialog before deleting
+- [x] Delete removes audio file, transcription, summary, and database entry
+- [x] Vault list refreshes after deletion
+- [x] Export opens a directory picker dialog
+- [x] Export copies audio file, transcription (.txt), and summary (.md) to chosen directory
+- [x] Error dialog shown if export/delete fails (e.g., file locked, permission denied)
+- [x] New tests cover delete and export functionality
 
 ## Tasks
 

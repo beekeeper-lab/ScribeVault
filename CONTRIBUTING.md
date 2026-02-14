@@ -15,10 +15,7 @@
    ```
 
 3. **Configure API key**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your OpenAI API key
-   ```
+   Launch the application and enter your OpenAI API key when prompted, or use the Settings dialog. Keys are stored securely via platform keyring with Fernet encryption.
 
 ## Code Style
 

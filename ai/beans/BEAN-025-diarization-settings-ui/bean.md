@@ -42,13 +42,13 @@ Users can configure speaker diarization from the Settings dialog, including togg
 
 ## Acceptance Criteria
 
-- [ ] Diarization section is visible in the Settings dialog (Transcription tab or clearly labeled section)
-- [ ] Enable/disable checkbox toggles diarization on/off
-- [ ] Speaker count control allows selecting auto (0) or a specific count (2-6)
-- [ ] Sensitivity control allows adjustment between 0.0 and 1.0 with descriptive labels (e.g., "Less splitting" / "More splitting")
-- [ ] Settings are loaded from and saved to config/settings.json via SettingsManager
-- [ ] Disabling diarization grays out the speaker count and sensitivity controls
-- [ ] Existing tests pass; new tests cover UI save/load of diarization settings
+- [x] Diarization section is visible in the Settings dialog (Transcription tab or clearly labeled section)
+- [x] Enable/disable checkbox toggles diarization on/off
+- [x] Speaker count control allows selecting auto (0) or a specific count (2-6)
+- [x] Sensitivity control allows adjustment between 0.0 and 1.0 with descriptive labels (e.g., "Less splitting" / "More splitting")
+- [x] Settings are loaded from and saved to config/settings.json via SettingsManager
+- [x] Disabling diarization grays out the speaker count and sensitivity controls
+- [x] Existing tests pass; new tests cover UI save/load of diarization settings
 
 ## Tasks
 

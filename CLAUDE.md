@@ -44,7 +44,7 @@ A **Bean** is a unit of work (feature, enhancement, bug fix, or epic). Beans liv
 6. Team Lead verifies outputs against acceptance criteria
 7. Bean marked Done
 
-See `ai/context/bean-workflow.md` for the full lifecycle specification.
+See the bean template at `ai/beans/_bean-template.md` for the lifecycle specification.
 
 ## Tech Stack
 
@@ -73,4 +73,4 @@ python main.py                         # Launch PySide6 GUI
 - **Run tests** before marking any task done (`pytest tests/`)
 - **Run lint** before committing (`flake8 src/ tests/`)
 - **Bean tasks** live in `ai/beans/BEAN-NNN-<slug>/tasks/`
-- **ADRs** go in `ai/context/decisions.md`
+- **ADRs** go in `docs/` or relevant bean output directories
