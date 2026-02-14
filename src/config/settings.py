@@ -488,23 +488,19 @@ class SettingsManager:
     ) -> Optional[str]:
         """Read API key from legacy version 2 format.
 
-        Supports both unsalted Fernet and XOR methods for migration.
+        Only supports unsalted Fernet for migration to v3.
+        XOR encryption (removed in BEAN-042) is no longer accepted.
         """
-        legacy_key = self._get_legacy_encryption_key()
-
         if method == "fernet":
+            legacy_key = self._get_legacy_encryption_key()
             from cryptography.fernet import Fernet
             fernet = Fernet(base64.urlsafe_b64encode(legacy_key))
             return fernet.decrypt(encrypted.encode()).decode()
-        elif method == "xor":
-            xor_bytes = base64.urlsafe_b64decode(encrypted)
-            return bytes(
-                b ^ legacy_key[i % len(legacy_key)]
-                for i, b in enumerate(xor_bytes)
-            ).decode()
         else:
             logger.warning(
-                f"Unknown legacy encryption method: {method}"
+                "Unsupported legacy encryption method '%s'. "
+                "Only Fernet is supported for v2 migration.",
+                method,
             )
             return None
 

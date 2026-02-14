@@ -292,42 +292,20 @@ class TestLegacyEncryptionMigration(unittest.TestCase):
         self.assertEqual(data["version"], 3)
         self.assertIn("salt", data)
 
-    def test_migrate_legacy_xor(self):
-        """Legacy version 2 XOR data should be readable and migrated."""
-        import base64
-        import hashlib
-
-        test_key = "sk-legacy-xor-key-for-testing-12345"
-        # Write legacy version 2 XOR format
-        import getpass
-        import platform
-        machine_id = (
-            f"ScribeVault-{getpass.getuser()}-{platform.node()}"
-        )
-        legacy_key = hashlib.sha256(machine_id.encode()).digest()
-        xor_bytes = bytes(
-            b ^ legacy_key[i % len(legacy_key)]
-            for i, b in enumerate(test_key.encode())
-        )
-
+    def test_legacy_xor_rejected(self):
+        """Legacy version 2 XOR data should be rejected (BEAN-042)."""
         enc_path = self.manager._get_encrypted_config_path()
         enc_path.parent.mkdir(exist_ok=True)
         with open(enc_path, "w") as f:
             json.dump({
                 "version": 2,
-                "data": base64.urlsafe_b64encode(xor_bytes).decode(),
+                "data": "ZmFrZS1kYXRh",
                 "method": "xor",
             }, f)
 
-        # Read should succeed and auto-migrate
+        # XOR is no longer supported — should return None
         result = self.manager._read_encrypted_key()
-        self.assertEqual(result, test_key)
-
-        # File should now be version 3 with salt
-        with open(enc_path) as f:
-            data = json.load(f)
-        self.assertEqual(data["version"], 3)
-        self.assertIn("salt", data)
+        self.assertIsNone(result)
 
     def test_unsupported_version_returns_none(self):
         """Unsupported version should return None."""
