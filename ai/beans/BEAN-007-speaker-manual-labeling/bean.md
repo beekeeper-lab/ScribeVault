@@ -41,13 +41,13 @@ Users can open a transcription, assign real names to speaker labels, and save th
 
 ## Acceptance Criteria
 
-- [ ] Speaker management panel shows all detected speakers with editable name fields
-- [ ] Renaming a speaker updates all occurrences in the transcription
-- [ ] Updated transcription is saved to vault
-- [ ] Users can manually insert speaker labels into un-diarized transcriptions
-- [ ] UI is accessible from vault detail view or summary viewer
-- [ ] Changes are non-destructive (original transcription preserved as backup)
-- [ ] New tests cover speaker rename and manual insertion
+- [x] Speaker management panel shows all detected speakers with editable name fields
+- [x] Renaming a speaker updates all occurrences in the transcription
+- [x] Updated transcription is saved to vault
+- [x] Users can manually insert speaker labels into un-diarized transcriptions
+- [x] UI is accessible from vault detail view or summary viewer
+- [x] Changes are non-destructive (original transcription preserved as backup)
+- [x] New tests cover speaker rename and manual insertion
 
 ## Tasks
 

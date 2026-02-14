@@ -47,20 +47,20 @@ Users can trigger transcription and summarization on-demand from the Recording V
 
 ## Acceptance Criteria
 
-- [ ] A "Transcribe" button appears in the vault table toolbar and recording detail panel
-- [ ] A "Summarize" button appears in the vault table toolbar and recording detail panel
-- [ ] Transcribe button is enabled only when the selected recording has an audio file but no transcript
-- [ ] Summarize button is enabled only when the selected recording has a transcript but no summary, OR has no transcript and no summary (will auto-chain)
-- [ ] Clicking Transcribe generates a transcript from the audio file using WhisperService and stores it in the vault
-- [ ] Clicking Summarize on a recording with a transcript generates a summary and stores it in the vault
-- [ ] Clicking Summarize on a recording without a transcript automatically transcribes first, then summarizes, without user intervention
-- [ ] During processing, the buttons are disabled and a progress indicator is shown (pipeline status or status bar)
-- [ ] After summarization completes, the Summary Viewer dialog opens automatically
-- [ ] The detail panel refreshes to show newly created transcript/summary content
-- [ ] If the audio file is missing from disk, a clear error message is shown
-- [ ] If the API call fails (transcription or summarization), an error dialog is shown and partial results are preserved (e.g., transcript saved even if summarization fails)
-- [ ] All new functionality has unit tests
-- [ ] Existing tests continue to pass
+- [x] A "Transcribe" button appears in the vault table toolbar and recording detail panel
+- [x] A "Summarize" button appears in the vault table toolbar and recording detail panel
+- [x] Transcribe button is enabled only when the selected recording has an audio file but no transcript
+- [x] Summarize button is enabled only when the selected recording has a transcript but no summary, OR has no transcript and no summary (will auto-chain)
+- [x] Clicking Transcribe generates a transcript from the audio file using WhisperService and stores it in the vault
+- [x] Clicking Summarize on a recording with a transcript generates a summary and stores it in the vault
+- [x] Clicking Summarize on a recording without a transcript automatically transcribes first, then summarizes, without user intervention
+- [x] During processing, the buttons are disabled and a progress indicator is shown (pipeline status or status bar)
+- [x] After summarization completes, the Summary Viewer dialog opens automatically
+- [x] The detail panel refreshes to show newly created transcript/summary content
+- [x] If the audio file is missing from disk, a clear error message is shown
+- [x] If the API call fails (transcription or summarization), an error dialog is shown and partial results are preserved (e.g., transcript saved even if summarization fails)
+- [x] All new functionality has unit tests
+- [x] Existing tests continue to pass
 
 ## Tasks
 

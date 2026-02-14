@@ -1113,6 +1113,22 @@ class SummaryViewerDialog(QDialog):
             return
 
         try:
+            validate_path_within(
+                Path(self.current_markdown_path), Path("summaries")
+            )
+        except ValueError:
+            logger.warning(
+                "Path traversal blocked in open_markdown_file: %s",
+                self.current_markdown_path,
+            )
+            QMessageBox.warning(
+                self,
+                "Invalid Path",
+                "The markdown file path is invalid.",
+            )
+            return
+
+        try:
             open_with_system_app(self.current_markdown_path)
 
         except Exception as e:
