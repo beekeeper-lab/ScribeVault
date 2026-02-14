@@ -383,5 +383,101 @@ class TestSummaryHistoryStorage(unittest.TestCase):
         self.assertEqual(recordings[0]["summary_history"], [])
 
 
+class TestModelParameterForwarding(unittest.TestCase):
+    """Tests for model parameter being forwarded to API calls."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_default_model_without_settings(self, mock_openai_cls):
+        """Default model is gpt-4o-mini when no settings provided."""
+        mock_openai_cls.return_value = MagicMock()
+        service = SummarizerService()
+        self.assertEqual(service.model, "gpt-4o-mini")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_explicit_model_parameter(self, mock_openai_cls):
+        """Explicit model parameter overrides default."""
+        mock_openai_cls.return_value = MagicMock()
+        service = SummarizerService(model="gpt-4o")
+        self.assertEqual(service.model, "gpt-4o")
+
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_model_from_settings_manager(self, mock_openai_cls):
+        """Model is read from settings_manager when available."""
+        mock_openai_cls.return_value = MagicMock()
+        mock_sm = MagicMock()
+        mock_sm.get_openai_api_key.return_value = "test-key"
+        mock_sm.settings.summarization.model = "gpt-4o"
+        service = SummarizerService(settings_manager=mock_sm)
+        self.assertEqual(service.model, "gpt-4o")
+
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_explicit_model_overrides_settings(self, mock_openai_cls):
+        """Explicit model parameter overrides settings_manager."""
+        mock_openai_cls.return_value = MagicMock()
+        mock_sm = MagicMock()
+        mock_sm.get_openai_api_key.return_value = "test-key"
+        mock_sm.settings.summarization.model = "gpt-4o"
+        service = SummarizerService(
+            settings_manager=mock_sm, model="gpt-4o-mini"
+        )
+        self.assertEqual(service.model, "gpt-4o-mini")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_model_forwarded_to_call_chat_api(self, mock_openai_cls):
+        """Model is forwarded to _call_chat_api."""
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = (
+            _make_mock_response("summary")
+        )
+        service = SummarizerService(model="gpt-4o")
+        service.summarize_text("test text")
+
+        call_args = mock_client.chat.completions.create.call_args
+        self.assertEqual(call_args[1]["model"], "gpt-4o")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_model_forwarded_to_summarize_with_prompt(self, mock_openai_cls):
+        """Model is forwarded to summarize_with_prompt."""
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = (
+            _make_mock_response("result")
+        )
+        service = SummarizerService(model="gpt-4o")
+        service.summarize_with_prompt("text", "prompt")
+
+        call_args = mock_client.chat.completions.create.call_args
+        self.assertEqual(call_args[1]["model"], "gpt-4o")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("ai.summarizer.openai.OpenAI")
+    def test_no_hardcoded_gpt35_in_api_calls(self, mock_openai_cls):
+        """No gpt-3.5-turbo references in API calls."""
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = (
+            _make_mock_response("result")
+        )
+        service = SummarizerService()
+
+        # Call all methods that make API calls
+        service.summarize_text("test")
+        service.summarize_with_prompt("test", "prompt")
+        service.extract_key_points("test")
+        service.categorize_content("test")
+
+        for call in mock_client.chat.completions.create.call_args_list:
+            self.assertNotEqual(
+                call[1]["model"],
+                "gpt-3.5-turbo",
+                "Found hardcoded gpt-3.5-turbo in API call",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

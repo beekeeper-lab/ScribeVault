@@ -8,10 +8,10 @@
 | Title     | Fix Services Ignoring User Settings |
 | Type      | bug-fix |
 | Priority  | P1 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
 | Duration  |              |
 
 ## Problem Statement
@@ -49,35 +49,35 @@ Both services respect user-configured settings: the summarizer uses the selected
 
 ## Acceptance Criteria
 
-- [ ] `SummarizerService` accepts a model parameter and uses it for all API calls
-- [ ] Changing the model in Settings takes effect on the next summarization
-- [ ] No hardcoded `"gpt-3.5-turbo"` references remain in summarizer.py
-- [ ] Duplicate logger assignment is removed
-- [ ] `WhisperService` uses `settings_manager.get_openai_api_key()` when settings_manager is provided
-- [ ] API key from keyring/encrypted config is correctly passed to `openai.OpenAI(api_key=...)`
-- [ ] Environment variable fallback works when no settings_manager is provided
-- [ ] Redundant `load_dotenv()` removed from whisper_service.py
-- [ ] Existing tests pass
-- [ ] New test verifies model parameter is forwarded to the API call
-- [ ] New test verifies API key resolution priority (settings_manager > env var)
+- [x] `SummarizerService` accepts a model parameter and uses it for all API calls
+- [x] Changing the model in Settings takes effect on the next summarization
+- [x] No hardcoded `"gpt-3.5-turbo"` references remain in summarizer.py
+- [x] Duplicate logger assignment is removed
+- [x] `WhisperService` uses `settings_manager.get_openai_api_key()` when settings_manager is provided
+- [x] API key from keyring/encrypted config is correctly passed to `openai.OpenAI(api_key=...)`
+- [x] Environment variable fallback works when no settings_manager is provided
+- [x] Redundant `load_dotenv()` removed from whisper_service.py
+- [x] Existing tests pass
+- [x] New test verifies model parameter is forwarded to the API call
+- [x] New test verifies API key resolution priority (settings_manager > env var)
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Update SummarizerService to accept and use model parameter | developer | | TODO |
-| 2 | Wire model from SummarizationSettings into SummarizerService construction | developer | 1 | TODO |
-| 3 | Ensure _apply_settings reinitializes summarizer with new model | developer | 2 | TODO |
-| 4 | Update WhisperService init to use settings_manager.get_openai_api_key() | developer | | TODO |
-| 5 | Remove redundant load_dotenv() call from whisper_service.py | developer | 4 | TODO |
-| 6 | Add test for model parameter forwarding | tech-qa | 1 | TODO |
-| 7 | Add test for API key resolution priority | tech-qa | 4 | TODO |
+| 1 | Update SummarizerService to accept and use model parameter | developer | | DONE |
+| 2 | Wire model from SummarizationSettings into SummarizerService construction | developer | 1 | DONE |
+| 3 | Ensure _apply_settings reinitializes summarizer with new model | developer | 2 | DONE |
+| 4 | Update WhisperService init to use settings_manager.get_openai_api_key() | developer | | DONE |
+| 5 | Remove redundant load_dotenv() call from whisper_service.py | developer | 4 | DONE |
+| 6 | Add test for model parameter forwarding | tech-qa | 1 | DONE |
+| 7 | Add test for API key resolution priority | tech-qa | 4 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 7     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
