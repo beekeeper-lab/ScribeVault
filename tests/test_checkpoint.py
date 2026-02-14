@@ -11,13 +11,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Mock pyaudio before importing recorder
-mock_pyaudio = MagicMock()
-mock_pyaudio.paInt16 = 8  # pyaudio.paInt16 constant
-mock_pyaudio.paContinue = 0
-sys.modules['pyaudio'] = mock_pyaudio
-
+# pyaudio mock is installed by conftest.py
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+mock_pyaudio = sys.modules['pyaudio']
 
 from audio.recorder import AudioRecorder  # noqa: E402
 
