@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
 # Import the markdown generator
 try:
     from export.markdown_generator import (
@@ -31,7 +29,7 @@ except ImportError:
 class SummarizerService:
     """Handles text summarization using OpenAI GPT."""
 
-    def __init__(self, settings_manager=None):
+    def __init__(self, settings_manager=None, model=None):
         """Initialize the summarizer service.
 
         Args:
@@ -39,6 +37,10 @@ class SummarizerService:
                 for secure key retrieval. If not provided,
                 falls back to OPENAI_API_KEY environment
                 variable.
+            model: Optional model name to use for API calls.
+                If not provided and settings_manager is
+                available, uses the configured model.
+                Defaults to "gpt-4o-mini".
 
         Raises:
             ValueError: If no API key is available from any
@@ -59,6 +61,14 @@ class SummarizerService:
             )
 
         self.client = openai.OpenAI(api_key=api_key.strip())
+
+        # Determine model: explicit param > settings > default
+        if model:
+            self.model = model
+        elif settings_manager:
+            self.model = settings_manager.settings.summarization.model
+        else:
+            self.model = "gpt-4o-mini"
 
         # Initialize markdown generator if available
         if MARKDOWN_AVAILABLE:
@@ -82,7 +92,7 @@ class SummarizerService:
     ):
         """Make a chat completion API call with retry."""
         return self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
@@ -301,7 +311,7 @@ class SummarizerService:
         """
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=self.model,
                 messages=[
                     {
                         "role": "system",

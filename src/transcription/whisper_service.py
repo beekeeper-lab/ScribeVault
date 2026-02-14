@@ -7,7 +7,6 @@ import openai
 from pathlib import Path
 from typing import Optional, Union, Dict, Any, List
 import os
-from dotenv import load_dotenv
 import logging
 
 from utils.retry import retry_on_transient_error, APIRetryError
@@ -25,8 +24,6 @@ try:
 except ImportError:
     LOCAL_WHISPER_AVAILABLE = False
     whisper = None
-
-load_dotenv()
 
 class WhisperService:
     """Handles audio transcription using OpenAI Whisper (API or local)."""
@@ -72,8 +69,13 @@ class WhisperService:
                 )
             self._load_local_model()
         else:
-            # Check API key before creating client
-            api_key = os.getenv("OPENAI_API_KEY")
+            # Get API key: prefer settings_manager, fall back to env var
+            api_key = None
+            if self.settings_manager:
+                api_key = self.settings_manager.get_openai_api_key()
+            if not api_key:
+                api_key = os.getenv("OPENAI_API_KEY")
+
             if not api_key or api_key.strip() == "":
                 logger.warning("No OpenAI API key found. Falling back to local transcription.")
                 self.use_local = True
@@ -82,7 +84,7 @@ class WhisperService:
                 else:
                     raise ValueError("No transcription method available: missing API key and local Whisper not installed")
             else:
-                self.client = openai.OpenAI(api_key=api_key)
+                self.client = openai.OpenAI(api_key=api_key.strip())
             
     def _load_local_model(self):
         """Load the local Whisper model."""

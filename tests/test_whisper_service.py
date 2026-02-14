@@ -193,5 +193,66 @@ class TestWhisperService(unittest.TestCase):
         self.assertEqual(service, "local")
 
 
+class TestApiKeyResolutionPriority(unittest.TestCase):
+    """Tests for API key resolution: settings_manager > env var."""
+
+    @patch('transcription.whisper_service.openai.OpenAI')
+    def test_settings_manager_key_used_over_env(self, mock_openai_cls):
+        """settings_manager API key is preferred over env var."""
+        mock_sm = MagicMock()
+        mock_sm.settings.transcription.service = "openai"
+        mock_sm.has_openai_api_key.return_value = True
+        mock_sm.get_openai_api_key.return_value = "sk-from-settings"
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-from-env"}):
+            service = WhisperService(settings_manager=mock_sm)
+
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-from-settings"
+        )
+        self.assertFalse(service.use_local)
+
+    @patch('transcription.whisper_service.openai.OpenAI')
+    def test_env_var_fallback_when_no_settings_key(self, mock_openai_cls):
+        """Falls back to env var when settings_manager has no key."""
+        mock_sm = MagicMock()
+        mock_sm.settings.transcription.service = "openai"
+        mock_sm.has_openai_api_key.return_value = True
+        mock_sm.get_openai_api_key.return_value = None
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-from-env"}):
+            service = WhisperService(settings_manager=mock_sm)
+
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-from-env"
+        )
+        self.assertFalse(service.use_local)
+
+    @patch('transcription.whisper_service.openai.OpenAI')
+    def test_env_var_used_without_settings_manager(self, mock_openai_cls):
+        """Env var is used when no settings_manager is provided."""
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-from-env"}):
+            service = WhisperService()
+
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-from-env"
+        )
+        self.assertFalse(service.use_local)
+
+    @patch('transcription.whisper_service.openai.OpenAI')
+    def test_settings_manager_key_stripped(self, mock_openai_cls):
+        """API key from settings_manager is stripped of whitespace."""
+        mock_sm = MagicMock()
+        mock_sm.settings.transcription.service = "openai"
+        mock_sm.has_openai_api_key.return_value = True
+        mock_sm.get_openai_api_key.return_value = "  sk-padded  "
+
+        WhisperService(settings_manager=mock_sm)
+
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-padded"
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

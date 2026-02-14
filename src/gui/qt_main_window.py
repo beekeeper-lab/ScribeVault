@@ -1158,6 +1158,15 @@ class ScribeVaultMainWindow(QMainWindow):
                 logger.warning(f"Could not reinitialize whisper service: {e}")
                 self.whisper_service = None
 
+            # Reinitialize summarizer service with updated model
+            try:
+                self.summarizer_service = SummarizerService(
+                    settings_manager=self.settings_manager
+                )
+            except Exception as e:
+                logger.warning(f"Could not reinitialize summarizer service: {e}")
+                self.summarizer_service = None
+
         except Exception as e:
             logger.error(f"Error applying settings: {e}")
 
