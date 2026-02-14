@@ -39,7 +39,7 @@
 | BEAN-036 | Extract Shared Utility Functions | P2 | Done | bean/BEAN-036-extract-shared-utilities |
 | BEAN-037 | Requirements Cleanup & Security Bounds | P2 | Done | bean/BEAN-037-unused-dependencies-cleanup |
 | BEAN-038 | Stale Documentation & UI Fixes | P3 | Done | bean/BEAN-038-stale-docs-and-ui-fixes |
-| BEAN-039 | Purge Git History for Publication | P0 | Approved | bean/BEAN-039-purge-git-history |
+| BEAN-039 | Purge Git History for Publication | P0 | In Progress | bean/BEAN-039-purge-git-history |
 | BEAN-040 | Add MIT License | P1 | Done | bean/BEAN-040-add-mit-license |
 | BEAN-042 | Remove Legacy XOR Encryption | P2 | Done | bean/BEAN-042-remove-legacy-xor-encryption |
 | BEAN-043 | Comprehensive README Rewrite | P1 | Done | bean/BEAN-043-comprehensive-readme-rewrite |
