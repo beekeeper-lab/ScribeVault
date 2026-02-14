@@ -41,6 +41,8 @@ from gui.qt_vault_dialog import VaultDialog
 from gui.qt_summary_viewer import SummaryViewerDialog
 from gui.speaker_panel import SpeakerPanel
 from transcription.speaker_service import parse_speakers
+from version import __version__
+from gui.constants import FONT_FAMILY
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +353,7 @@ class AnimatedRecordButton(QPushButton):
     def setup_styling(self):
         """Setup button styling."""
         self.setMinimumSize(160, 50)
-        self.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        self.setFont(QFont(FONT_FAMILY, 14, QFont.Bold))
         self.setProperty("class", "RecordButton")
         
     def setup_animation(self):
@@ -554,15 +556,15 @@ class ScribeVaultMainWindow(QMainWindow):
         
         # Logo/Title
         title_label = QLabel("ScribeVault")
-        title_label.setFont(QFont("Segoe UI", 28, QFont.Bold))
+        title_label.setFont(QFont(FONT_FAMILY, 28, QFont.Bold))
         title_label.setStyleSheet("color: white;")
         
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         
         # Version info
-        version_label = QLabel("v2.0.0")
-        version_label.setFont(QFont("Segoe UI", 10))
+        version_label = QLabel(f"v{__version__}")
+        version_label.setFont(QFont(FONT_FAMILY, 10))
         version_label.setStyleSheet("color: #cccccc;")
         header_layout.addWidget(version_label)
         
@@ -576,13 +578,13 @@ class ScribeVaultMainWindow(QMainWindow):
         transcript_layout.setContentsMargins(20, 10, 20, 10)
         
         transcript_label = QLabel("📝 Transcribed Text")
-        transcript_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        transcript_label.setFont(QFont(FONT_FAMILY, 16, QFont.Bold))
         transcript_layout.addWidget(transcript_label)
         
         self.transcript_text = QTextEdit()
         self.transcript_text.setProperty("class", "TranscriptArea")
         self.transcript_text.setPlaceholderText("Click 'Start Recording' to begin capturing audio...")
-        self.transcript_text.setFont(QFont("Segoe UI", 12))
+        self.transcript_text.setFont(QFont(FONT_FAMILY, 12))
         self.transcript_text.setReadOnly(True)
         transcript_layout.addWidget(self.transcript_text)
 
@@ -615,13 +617,13 @@ class ScribeVaultMainWindow(QMainWindow):
         summary_layout.setContentsMargins(20, 10, 20, 10)
         
         self.summary_label = QLabel("🤖 AI Summary")
-        self.summary_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        self.summary_label.setFont(QFont(FONT_FAMILY, 16, QFont.Bold))
         summary_layout.addWidget(self.summary_label)
         
         self.summary_text = QTextEdit()
         self.summary_text.setProperty("class", "SummaryArea")
         self.summary_text.setPlaceholderText("AI summary will appear here when enabled...")
-        self.summary_text.setFont(QFont("Segoe UI", 12))
+        self.summary_text.setFont(QFont(FONT_FAMILY, 12))
         self.summary_text.setReadOnly(True)
         summary_layout.addWidget(self.summary_text)
         
@@ -638,7 +640,7 @@ class ScribeVaultMainWindow(QMainWindow):
         
         # Generate Summary checkbox
         self.summary_checkbox = QCheckBox("Generate AI Summary")
-        self.summary_checkbox.setFont(QFont("Segoe UI", 12))
+        self.summary_checkbox.setFont(QFont(FONT_FAMILY, 12))
         self.summary_checkbox.toggled.connect(self.on_summary_toggle)
         controls_layout.addWidget(self.summary_checkbox)
         
@@ -665,7 +667,7 @@ class ScribeVaultMainWindow(QMainWindow):
         self.vault_button = QPushButton("📚 Vault")
         self.vault_button.setProperty("class", "VaultButton")
         self.vault_button.setMinimumSize(100, 50)
-        self.vault_button.setFont(QFont("Segoe UI", 12))
+        self.vault_button.setFont(QFont(FONT_FAMILY, 12))
         self.vault_button.clicked.connect(self.show_vault)
         button_layout.addWidget(self.vault_button)
         
@@ -673,7 +675,7 @@ class ScribeVaultMainWindow(QMainWindow):
         self.settings_button = QPushButton("⚙️ Settings")
         self.settings_button.setProperty("class", "SettingsButton")
         self.settings_button.setMinimumSize(100, 50)
-        self.settings_button.setFont(QFont("Segoe UI", 12))
+        self.settings_button.setFont(QFont(FONT_FAMILY, 12))
         self.settings_button.clicked.connect(self.show_settings)
         button_layout.addWidget(self.settings_button)
         
@@ -681,7 +683,7 @@ class ScribeVaultMainWindow(QMainWindow):
         self.markdown_button = QPushButton("📄 Summary")
         self.markdown_button.setProperty("class", "MarkdownButton")
         self.markdown_button.setMinimumSize(120, 50)
-        self.markdown_button.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        self.markdown_button.setFont(QFont(FONT_FAMILY, 12, QFont.Bold))
         self.markdown_button.clicked.connect(self.show_markdown_summary)
         self.markdown_button.setVisible(False)
         button_layout.addWidget(self.markdown_button)
@@ -1201,8 +1203,8 @@ class ScribeVaultMainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About ScribeVault",
-            """
-            <h3>ScribeVault v2.0.0</h3>
+            f"""
+            <h3>ScribeVault v{__version__}</h3>
             <p>Professional Audio Transcription & AI Summary Tool</p>
             <p>Built with PySide6 for enhanced performance and native appearance.</p>
             <p>© 2025 Beekeeper Lab</p>

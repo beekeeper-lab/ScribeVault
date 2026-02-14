@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
+from gui.constants import FONT_FAMILY
+
 from gui.pipeline_status import (
     STATUS_PENDING, STATUS_RUNNING, STATUS_SUCCESS, STATUS_FAILED, STATUS_SKIPPED,
     STAGE_RECORDING, STAGE_TRANSCRIPTION, STAGE_SUMMARIZATION, STAGE_VAULT_SAVE,
@@ -55,19 +57,19 @@ class StageIndicator(QFrame):
 
         # Stage label
         self.name_label = QLabel(STAGE_LABELS.get(self.stage_name, self.stage_name))
-        self.name_label.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        self.name_label.setFont(QFont(FONT_FAMILY, 9, QFont.Bold))
         self.name_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.name_label)
 
         # Status indicator
         self.status_label = QLabel("--")
-        self.status_label.setFont(QFont("Segoe UI", 9))
+        self.status_label.setFont(QFont(FONT_FAMILY, 9))
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
 
         # Error label (hidden by default)
         self.error_label = QLabel("")
-        self.error_label.setFont(QFont("Segoe UI", 8))
+        self.error_label.setFont(QFont(FONT_FAMILY, 8))
         self.error_label.setAlignment(Qt.AlignCenter)
         self.error_label.setWordWrap(True)
         self.error_label.setMaximumWidth(180)
@@ -77,7 +79,7 @@ class StageIndicator(QFrame):
 
         # Retry button (hidden by default)
         self.retry_button = QPushButton("Retry")
-        self.retry_button.setFont(QFont("Segoe UI", 8))
+        self.retry_button.setFont(QFont(FONT_FAMILY, 8))
         self.retry_button.setMaximumWidth(60)
         self.retry_button.setVisible(False)
         self.retry_button.clicked.connect(lambda: self.retry_clicked.emit(self.stage_name))
@@ -134,7 +136,7 @@ class PipelineStatusPanel(QWidget):
 
         # Title
         title = QLabel("Pipeline:")
-        title.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        title.setFont(QFont(FONT_FAMILY, 9, QFont.Bold))
         layout.addWidget(title)
 
         # Stage indicators

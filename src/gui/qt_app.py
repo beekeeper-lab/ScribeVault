@@ -10,6 +10,8 @@ from PySide6.QtCore import QSettings, Signal, QThread
 from PySide6.QtGui import QIcon, QFont, QAction
 import qdarkstyle
 
+from version import __version__
+from gui.constants import FONT_FAMILY, FONT_FAMILY_CSS
 
 class ScribeVaultQtApp(QApplication):
     """
@@ -21,7 +23,7 @@ class ScribeVaultQtApp(QApplication):
         
         # Application metadata
         self.setApplicationName("ScribeVault")
-        self.setApplicationVersion("2.0.0")
+        self.setApplicationVersion(__version__)
         self.setApplicationDisplayName("ScribeVault")
         self.setOrganizationName("Beekeeper Lab")
         self.setOrganizationDomain("beekeeper-lab.com")
@@ -233,6 +235,9 @@ class ScribeVaultQtApp(QApplication):
         
         # Apply custom styles
         current_stylesheet = self.styleSheet()
+        custom_styles = custom_styles.replace(
+            '"Segoe UI", Arial, sans-serif', FONT_FAMILY_CSS
+        )
         self.setStyleSheet(current_stylesheet + custom_styles)
         
     def setup_fonts(self):
@@ -244,7 +249,7 @@ class ScribeVaultQtApp(QApplication):
                 self.addApplicationFont(str(font_file))
         
         # Set default application font
-        font = QFont("Segoe UI", 10)
+        font = QFont(FONT_FAMILY, 10)
         self.setFont(font)
         
     def setup_system_tray(self):

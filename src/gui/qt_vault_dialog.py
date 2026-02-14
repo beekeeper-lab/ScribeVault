@@ -34,6 +34,7 @@ from vault.manager import VaultManager, VaultException
 from gui.qt_summary_viewer import SummaryViewerDialog
 from export.transcription_exporter import TranscriptionExporter
 from export.utils import sanitize_title, create_unique_subfolder, validate_path_within
+from utils import format_duration, format_file_size, parse_datetime, open_with_system_app
 import logging
 
 logger = logging.getLogger(__name__)
@@ -407,34 +408,24 @@ class VaultDialog(QDialog):
 
             # Duration
             duration = recording.get("duration", 0)
-            duration_str = self.format_duration(duration)
+            duration_str = format_duration(duration)
             self.recordings_table.setItem(
                 row, 2, QTableWidgetItem(duration_str)
             )
 
             # Created date
             created_at = recording.get("created_at", "")
-            if created_at:
-                try:
-                    # Parse and format datetime
-                    if isinstance(created_at, str):
-                        dt = datetime.fromisoformat(
-                            created_at.replace("Z", "+00:00")
-                        )
-                    else:
-                        dt = created_at
-                    created_str = dt.strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    created_str = str(created_at)
-            else:
-                created_str = "Unknown"
+            dt = parse_datetime(created_at) if created_at else None
+            created_str = dt.strftime("%Y-%m-%d %H:%M") if dt else (
+                str(created_at) if created_at else "Unknown"
+            )
             self.recordings_table.setItem(
                 row, 3, QTableWidgetItem(created_str)
             )
 
             # File size
             file_size = recording.get("file_size", 0)
-            size_str = self.format_file_size(file_size)
+            size_str = format_file_size(file_size)
             self.recordings_table.setItem(row, 4, QTableWidgetItem(size_str))
 
             # Store recording data in first item
@@ -528,10 +519,10 @@ class VaultDialog(QDialog):
             ("Title", recording.get("title", "Untitled")),
             ("Filename", recording.get("filename", "Unknown")),
             ("Category", recording.get("category", "other").title()),
-            ("Duration", self.format_duration(recording.get("duration", 0))),
+            ("Duration", format_duration(recording.get("duration", 0))),
             (
                 "File Size",
-                self.format_file_size(recording.get("file_size", 0)),
+                format_file_size(recording.get("file_size", 0)),
             ),
             ("Created", recording.get("created_at", "Unknown")),
         ]
@@ -1265,9 +1256,9 @@ class VaultDialog(QDialog):
             lines.append(f"**Filename:** {fname}\n")
             cat = recording.get("category", "other").title()
             lines.append(f"**Category:** {cat}\n")
-            dur = self.format_duration(recording.get("duration", 0))
+            dur = format_duration(recording.get("duration", 0))
             lines.append(f"**Duration:** {dur}\n")
-            fsize = self.format_file_size(recording.get("file_size", 0))
+            fsize = format_file_size(recording.get("file_size", 0))
             lines.append(f"**File Size:** {fsize}\n")
             created = recording.get("created_at", "Unknown")
             lines.append(f"**Created:** {created}\n")
@@ -1335,22 +1326,7 @@ class VaultDialog(QDialog):
                 )
                 return
 
-            import platform
-            import subprocess
-
-            system = platform.system()
-            if system == "Windows":
-                os.startfile(str(vault_path))
-            elif system == "Darwin":  # macOS
-                subprocess.run(
-                    ["open", str(vault_path)],
-                    check=True,
-                )
-            else:  # Linux and others
-                subprocess.run(
-                    ["xdg-open", str(vault_path)],
-                    check=True,
-                )
+            open_with_system_app(vault_path)
 
         except Exception as e:
             logger.error(f"Error opening vault folder: {e}")
@@ -1397,16 +1373,7 @@ class VaultDialog(QDialog):
             return
 
         try:
-            import platform
-            import subprocess
-
-            system = platform.system()
-            if system == "Windows":
-                os.startfile(str(audio_file))
-            elif system == "Darwin":
-                subprocess.run(["open", str(audio_file)])
-            else:
-                subprocess.run(["xdg-open", str(audio_file)])
+            open_with_system_app(audio_file)
 
             self.update_status(f"Playing {filename}")
         except Exception as e:
@@ -1508,26 +1475,6 @@ class VaultDialog(QDialog):
 
         save_btn.clicked.connect(save_changes)
         dialog.exec()
-
-    def format_duration(self, seconds: float) -> str:
-        """Format duration in seconds to MM:SS format."""
-        if not seconds or seconds <= 0:
-            return "0:00"
-
-        minutes = int(seconds // 60)
-        seconds = int(seconds % 60)
-        return f"{minutes}:{seconds:02d}"
-
-    def format_file_size(self, bytes_size: int) -> str:
-        """Format file size to human readable format."""
-        if not bytes_size or bytes_size <= 0:
-            return "0 B"
-
-        for unit in ["B", "KB", "MB", "GB"]:
-            if bytes_size < 1024:
-                return f"{bytes_size:.1f} {unit}"
-            bytes_size /= 1024
-        return f"{bytes_size:.1f} TB"
 
     def update_count_label(self, count: int):
         """Update the recordings count label."""
