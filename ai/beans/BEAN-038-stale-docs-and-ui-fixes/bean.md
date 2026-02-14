@@ -8,7 +8,7 @@
 | Title     | Stale Documentation & UI Fixes |
 | Type      | enhancement |
 | Priority  | P3 |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |

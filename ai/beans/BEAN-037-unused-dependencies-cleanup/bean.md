@@ -8,7 +8,7 @@
 | Title     | Requirements Cleanup & Security Bounds |
 | Type      | enhancement |
 | Priority  | P2 |
-| Status    | Approved     |
+| Status    | In Progress  |
 | Created   | 2026-02-13   |
 | Started   |              |
 | Completed |              |
