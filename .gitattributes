@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Binary image files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+
+# Audio files
+*.wav binary
+*.mp3 binary
+*.m4a binary
+*.flac binary
+*.ogg binary
+*.aac binary
+*.wma binary

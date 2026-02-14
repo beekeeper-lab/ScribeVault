@@ -8,11 +8,11 @@
 | Title     | Root-Level Test Files & Repo Hygiene |
 | Type      | enhancement |
 | Priority  | P0 |
-| Status    | In Progress  |
+| Status    | Done         |
 | Created   | 2026-02-13   |
-| Started   |              |
-| Completed |              |
-| Duration  |              |
+| Started   | 2026-02-14   |
+| Completed | 2026-02-14   |
+| Duration  | 1 session    |
 
 ## Problem Statement
 
@@ -50,31 +50,31 @@ Remove stale root-level files, harden `.gitignore`, and add `.gitattributes` for
 
 ## Acceptance Criteria
 
-- [ ] `summaries/` is untracked and listed in `.gitignore`
-- [ ] No `test_*.py` or utility scripts exist in the project root
-- [ ] `.gitignore` includes `summaries/`, audio formats, cache/coverage patterns, `config/.api_keys.enc`, `config/settings.json`, `config/prompt_templates.json`, `.claude/settings.local.json`
-- [ ] `.claude/settings.local.json` is untracked
-- [ ] `.gitattributes` exists with binary diff settings for image files
-- [ ] PNG images optimized to <200KB each
-- [ ] `git status` shows a clean working tree after committing changes
-- [ ] No test suite regressions
+- [x] `summaries/` is untracked and listed in `.gitignore`
+- [x] No `test_*.py` or utility scripts exist in the project root
+- [x] `.gitignore` includes `summaries/`, audio formats, cache/coverage patterns, `config/.api_keys.enc`, `config/settings.json`, `config/prompt_templates.json`, `.claude/settings.local.json`
+- [x] `.claude/settings.local.json` is untracked
+- [x] `.gitattributes` exists with binary diff settings for image files
+- [x] PNG images optimized to <200KB each (app_icon: 198KB, logo: 193KB)
+- [x] `git status` shows a clean working tree after committing changes
+- [x] No test suite regressions (30 pre-existing failures from missing deps, 0 new)
 
 ## Tasks
 
 | # | Task | Owner | Depends On | Status |
 |---|------|-------|------------|--------|
-| 1 | Remove summaries/ from tracking and add to .gitignore | developer | | TODO |
-| 2 | Delete 12 root-level test/debug/utility scripts | developer | | TODO |
-| 3 | Update .gitignore with all missing patterns | developer | 1 | TODO |
-| 4 | Create .gitattributes for binary file handling | developer | | TODO |
-| 5 | Optimize PNG images | developer | | TODO |
-| 6 | Verify clean state and no regressions | tech-qa | 1-5 | TODO |
+| 1 | Remove summaries/ from tracking and add to .gitignore | developer | | DONE |
+| 2 | Delete 12 root-level test/debug/utility scripts | developer | | DONE |
+| 3 | Update .gitignore with all missing patterns | developer | 1 | DONE |
+| 4 | Create .gitattributes for binary file handling | developer | | DONE |
+| 5 | Optimize PNG images (512x512 quantized) | developer | | DONE |
+| 6 | Verify clean state and no regressions | tech-qa | 1-5 | DONE |
 
 ## Telemetry
 
 | Metric           | Value |
 |------------------|-------|
-| Total Tasks      |       |
+| Total Tasks      | 6     |
 | Total Duration   |       |
 | Total Tokens In  |       |
 | Total Tokens Out |       |
