@@ -2,13 +2,13 @@
 Markdown file generation and management for ScribeVault summaries.
 """
 
-import os
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
 import logging
 
 from export.utils import sanitize_title, secure_mkdir
+from utils import format_duration, parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -65,16 +65,10 @@ class MarkdownGenerator:
             diarized_transcription = recording_data.get('diarized_transcription')
             
             # Parse datetime for formatting
-            try:
-                if isinstance(created_at, str):
-                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                else:
-                    dt = created_at
-            except:
-                dt = datetime.now()
-            
+            dt = parse_datetime(created_at) or datetime.now()
+
             # Format duration
-            duration_str = self._format_duration(duration)
+            duration_str = format_duration(duration, style="descriptive")
             date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
             
             # Category emoji mapping
@@ -152,18 +146,3 @@ class MarkdownGenerator:
             return self._format_diarized_transcription(diarized_transcription)
         return f"```\n{transcription}\n```"
 
-    def _format_duration(self, duration: float) -> str:
-        """Format duration in seconds to human-readable format."""
-        if duration <= 0:
-            return "Unknown"
-        
-        hours = int(duration // 3600)
-        minutes = int((duration % 3600) // 60)
-        seconds = int(duration % 60)
-        
-        if hours > 0:
-            return f"{hours}h {minutes}m {seconds}s"
-        elif minutes > 0:
-            return f"{minutes}m {seconds}s"
-        else:
-            return f"{seconds}s"
