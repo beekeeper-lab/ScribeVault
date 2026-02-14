@@ -217,7 +217,7 @@ class TestEncryptedConfigStorage(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_encrypted_file_version(self):
-        """Encrypted file should have version 2 format."""
+        """Encrypted file should have version 3 format with salt."""
         test_key = "sk-test-secret-key-for-testing-12345"
         self.manager._write_encrypted_key(test_key)
 
@@ -225,8 +225,119 @@ class TestEncryptedConfigStorage(unittest.TestCase):
         with open(enc_path) as f:
             data = json.load(f)
 
-        self.assertEqual(data["version"], 2)
-        self.assertIn(data["method"], ["fernet", "xor"])
+        self.assertEqual(data["version"], 3)
+        self.assertEqual(data["method"], "fernet")
+        self.assertIn("salt", data)
+
+    def test_salt_is_unique_per_write(self):
+        """Each write should produce a different salt."""
+        test_key = "sk-test-secret-key-for-testing-12345"
+        self.manager._write_encrypted_key(test_key)
+        enc_path = self.manager._get_encrypted_config_path()
+        with open(enc_path) as f:
+            salt1 = json.load(f)["salt"]
+
+        self.manager._write_encrypted_key(test_key)
+        with open(enc_path) as f:
+            salt2 = json.load(f)["salt"]
+
+        self.assertNotEqual(salt1, salt2)
+
+
+class TestLegacyEncryptionMigration(unittest.TestCase):
+    """Test migration from legacy version 2 encryption formats."""
+
+    def setUp(self):
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.config_file = self.temp_dir / "settings.json"
+        self.manager = SettingsManager(config_file=str(self.config_file))
+
+    def tearDown(self):
+        if self.temp_dir.exists():
+            shutil.rmtree(self.temp_dir)
+
+    def test_migrate_legacy_fernet(self):
+        """Legacy version 2 Fernet data should be readable and migrated."""
+        import base64
+        import hashlib
+        from cryptography.fernet import Fernet
+
+        test_key = "sk-legacy-fernet-key-for-testing-12345"
+        # Write legacy version 2 fernet format (no salt)
+        import getpass
+        import platform
+        machine_id = (
+            f"ScribeVault-{getpass.getuser()}-{platform.node()}"
+        )
+        legacy_key = hashlib.sha256(machine_id.encode()).digest()
+        fernet = Fernet(base64.urlsafe_b64encode(legacy_key))
+        encrypted = fernet.encrypt(test_key.encode())
+
+        enc_path = self.manager._get_encrypted_config_path()
+        enc_path.parent.mkdir(exist_ok=True)
+        with open(enc_path, "w") as f:
+            json.dump({
+                "version": 2,
+                "data": encrypted.decode(),
+                "method": "fernet",
+            }, f)
+
+        # Read should succeed and auto-migrate
+        result = self.manager._read_encrypted_key()
+        self.assertEqual(result, test_key)
+
+        # File should now be version 3 with salt
+        with open(enc_path) as f:
+            data = json.load(f)
+        self.assertEqual(data["version"], 3)
+        self.assertIn("salt", data)
+
+    def test_migrate_legacy_xor(self):
+        """Legacy version 2 XOR data should be readable and migrated."""
+        import base64
+        import hashlib
+
+        test_key = "sk-legacy-xor-key-for-testing-12345"
+        # Write legacy version 2 XOR format
+        import getpass
+        import platform
+        machine_id = (
+            f"ScribeVault-{getpass.getuser()}-{platform.node()}"
+        )
+        legacy_key = hashlib.sha256(machine_id.encode()).digest()
+        xor_bytes = bytes(
+            b ^ legacy_key[i % len(legacy_key)]
+            for i, b in enumerate(test_key.encode())
+        )
+
+        enc_path = self.manager._get_encrypted_config_path()
+        enc_path.parent.mkdir(exist_ok=True)
+        with open(enc_path, "w") as f:
+            json.dump({
+                "version": 2,
+                "data": base64.urlsafe_b64encode(xor_bytes).decode(),
+                "method": "xor",
+            }, f)
+
+        # Read should succeed and auto-migrate
+        result = self.manager._read_encrypted_key()
+        self.assertEqual(result, test_key)
+
+        # File should now be version 3 with salt
+        with open(enc_path) as f:
+            data = json.load(f)
+        self.assertEqual(data["version"], 3)
+        self.assertIn("salt", data)
+
+    def test_unsupported_version_returns_none(self):
+        """Unsupported version should return None."""
+        enc_path = self.manager._get_encrypted_config_path()
+        enc_path.parent.mkdir(exist_ok=True)
+        with open(enc_path, "w") as f:
+            json.dump({"version": 99, "data": "x", "method": "y"}, f)
+
+        result = self.manager._read_encrypted_key()
+        self.assertIsNone(result)
 
 
 class TestAPIKeyPriorityChain(unittest.TestCase):

@@ -26,11 +26,12 @@ Safely merges a bean's feature branch into the `test` integration branch. Handle
 2. **Read bean status** — Parse `bean.md`. Confirm status is `Done`.
    - If not `Done`: report `BeanNotDone` error and exit.
 3. **Aggregate telemetry** — Before merging, compute and fill the bean's Telemetry summary table:
+   - **Check worker status file first:** Look for `/tmp/scribevault-worker-BEAN-NNN.status` (where NNN matches the bean ID). If it exists and contains `tokens_in` and `tokens_out` values > 0, use those for the bean's Total Tokens In and Total Tokens Out. Also read `duration_seconds` as a fallback for Total Duration if per-task durations are incomplete.
    - Read all per-task rows from the bean's Telemetry table in `bean.md`.
    - **Total Tasks:** count of task rows with data.
-   - **Total Duration:** sum all task durations. Parse `Xm` and `Xh Ym` formats, sum minutes, format result as `Xm` (under 1h) or `Xh Ym` (1h+).
-   - **Total Tokens In:** sum all Tokens In values (parse comma-formatted numbers). Format result with commas.
-   - **Total Tokens Out:** sum all Tokens Out values. Format result with commas.
+   - **Total Duration:** sum all task durations. Parse `Xm` and `Xh Ym` formats, sum minutes, format result as `Xm` (under 1h) or `Xh Ym` (1h+). If per-task durations are incomplete or all `—`, fall back to `duration_seconds` from the status file (convert seconds to `Xm` or `Xh Ym` format).
+   - **Total Tokens In:** use the value from the worker status file if available (> 0). Otherwise sum per-task Tokens In values if any exist. Format result with commas.
+   - **Total Tokens Out:** use the value from the worker status file if available (> 0). Otherwise sum per-task Tokens Out values if any exist. Format result with commas.
    - Write the computed totals to the bean's Telemetry summary table (replacing `—` placeholders).
    - If telemetry data is missing or incomplete, fill what is available and note gaps.
 4. **Derive feature branch name** — Extract from the bean directory name: `bean/BEAN-NNN-<slug>`.

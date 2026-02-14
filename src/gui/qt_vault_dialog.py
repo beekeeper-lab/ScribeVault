@@ -33,7 +33,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, Slot
 from vault.manager import VaultManager, VaultException
 from gui.qt_summary_viewer import SummaryViewerDialog
 from export.transcription_exporter import TranscriptionExporter
-from export.utils import sanitize_title, create_unique_subfolder
+from export.utils import sanitize_title, create_unique_subfolder, validate_path_within
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1226,7 +1226,14 @@ class VaultDialog(QDialog):
             filename = recording.get("filename")
             if filename:
                 audio_src = self.vault_manager.vault_dir / filename
-                if audio_src.exists():
+                try:
+                    validate_path_within(
+                        audio_src, self.vault_manager.vault_dir
+                    )
+                except ValueError as e:
+                    logger.warning(f"Export skipped: {e}")
+                    audio_src = None
+                if audio_src and audio_src.exists():
                     ext = Path(filename).suffix
                     audio_name = f"{safe_title}{ext}"
                     audio_dst = subfolder / audio_name
@@ -1375,6 +1382,14 @@ class VaultDialog(QDialog):
 
         filename = recording.get("filename", "")
         audio_file = Path("recordings") / filename
+        try:
+            validate_path_within(audio_file, Path("recordings"))
+        except ValueError:
+            logger.warning(f"Path traversal blocked in play_audio: {filename}")
+            QMessageBox.warning(
+                self, "Invalid Path", "The audio file path is invalid."
+            )
+            return
         if not audio_file.exists():
             QMessageBox.warning(
                 self, "File Not Found", f"Audio file not found:\n{audio_file}"
