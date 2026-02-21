@@ -61,7 +61,7 @@ class TestVaultManagerGetAudioPath(unittest.TestCase):
 
 
 try:
-    import PySide6  # noqa: F401
+    from PySide6.QtWidgets import QApplication  # noqa: F401
     HAS_PYSIDE6 = True
 except ImportError:
     HAS_PYSIDE6 = False

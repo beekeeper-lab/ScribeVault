@@ -2,11 +2,9 @@
 Vault dialog for ScribeVault PySide6 application.
 """
 
-import os
 import shutil
 from pathlib import Path
 from typing import List, Dict
-from datetime import datetime
 
 from PySide6.QtWidgets import (
     QDialog,

@@ -2,7 +2,6 @@
 AI Summary viewer dialog for ScribeVault PySide6 application.
 """
 
-import os
 from pathlib import Path
 from typing import Optional, Dict
 from datetime import datetime
