@@ -1,0 +1,1 @@
+../kit/commands/docs-update.md

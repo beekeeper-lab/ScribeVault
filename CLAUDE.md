@@ -17,7 +17,10 @@ config/               # User configuration files
 tests/                # pytest test suite
 docs/                 # Documentation
 ai/                   # AI team workspace (context, outputs, beans, tasks)
-.claude/              # Claude Code config (agents, skills, commands, hooks, settings)
+.claude/              # Claude Code config (assembled symlinks)
+  kit/                # claude-kit submodule (shared across projects)
+  local/              # Project-specific skills, commands, agents
+scripts/              # Helper scripts (claude-sync, claude-link, claude-publish)
 ```
 
 ## AI Team
@@ -66,6 +69,28 @@ isort src/ tests/                      # Sort imports
 mypy src/                              # Type check
 python main.py                         # Launch PySide6 GUI
 ```
+
+## Claude Kit (Submodule)
+
+The `.claude/` directory uses a **submodule + local** pattern:
+
+- **`.claude/kit/`** — shared config from `beekeeper-lab/claude-kit` (git submodule)
+- **`.claude/local/`** — project-specific commands, skills, agents (not shared)
+- **`.claude/commands/`, `.claude/skills/`, `.claude/agents/`** — assembled symlinks pointing into `kit/` and `local/`
+- **`.claude/hooks`**, **`.claude/settings.json`** — symlinked from `kit/`
+
+```bash
+# Pull latest kit + rebuild symlinks
+./scripts/claude-sync.sh
+
+# Rebuild symlinks after adding/removing local assets
+./scripts/claude-link.sh
+
+# Push kit changes + parent repo
+./scripts/claude-publish.sh
+```
+
+To promote a local asset to the shared kit, move it from `.claude/local/` into `.claude/kit/`, commit inside the submodule, push, then bump the submodule pointer in this repo.
 
 ## Rules
 

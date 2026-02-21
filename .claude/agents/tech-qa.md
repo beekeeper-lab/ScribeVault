@@ -1,0 +1,1 @@
+../kit/agents/tech-qa.md
