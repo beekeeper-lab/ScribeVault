@@ -1,0 +1,1 @@
+../../kit/.claude/shared/commands/internal/seed-tasks.md

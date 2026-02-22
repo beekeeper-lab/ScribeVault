@@ -1,0 +1,1 @@
+../../kit/.claude/shared/commands/internal/spawn-bean.md

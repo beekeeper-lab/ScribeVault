@@ -1,0 +1,1 @@
+../kit/.claude/shared/commands/review-beans.md

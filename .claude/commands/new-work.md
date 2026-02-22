@@ -1,0 +1,1 @@
+../local/commands/new-work.md
