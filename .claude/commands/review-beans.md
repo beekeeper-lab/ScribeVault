@@ -1,1 +1,0 @@
-../kit/commands/review-beans.md

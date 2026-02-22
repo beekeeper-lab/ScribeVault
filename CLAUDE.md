@@ -17,10 +17,12 @@ config/               # User configuration files
 tests/                # pytest test suite
 docs/                 # Documentation
 ai/                   # AI team workspace (context, outputs, beans, tasks)
-.claude/              # Claude Code config (assembled symlinks)
+.claude/              # Claude Code config (submodule + local)
   kit/                # claude-kit submodule (shared across projects)
+  shared -> kit/.claude/shared  # Single symlink into kit
   local/              # Project-specific skills, commands, agents
-scripts/              # Helper scripts (claude-sync, claude-link, claude-publish)
+  settings.json -> shared/settings.json
+scripts/              # Helper scripts (claude-sync, claude-publish)
 ```
 
 ## AI Team
@@ -75,22 +77,21 @@ python main.py                         # Launch PySide6 GUI
 The `.claude/` directory uses a **submodule + local** pattern:
 
 - **`.claude/kit/`** — shared config from `beekeeper-lab/claude-kit` (git submodule)
+- **`.claude/shared`** — symlink to `kit/.claude/shared` (agents, commands, skills, hooks)
 - **`.claude/local/`** — project-specific commands, skills, agents (not shared)
-- **`.claude/commands/`, `.claude/skills/`, `.claude/agents/`** — assembled symlinks pointing into `kit/` and `local/`
-- **`.claude/hooks`**, **`.claude/settings.json`** — symlinked from `kit/`
+- **`.claude/settings.json`** — symlink to `shared/settings.json`
+
+Claude Code discovers commands, skills, and agents recursively under `.claude/`, so both `.claude/shared/` and `.claude/local/` are found automatically — no assembly step needed.
 
 ```bash
-# Pull latest kit + rebuild symlinks
+# Pull latest kit + sync submodule
 ./scripts/claude-sync.sh
-
-# Rebuild symlinks after adding/removing local assets
-./scripts/claude-link.sh
 
 # Push kit changes + parent repo
 ./scripts/claude-publish.sh
 ```
 
-To promote a local asset to the shared kit, move it from `.claude/local/` into `.claude/kit/`, commit inside the submodule, push, then bump the submodule pointer in this repo.
+To promote a local asset to the shared kit, move it from `.claude/local/` into `.claude/kit/.claude/shared/`, commit inside the submodule, push, then bump the submodule pointer in this repo.
 
 ## Rules
 

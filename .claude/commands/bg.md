@@ -1,1 +1,0 @@
-../kit/commands/bg.md

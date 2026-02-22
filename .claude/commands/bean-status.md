@@ -1,1 +1,0 @@
-../local/commands/bean-status.md
