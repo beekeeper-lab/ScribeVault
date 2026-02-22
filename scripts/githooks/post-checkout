@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# post-checkout — Re-init submodules after branch checkout / worktree creation
+#
+# Git calls this hook with three args:
+#   $1 = previous HEAD
+#   $2 = new HEAD
+#   $3 = flag (1 = branch checkout, 0 = file checkout)
+#
+# Worktrees share the parent repo's .git/hooks/, so this fires in new
+# worktrees automatically.
+
+set -euo pipefail
+
+checkout_flag="${3:-0}"
+
+# Only act on branch checkouts (flag=1), not file checkouts
+[ "$checkout_flag" = "1" ] || exit 0
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Check if the submodule working tree is missing or empty
+if [ ! -d "$REPO_ROOT/.claude/kit/.claude" ]; then
+  echo "[post-checkout] Submodule .claude/kit working tree missing — initializing..."
+  git submodule update --init --recursive
+fi
+
+# Run claude-assemble.sh if available (regenerates discovery symlinks)
+ASSEMBLE="$REPO_ROOT/scripts/claude-assemble.sh"
+if [ -x "$ASSEMBLE" ]; then
+  echo "[post-checkout] Assembling Claude Code discovery symlinks..."
+  "$ASSEMBLE"
+fi
